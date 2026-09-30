@@ -1,0 +1,183 @@
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import React, { act, useEffect } from "react";
+import { Text } from "ink";
+import { render } from "ink-testing-library";
+import { registerComponent, clearRegistry } from "../../src/screen/registry.js";
+import {
+  clearDispatchers,
+  ScenarioManagementProvider,
+} from "../../src/screen/provider.js";
+import { CurrentScreen } from "../../src/screen/current-screen.js";
+import { KeyboardProvider } from "../../src/keyboard/provider.js";
+import {
+  getEngine,
+  withOwner,
+} from "../../src/keyboard/provider/KeyboardProvider.js";
+import {
+  addProcessor,
+  getProcessors,
+  removeProcessor,
+  setProcessorWeight,
+  getCurrentMode,
+  setMode,
+  addAction,
+  hasAction,
+  removeAction,
+} from "../../src/keyboard/moduleApi.js";
+
+function Main() {
+  return <Text>Main</Text>;
+}
+
+/** Never rendered — used as a foreign owner to prove withOwner scoping. */
+function OtherOwner() {
+  return <Text>Other</Text>;
+}
+
+/** Calls the module-level API from its own effect, which React runs BEFORE
+ *  the provider's effects — so it only works if the engine is registered
+ *  during render. */
+let childCallError: unknown = null;
+function ApiChild() {
+  useEffect(() => {
+    try {
+      addProcessor({ id: "from-child", process: () => false });
+    } catch (err) {
+      childCallError = err;
+    }
+  }, []);
+  return <Text>ApiChild</Text>;
+}
+
+async function flush(): Promise<void> {
+  await new Promise<void>((resolve) => setTimeout(resolve, 50));
+}
+
+async function pressKey(
+  stdin: { write: (data: string) => void },
+  key: string,
+): Promise<void> {
+  await act(async () => {
+    stdin.write(key);
+  });
+}
+
+let currentUnmount: (() => void) | null = null;
+
+function renderApp(screen: React.ComponentType = Main) {
+  const app = render(
+    <ScenarioManagementProvider defaultScreen={screen}>
+      <KeyboardProvider modes={["normal", "insert"]} defaultMode="normal">
+        <CurrentScreen />
+      </KeyboardProvider>
+    </ScenarioManagementProvider>,
+  );
+  currentUnmount = app.unmount;
+  return app;
+}
+
+describe("module-level keyboard API", () => {
+  beforeEach(() => {
+    clearRegistry();
+    registerComponent(Main, {});
+  });
+
+  afterEach(() => {
+    currentUnmount?.();
+    currentUnmount = null;
+    clearDispatchers();
+    vi.clearAllMocks();
+  });
+
+  it("throws when no provider is mounted", () => {
+    expect(() => getEngine()).toThrow(/No KeyboardEngine is mounted/);
+  });
+
+  it("forwards processor calls to the mounted engine", async () => {
+    renderApp();
+    await flush();
+
+    expect(getProcessors().some((p) => p.id === "probe")).toBe(false);
+
+    addProcessor({ id: "probe", process: () => false }, { weight: 5 });
+    expect(getProcessors().some((p) => p.id === "probe")).toBe(true);
+
+    expect(setProcessorWeight("probe", 3)).toBe(true);
+    expect(getProcessors().find((p) => p.id === "probe")?.weight).toBe(3);
+
+    expect(removeProcessor("probe")).toBe(true);
+    expect(getProcessors().some((p) => p.id === "probe")).toBe(false);
+  });
+
+  it("drives modes at module level", async () => {
+    renderApp();
+    await flush();
+
+    expect(getCurrentMode()).toBe("normal");
+    setMode("insert");
+    expect(getCurrentMode()).toBe("insert");
+  });
+
+  it("manages shortcut actions at module level", async () => {
+    renderApp();
+    await flush();
+
+    addAction({ actionId: "greet", action: vi.fn(), keys: ["g"] });
+    expect(hasAction("greet")).toBe(true);
+    removeAction("greet");
+    expect(hasAction("greet")).toBe(false);
+  });
+
+  it("withOwner scopes a manual engine binding to the given owner", async () => {
+    const onPage = vi.fn();
+    const onGhost = vi.fn();
+    const { stdin } = renderApp();
+    await flush();
+
+    const offPage = withOwner(Main, () =>
+      getEngine().boundKeyboard(["z"], onPage),
+    );
+    // OtherOwner is not on the screen stack: with the owner pushed, this
+    // binding is scoped to its own layer and must never fire; without the
+    // push it would fall back to the current page and fire on 'x'.
+    const offGhost = withOwner(OtherOwner, () =>
+      getEngine().boundKeyboard(["x"], onGhost),
+    );
+
+    await pressKey(stdin, "z");
+    await pressKey(stdin, "x");
+    await flush();
+
+    expect(onPage).toHaveBeenCalledTimes(1);
+    expect(onGhost).not.toHaveBeenCalled();
+
+    offPage();
+    offGhost();
+    await pressKey(stdin, "z");
+    await flush();
+    expect(onPage).toHaveBeenCalledTimes(1);
+  });
+
+  it("resolves the engine from a child effect", async () => {
+    childCallError = null;
+    registerComponent(ApiChild, {});
+    renderApp(ApiChild);
+    await flush();
+
+    expect(childCallError).toBeNull();
+    expect(getProcessors().some((p) => p.id === "from-child")).toBe(true);
+  });
+
+  it("throws again once the provider unmounts", async () => {
+    const app = renderApp();
+    await flush();
+    expect(getEngine()).toBeDefined();
+
+    await act(async () => {
+      app.unmount();
+    });
+    currentUnmount = null;
+
+    expect(() => getEngine()).toThrow(/No KeyboardEngine is mounted/);
+  });
+});

@@ -36,7 +36,7 @@ A task is not complete until:
 
 **Screen System** (`src/screen/`) — Tree-based navigation via `registerComponent(Component, template, { parent })`. Navigation: `skip()` (down), `back()` (up, `levels` param), `gotoScreen()` (jump via LCA). Layer system: `openLayer()` / `closeLayer()` (ordinary layers) and `openModalLayer()` / `closeModalLayer()` (modal layers with keyboard takeover), each with `applyElement()` / `eraseElement()`, `activateElement()` / `deactivateElement()`, and `closeAllLayer()` / `closeAllModalLayer()` variants. All nav and layer functions work as React hooks AND module-level imports (`_dispatchers` Set). `ScenarioManagementProvider` wraps the app; `CurrentScreen` renders the active screen.
 
-**Keyboard System** (`src/keyboard/`) — Framework-agnostic keyboard engine (`KeyboardEngine` class) with React adapter (`KeyboardProvider`). Layered key bindings via 9-stage pipeline (highest to lowest priority): Modal → Composition (affectLayer:true) → GlobalSequence (affectLayer:true) → GlobalKeys (affectLayer:true) → Layer broadcast → Composition (affectLayer:false) → GlobalSequence (affectLayer:false) → GlobalKeys (affectLayer:false) → Screen stack (top→bottom). Each stage is an independent processor; the first to return `true` consumes the event (except Layer broadcast, which always returns `false`). Mechanisms: `boundKeyboard()` (per-screen), `penetration()` (pass-through), `stop()` (propagation barrier), `globalKeys()`, `globalSequence()`, `boundSequence()`. Composition engine for flag/needs key chains, mapping key (vim-style remap). Focus: `useFocusState(focusId)`, Tab/Shift+Tab cycling, `focusSet`/`focusNext`/`focusPrev`/`focusCurrent`, named focus groups (`activateFocusGroup`/`kickFocusGroup`). Shortcut/sequence actions, modal modes (`allowModal`/`useModalMissListener`), named conditions, custom processors ordered by `weight` — built-ins use default weights from `builtinProcessorWeights` — (`addProcessor`/`removeProcessor`/`kickProcessor`/`activeProcessor`/`setProcessorWeight` per-instance via `useKeyboard()`). `KeyboardEngine` is exported for non-React frameworks (Vue, Svelte, etc.).
+**Keyboard System** (`src/keyboard/`) — Framework-agnostic keyboard engine (`KeyboardEngine` class) with React adapter (`KeyboardProvider`). Layered key bindings via 9-stage pipeline (highest to lowest priority): Modal → Composition (affectLayer:true) → GlobalSequence (affectLayer:true) → GlobalKeys (affectLayer:true) → Layer broadcast → Composition (affectLayer:false) → GlobalSequence (affectLayer:false) → GlobalKeys (affectLayer:false) → Screen stack (top→bottom). Each stage is an independent processor; the first to return `true` consumes the event (except Layer broadcast, which always returns `false`). Mechanisms: `boundKeyboard()` (per-screen), `penetration()` (pass-through), `stop()` (propagation barrier), `globalKeys()`, `globalSequence()`, `boundSequence()`. Composition engine for flag/needs key chains, mapping key (vim-style remap). Focus: `useFocusState(focusId)`, Tab/Shift+Tab cycling, `focusSet`/`focusNext`/`focusPrev`/`focusCurrent`, named focus groups (`activateFocusGroup`/`kickFocusGroup`). Shortcut/sequence actions, modal modes (`allowModal`/`useModalMissListener`), named conditions, custom processors ordered by `weight` — built-ins use default weights from `builtinProcessorWeights` — (`addProcessor`/`removeProcessor`/`kickProcessor`/`activeProcessor`/`setProcessorWeight` per-instance via `useKeyboard()`). Owner-independent engine operations are also exported as module-level functions (`src/keyboard/moduleApi.ts`, mirroring the screen system's module-level nav — e.g. `addProcessor`, `setMode`, `globalKeys`), `getEngine()`/`withOwner()` allow manual engine access, and `KeyboardProvider` accepts an `engine` prop to inject a pre-built instance. `KeyboardEngine` is exported for non-React frameworks (Vue, Svelte, etc.).
 
 **Component Library** (`packages/`) — 14 `@cartridge-engine/*` packages (badge, confirm-dialog, divider, fold, form, key-hint, number-input, progress-bar, search-bar, search-input, select, spinner, tabs, text-input), each with own `src/`, `tests/`, `package.json`, `vitest.config.ts`, `README.md`. `select` bundles SelectInput + SelectRow + MultiSelectInput + shared tools. All interactive ones use `focusId`. Form system (`Form` + `Field`) with validation context, Ctrl+Enter submit. Components depend on the core via `peerDependencies` (`ink-cartridge`, `ink`, `react`); `search-bar` additionally depends on `@cartridge-engine/text-input`. When adding a package: add it to the root `build` script (before dependents) and to `vitest.config.ts` `projects` and CI's tsc checks.
 
@@ -55,7 +55,7 @@ A task is not complete until:
 - `penetration()` means **pass-through**, NOT "block". Makes keys transparent to lower layers. (Formerly `blockedKey`.)
 - `KeyboardProvider` MUST nest inside `ScenarioManagementProvider`. Reversed silently breaks keyboard.
 - `_dispatch` is set in `useEffect` — unavailable during `componentDidCatch`. Error boundaries calling layer/modal functions will find `_dispatch` is null.
-- `clearShortcutOperations` is a no-op at module level — keyboard state is per-instance via `KeyboardEngine`.
+- The `clearShortcutOperations` re-exported from `@cartridge-engine/keyboard-engine` is a no-op — keyboard state is per-instance via `KeyboardEngine`. The module-level `clearShortcutOperations` exported by `ink-cartridge` forwards to the mounted engine instead.
 - Non-persistent layers and modal layers (`crossPage: false`) are removed on `skip`/`back`/`gotoScreen` (handled in reducer).
 - `useRef<<T>` in TSX is parsed as JSX — must be `useRef<T>` (single `<`).
 - Escape key (`\x1b`) is unreliable with `ink-testing-library`'s `stdin.write`.
@@ -123,6 +123,43 @@ See `agents/rules/testing.md` (loaded when editing `tests/**/*`) and `docs-agent
 - Public API changes → run `npm run docs` to verify typedoc output, then update `src/index.ts`. Docs auto-publish to [GitHub Pages](https://cartridgebox.art/) on push to `main`. All API documentation lives in JSDoc — there are no hand-written API docs.
 - `docs-agents/` is agent reference material (not user-facing docs).
 
+## Changelog
+
+A shipping change needs a changeset: one `.changeset/<name>.md` file. Agents write the **body**; the user decides the bump level (`patch`/`minor`/`major`, never a version number) in the frontmatter — `changesets/action` derives versions. A change spanning several packages shares one file: one frontmatter line per package, one body.
+
+The body MUST be in English, neatly formatted, and use exactly these five sections, always all five and in this order. A section with no related change reads `None` on its own line — never drop the heading.
+
+| Section | Covers | Old type prefix |
+|---------|--------|-----------------|
+| `### Added` | new features / capabilities | `feat` |
+| `### Changed` | behavior, refactor, or docs changes | `refactor`, `docs` |
+| `### Fixed` | bug fixes | `fix` |
+| `### Breaking Changes` | backwards-incompatible changes | `breaking` |
+| `### Tests` | added or updated tests | `test` |
+
+One bullet per item, in English; the section already carries the type, so bullets take **no** type prefix (unlike the old `- **type**(scope): …` format). Applies to changesets written from 2026-10-01 onward — do not retro-reformat older entries.
+
+```md
+---
+"ink-cartridge": minor
+---
+
+### Added
+- Module-level keyboard API: owner-independent engine operations are callable outside React.
+
+### Changed
+None
+
+### Fixed
+None
+
+### Breaking Changes
+None
+
+### Tests
+- `tests/keyboard/module-api.test.tsx` covers module-level forwarding, `withOwner` scoping, and render-time engine registration.
+```
+
 ## Reference docs
 
 | File | Load when |
@@ -146,4 +183,4 @@ See `agents/rules/testing.md` (loaded when editing `tests/**/*`) and `docs-agent
 
 - GitHub CI (`ci.yml`): `npm ci` → `npm run build` → `npm run lint` → tsc check (tests/, examples/, keyboard-engine/tests/, editor/tests/, all 14 package tests/, i18n/theme/event package tests) → `npx vitest run --coverage` on Node 22 & 24 for pushes/PRs to `main`.
 - Release (`release.yml`): `npm run build` + `npm run build -w blots-editor`, then `changesets/action` opens a version PR and publishes on merge (`createGithubReleases: true`).
-- The user generates changesets themselves — never create or edit `.changeset/*.md` files.
+- Agents write the `.changeset/*.md` body (format in [Changelog](#changelog)); the user decides the bump level in the frontmatter.

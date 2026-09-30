@@ -118,3 +118,8 @@ export {
   useModalMissListener,
   useMouseRegion,
 } from "./keyboard/index.js";
+
+// Module-level keyboard API — owner-independent engine operations callable
+// without a React hook, plus the engine accessors that bracket a manual call.
+export * from "./keyboard/moduleApi.js";
+export { getEngine, withOwner } from "./keyboard/index.js";

@@ -30,6 +30,7 @@ Screen navigation and keyboard system demos. Each demo is a self-contained file 
 | layer-system | Layer A/B z-index order, layer broadcast, bubbling, penetration, stop, modal barrier | `npx tsx examples/layer-system/LayerSystem.demo.tsx` |
 | takeover-scope | `automaticTakeoverKeyboard` with a page list (array): layer bindings go dormant only on listed pages and stay active elsewhere | `npx tsx examples/core/takeover-scope.demo.tsx` |
 | bring-to-front | `clickOnRise`/`dragOnRise` + `bringLayerToFront`: draggable panels that raise their layer on click or drag, topmost key routing, modal barrier comparison | `npx tsx examples/core/bring-to-front.demo.tsx` |
+| module-api | Module-level keyboard API driven entirely from plain logic (no `useKeyboard`): `addProcessor`/`setProcessorWeight`/`getProcessors`/`nextMode`/`globalKeys`, plus `getEngine` + `withOwner` for manual page bindings | `npx tsx examples/core/module-api.demo.tsx` |
 
 ## Mouse demos
 

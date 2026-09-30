@@ -48,7 +48,6 @@ export {
   setIfAbsent,
   deleteIfPresent,
   modifyEntryKeys,
-  clearShortcutOperations,
   finalizeBoundKeyboard,
   createModalProcessor,
   createCompositionProcessor,
@@ -100,3 +99,6 @@ export type {
 } from "@cartridge-engine/keyboard-engine";
 
 export type { KeyboardProviderProps } from "./provider/KeyboardProvider.js";
+
+export { getEngine, withOwner } from "./provider/KeyboardProvider.js";
+export * from "./moduleApi.js";
