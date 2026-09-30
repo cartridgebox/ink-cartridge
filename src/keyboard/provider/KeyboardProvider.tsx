@@ -25,6 +25,61 @@ import { isInkSpecialKey, normalizeKeyNames } from "../keyNormalizer.js";
 import type { Layer, ModalLayer } from "../../screen/types/layer.js";
 import { getPath } from "../../screen/provider.js";
 
+/**
+ * Live engines, one per mounted {@link KeyboardProvider}. Module-level calls
+ * resolve against the last registered engine, mirroring the screen system's
+ * `_dispatchers`.
+ */
+const _engine = new Set<KeyboardEngine<ComponentType<any>>>();
+
+/**
+ * Register an engine for module-level access. Called by
+ * {@link KeyboardProvider}; returns an unregister function for effect cleanup.
+ */
+export function registerEngine(engine: KeyboardEngine<ComponentType<any>>) {
+	_engine.add(engine);
+	return () => {
+		_engine.delete(engine);
+	};
+}
+
+/**
+ * Return the most recently mounted engine, so owner-independent operations
+ * can be driven from module scope (see `moduleApi`).
+ *
+ * @throws If no {@link KeyboardProvider} is mounted.
+ */
+export function getEngine(): KeyboardEngine<ComponentType<any>> {
+	if (_engine.size === 0) {
+		throw new Error(
+			`[ink-cartridge] No KeyboardEngine is mounted. Render a <KeyboardProvider> before calling getEngine().`
+		);
+	}
+
+	return [..._engine][_engine.size - 1];
+}
+
+/**
+ * Push `owner` onto the mounted engine's owner stack for the duration of
+ * `fn`, so a manual `getEngine().boundKeyboard(...)` (or any owner-scoped
+ * call) is attributed to that layer/page. The owner is popped in a `finally`
+ * so a throw inside `fn` cannot strand it on the stack.
+ *
+ * @example
+ * ```ts
+ * withOwner(MyPage, () => getEngine().boundKeyboard(['a'], handler));
+ * ```
+ */
+export function withOwner<T>(owner: ComponentType<any> | string, fn: () => T): T {
+	const engine = getEngine();
+	engine.pushOwner(owner);
+	try {
+		return fn();
+	} finally {
+		engine.popOwner(owner);
+	}
+}
+
 function toKeyboardLayerState(
 	layers: Array<Layer | ModalLayer>,
 	currentPath?: React.ComponentType<any>[]
@@ -160,15 +215,30 @@ export interface KeyboardProviderProps {
 	 * `pressStormThreshold`, `degradedDedupDistance`).
 	 */
 	mouseOptions?: MouseOptions;
+
+	/**
+	 * Pre-built engine to use instead of an internally created one. Useful for
+	 * sharing an engine across providers or injecting a configured instance in
+	 * tests. When omitted a fresh {@link KeyboardEngine} is created and kept
+	 * alive across renders via a ref.
+	 */
+	engine?: KeyboardEngine<ComponentType<any>>;
 }
 
 /**
  * Provides the keyboard system to the component tree.
  *
  * Instantiates a {@link KeyboardEngine} (kept alive across renders via a
- * ref), keeps it in sync with the screen system's layer state, and feeds
- * Ink's key events — and mouse events when `mouse` is enabled — into the
- * pipeline. Must be nested inside a {@link ScenarioManagementProvider}.
+ * ref, or supplied via the `engine` prop), keeps it in sync with the screen
+ * system's layer state, and feeds Ink's key events — and mouse events when
+ * `mouse` is enabled — into the pipeline. Must be nested inside a
+ * {@link ScenarioManagementProvider}.
+ *
+ * The engine is registered for module-level access (see `getEngine`,
+ * `withOwner`, and the `moduleApi` functions) during render, not only in an
+ * effect: React runs child effects before the parent's, so effect-only
+ * registration would leave the engine unresolvable for a child that calls the
+ * module-level API from its own effect.
  *
  * @param props - See {@link KeyboardProviderProps}.
  *
@@ -200,12 +270,13 @@ export function KeyboardProvider({
 	autoTab,
 	mouse,
 	mouseOptions,
+	engine: provideEngine
 }: KeyboardProviderProps) {
 	const { currentPath, allLayers, allModalLayers } = useScreenSystem();
 
-	const engineRef = useRef<KeyboardEngine | null>(null);
-	if (!engineRef.current) {
-		engineRef.current = new KeyboardEngine({
+	const internalRef = useRef<KeyboardEngine<ComponentType<any>> | null>(null);
+	if (!internalRef.current) {
+		internalRef.current = provideEngine ?? new KeyboardEngine<ComponentType<any>>({
 			modes,
 			defaultMode: defaultMode ?? undefined,
 			processors,
@@ -215,7 +286,14 @@ export function KeyboardProvider({
 			autoTab,
 		});
 	}
-	const engine = engineRef.current;
+	const engine = internalRef.current;
+
+	// Register during render — not only in an effect — so a child effect that
+	// calls the module-level API resolves the engine: React runs child effects
+	// before the parent's. `registerEngine` is idempotent (Set), and the
+	// effect still unregisters the engine on unmount.
+	registerEngine(engine);
+	useEffect(() => registerEngine(engine), [engine]);
 
 	engine.sync({
 		pagePath: getPath(currentPath),
@@ -310,7 +388,12 @@ export function KeyboardProvider({
 			enableWildcardPriority: engine.enableWildcardPriority.bind(engine),
 			useModalMissListener: engine.useModalMissListener.bind(engine),
 			allowModal: engine.allowModal.bind(engine),
-			readLayer: engine.readLayer.bind(engine),
+			// readLayer is overloaded (component vs layer-id); narrow so the
+			// matching overload is picked.
+			readLayer: (owner) =>
+				typeof owner === "string"
+					? engine.readLayer(owner)
+					: engine.readLayer(owner),
 			getCurrentMode: engine.getCurrentMode.bind(engine),
 			addMode: engine.addMode.bind(engine),
 			removeMode: engine.removeMode.bind(engine),

@@ -35,9 +35,9 @@ import { defaultTargetsSymbol } from "@cartridge-engine/keyboard-engine";
 
 /**
  * Token identifying the owner of a keyboard layer — a layer id string
- * or an arbitrary non-string value.
+ * or the component that owns it.
  */
-export type LayerOwner = unknown | string;
+export type LayerOwner = string | ComponentType<any>;
 
 /**
  * React-side extension of {@link BoundKeyboardOptions}: an optional ref to a
@@ -67,6 +67,9 @@ export type SequenceReactOptions = SequenceOptions & {
  * Exposes the {@link KeyboardEngine} API bound to the engine instance.
  * Layer and element scoping of bindings is handled automatically by
  * {@link useKeyboard}; consume the context directly only when necessary.
+ *
+ * Owner-independent methods are also exported at module level (see
+ * `src/keyboard/moduleApi.ts`) so they can be called outside React.
  */
 export interface KeyboardContextValue {
   boundKeyboard: {
