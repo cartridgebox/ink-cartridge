@@ -14,15 +14,64 @@ import {
   withOwner,
 } from "../../src/keyboard/provider/KeyboardProvider.js";
 import {
-  addProcessor,
-  getProcessors,
-  removeProcessor,
-  setProcessorWeight,
-  getCurrentMode,
-  setMode,
+  abortComposition,
+  activeProcessor,
   addAction,
+  addCondition,
+  addMapping,
+  addMode,
+  addProcessor,
+  addSequenceAction,
+  bufferedCompositionCount,
+  clearAllCompositionKeys,
+  clearCompositionBuffers,
+  clearSequenceOperations,
+  clearShortcutOperations,
+  currentScreenHasSequenceWaiting,
+  defineSequenceAction,
+  defineShortcutAction,
+  enableWildcardPriority,
+  getCompositionContext,
+  getCurrentMode,
+  getGlobalKeys,
+  getGlobalPendingSequence,
+  getGlobalSequences,
+  getHoveredMouseRegion,
+  getLastCompositionEvent,
+  getLastMappingEvent,
+  getProcessors,
+  globalKeys,
+  globalSequence,
   hasAction,
+  hasPendingComposition,
+  hasSequenceAction,
+  kickProcessor,
+  modifyAction,
+  modifySequenceAction,
+  nextMode,
+  prevMode,
+  readLayer,
+  registerMouseRegion,
   removeAction,
+  removeCompositionKey,
+  removeCondition,
+  removeMapping,
+  removeMappingKey,
+  removeMode,
+  removeProcessor,
+  removeSequenceAction,
+  resetProcessors,
+  setCondition,
+  setMode,
+  setProcessorWeight,
+  setValueSchema,
+  subscribeComposition,
+  subscribeFocus,
+  subscribeMapping,
+  thereGlobalQueueWaiting,
+  undoComposition,
+  unregisterMouseRegion,
+  updateCompositionKey,
 } from "../../src/keyboard/moduleApi.js";
 
 function Main() {
@@ -126,6 +175,109 @@ describe("module-level keyboard API", () => {
     expect(hasAction("greet")).toBe(true);
     removeAction("greet");
     expect(hasAction("greet")).toBe(false);
+  });
+
+  it("wires every module-level export to the mounted engine", async () => {
+    renderApp();
+    await flush();
+
+    const cases: Array<[string, () => void]> = [
+      ["globalKeys", () => globalKeys([])],
+      ["getGlobalKeys", () => getGlobalKeys()],
+      ["globalSequence", () => globalSequence([])],
+      ["getGlobalSequences", () => getGlobalSequences()],
+      ["getGlobalPendingSequence", () => getGlobalPendingSequence()],
+      ["thereGlobalQueueWaiting", () => thereGlobalQueueWaiting()],
+      [
+        "currentScreenHasSequenceWaiting",
+        () => currentScreenHasSequenceWaiting(),
+      ],
+      ["subscribeFocus", () => subscribeFocus(() => {})()],
+      ["defineShortcutAction", () => defineShortcutAction([])],
+      [
+        "addAction",
+        () => addAction({ actionId: "a", action: () => {}, keys: ["z"] }),
+      ],
+      ["hasAction", () => hasAction("a")],
+      ["modifyAction", () => modifyAction("a", ["y"])],
+      ["removeAction", () => removeAction("a")],
+      ["clearShortcutOperations", () => clearShortcutOperations()],
+      ["defineSequenceAction", () => defineSequenceAction([])],
+      [
+        "addSequenceAction",
+        () =>
+          addSequenceAction({
+            sequenceActionId: "s",
+            action: () => {},
+            keys: ["g", "g"],
+          }),
+      ],
+      ["hasSequenceAction", () => hasSequenceAction("s")],
+      ["modifySequenceAction", () => modifySequenceAction("s", ["g", "h"])],
+      ["removeSequenceAction", () => removeSequenceAction("s")],
+      ["clearSequenceOperations", () => clearSequenceOperations()],
+      ["readLayer", () => readLayer(Main)],
+      ["getCurrentMode", () => getCurrentMode()],
+      ["addMode", () => addMode("extra")],
+      ["removeMode", () => removeMode("extra")],
+      ["setMode", () => setMode("normal")],
+      ["nextMode", () => nextMode()],
+      ["prevMode", () => prevMode()],
+      ["addCondition", () => addCondition("c", true)],
+      ["setCondition", () => setCondition("c", false)],
+      ["removeCondition", () => removeCondition("c")],
+      ["addProcessor", () => addProcessor({ id: "tmp", process: () => false })],
+      ["removeProcessor", () => removeProcessor("tmp")],
+      ["getProcessors", () => getProcessors()],
+      ["resetProcessors", () => resetProcessors()],
+      ["kickProcessor", () => kickProcessor("modal")],
+      ["activeProcessor", () => activeProcessor("modal")],
+      ["setProcessorWeight", () => setProcessorWeight("modal", 8000)],
+      ["removeCompositionKey", () => removeCompositionKey("nope")],
+      ["clearAllCompositionKeys", () => clearAllCompositionKeys()],
+      ["hasPendingComposition", () => hasPendingComposition()],
+      ["getCompositionContext", () => getCompositionContext()],
+      ["abortComposition", () => abortComposition()],
+      ["updateCompositionKey", () => updateCompositionKey("nope", [], {})],
+      ["setValueSchema", () => setValueSchema({})],
+      ["undoComposition", () => undoComposition()],
+      ["bufferedCompositionCount", () => bufferedCompositionCount()],
+      ["clearCompositionBuffers", () => clearCompositionBuffers()],
+      ["subscribeComposition", () => subscribeComposition(() => {})()],
+      ["getLastCompositionEvent", () => getLastCompositionEvent()],
+      ["addMapping", () => addMapping(["a"], ["b"])],
+      ["removeMappingKey", () => removeMappingKey(["a"])],
+      ["removeMapping", () => removeMapping("a")],
+      ["subscribeMapping", () => subscribeMapping(() => {})()],
+      ["getLastMappingEvent", () => getLastMappingEvent()],
+      [
+        "registerMouseRegion",
+        () =>
+          registerMouseRegion({
+            layerId: "l",
+            regionId: "r",
+            rect: { x: 1, y: 1, width: 1, height: 1 },
+            callbacks: {},
+          }),
+      ],
+      ["unregisterMouseRegion", () => unregisterMouseRegion("l", "r")],
+      ["getHoveredMouseRegion", () => getHoveredMouseRegion()],
+      ["enableWildcardPriority", () => enableWildcardPriority()()],
+    ];
+
+    for (const [name, run] of cases) {
+      let error: unknown = null;
+      try {
+        run();
+      } catch (e) {
+        error = e;
+      }
+      // Every flat export must reach the mounted engine; a "no engine mounted"
+      // error would mean it is not wired to `getEngine()`.
+      expect(
+        `${name}: ${error instanceof Error ? error.message : error}`,
+      ).not.toMatch(/No KeyboardEngine is mounted/);
+    }
   });
 
   it("withOwner scopes a manual engine binding to the given owner", async () => {
