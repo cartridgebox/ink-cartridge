@@ -4,6 +4,8 @@ fallback_models = ["deepseek/deepseek-flash"]
 # This ID is not in PR-Agent's MAX_TOKENS table, so declare the budget explicitly
 # instead of letting it fall back to an unrelated default.
 custom_model_max_tokens = 128000
+# PR-Agent caps every prompt at this regardless of the model's own window.
+max_model_tokens = 128000
 response_language = "en-US"
 output_relevant_configurations = false
 
@@ -25,7 +27,7 @@ require_security_review = true
 
 num_max_findings = 5
 persistent_comment = true
-publish_output_no_suggestions = false
+publish_output_no_suggestions = true
 
 extra_instructions = """\
 Respond in English.
