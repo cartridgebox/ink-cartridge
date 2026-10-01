@@ -139,7 +139,6 @@ dist/
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
-vite.config.ts.timestamp-*
 
 
 .npmrc
@@ -156,5 +155,4 @@ repomix-output.xml
 
 # typedoc — auto-published to GitHub Pages
 documents/
-.vscode/launch.json
 .vscode/launch.json
