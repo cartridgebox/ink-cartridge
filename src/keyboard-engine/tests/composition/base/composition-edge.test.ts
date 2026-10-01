@@ -407,7 +407,10 @@ describe("composition events and registration", () => {
     expect(engine.processKey("3", {})).toBe(true);
     expect(engine.processKey("3", {})).toBe(true);
     // The second press continued via the chain entry, not a fresh head.
+    // Both entries append "3" to steps, so assert the flag they diverge on:
+    // the head sets 'times', the chain entry sets 'action'.
     expect(engine.getCompositionContext().steps).toEqual(["3", "3"]);
+    expect(engine.getCompositionContext().lastFlag).toBe("action");
   });
 });
 
