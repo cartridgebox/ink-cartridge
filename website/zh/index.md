@@ -5,7 +5,7 @@ layout: home
 hero:
   name: "ink-cartridge"
   text: "使用指南"
-  tagline: 基于 React Ink 的终端 UI 组件库——分层键盘引擎、屏幕路由与完整鼠标联动。
+  tagline: "增强而非替换 Ink——为交互密集型终端 UI 提供基础交互层：屏幕系统、分层键盘引擎与完整鼠标联动。"
   actions:
     - theme: brand
       text: 快速开始

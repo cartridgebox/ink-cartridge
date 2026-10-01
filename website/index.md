@@ -5,7 +5,7 @@ layout: home
 hero:
   name: "ink-cartridge"
   text: "Guides"
-  tagline: A React Ink component kit for building terminal UIs — layered keyboard engine, screen routing, and full mouse integration.
+  tagline: "Enhances Ink without replacing it — the foundational interaction layer for interaction-dense terminal UIs: screen system, layered keyboard engine, and full mouse integration."
   actions:
     - theme: brand
       text: Quick Start
