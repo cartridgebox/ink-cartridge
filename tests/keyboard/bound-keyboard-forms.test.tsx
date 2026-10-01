@@ -102,7 +102,7 @@ describe("useKeyboard() boundKeyboard calling forms", () => {
       }
       return <Text>rogue</Text>;
     }
-    render(<Rogue />);
+    unmount = render(<Rogue />).unmount;
     expect(String(caught)).toMatch(/must be called inside a <KeyboardProvider>/);
   });
 

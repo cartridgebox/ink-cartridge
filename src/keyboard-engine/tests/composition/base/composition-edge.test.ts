@@ -378,7 +378,6 @@ describe("composition events and registration", () => {
   });
 
   it("stores distinct entries that share the same key", () => {
-    vi.useFakeTimers();
     const engine = syncEngine();
     // Two entries under "3": a head that sets lastFlag 'times', and a chain
     // entry that needs 'times'. They differ by fingerprint, so both are kept.
@@ -392,7 +391,7 @@ describe("composition events and registration", () => {
         lastFlag: "times",
         steps: [...ctx.steps, "3"],
       }),
-    } as CompositionKey<unknown>);
+    });
     engine.registryCompositionKey({
       key: "3",
       flags: [],
@@ -403,7 +402,7 @@ describe("composition events and registration", () => {
         lastFlag: "action",
         steps: [...ctx.steps, "3"],
       }),
-    } as CompositionKey<unknown>);
+    });
 
     expect(engine.processKey("3", {})).toBe(true);
     expect(engine.processKey("3", {})).toBe(true);
