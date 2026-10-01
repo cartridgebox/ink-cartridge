@@ -404,11 +404,18 @@ describe("composition events and registration", () => {
       }),
     });
 
+    // First press on a fresh chain: only the head entry (needs: []) matches,
+    // so it runs and sets flag 'times'. Asserting here (not just at the end)
+    // proves the head ran first — a resolver that ignored `needs` and always
+    // picked the chain entry would set 'action' already.
     expect(engine.processKey("3", {})).toBe(true);
+    expect(engine.getCompositionContext().steps).toEqual(["3"]);
+    expect(engine.getCompositionContext().lastFlag).toBe("times");
+
+    // Second press: the head no longer matches the pending 'times' flag, so
+    // the chain entry (needs: ['times']) runs and sets 'action'. Both entries
+    // append "3" to steps, so assert the flag they diverge on.
     expect(engine.processKey("3", {})).toBe(true);
-    // The second press continued via the chain entry, not a fresh head.
-    // Both entries append "3" to steps, so assert the flag they diverge on:
-    // the head sets 'times', the chain entry sets 'action'.
     expect(engine.getCompositionContext().steps).toEqual(["3", "3"]);
     expect(engine.getCompositionContext().lastFlag).toBe("action");
   });
