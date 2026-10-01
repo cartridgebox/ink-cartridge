@@ -264,7 +264,9 @@ npm install @cartridge-engine/i18n @cartridge-engine/theme @cartridge-engine/eve
 
 ## Documentation
 
-API docs are auto-published to GitHub Pages on every push to `main`:
+📘 **[Hand-written Guides](https://cartridgebox.art/guide/)** — step-by-step chapters on how to use each API, covering the screen system, keyboard engine, and mouse integration. Available in English and 简体中文.
+
+The guides are written by hand and live in [`website/`](website/); API reference docs are auto-published to GitHub Pages on every push to `main`:
 
 - [ink-cartridge API docs](https://cartridgebox.art/framework/) — screen, keyboard
 - [keyboard-engine API docs](https://cartridgebox.art/engine/) — standalone engine APIs (framework-agnostic)
