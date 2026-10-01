@@ -130,6 +130,18 @@ describe("mapping registration", () => {
     expect(engine.removeMapping("g")).toBe(true);
     expect(engine.removeMapping("g")).toBe(false);
   });
+
+  it("returns false when a key sequence shares the head but differs", () => {
+    const engine = syncEngine();
+    head(engine);
+    expect(engine.addMapping(["g", "h"], ["3"])).toBe(true);
+    // Head key 'g' is registered, but no sequence 'g','j' exists.
+    expect(engine.removeMappingKey(["g", "j"])).toBe(false);
+    // The registered sequence is left intact.
+    expect(engine.processKey("g", {})).toBe(true);
+    expect(engine.processKey("h", {})).toBe(true);
+    expect(engine.getLastMappingEvent()?.type).toBe("completed");
+  });
 });
 
 describe("mapping execution", () => {
@@ -142,6 +154,21 @@ describe("mapping execution", () => {
     expect(engine.processKey("g", {})).toBe(true);
     expect(subscriber).toHaveBeenCalled();
     expect(engine.getLastMappingEvent()?.type).toBe("completed");
+  });
+
+  it("stops notifying a mapping subscriber after unsubscribe", () => {
+    const engine = syncEngine();
+    const subscriber = vi.fn();
+    const unsubscribe = engine.subscribeMapping(subscriber);
+    head(engine);
+    engine.addMapping(["g"], ["3"]);
+    expect(engine.processKey("g", {})).toBe(true);
+    expect(subscriber).toHaveBeenCalled();
+
+    subscriber.mockClear();
+    unsubscribe();
+    expect(engine.processKey("g", {})).toBe(true);
+    expect(subscriber).not.toHaveBeenCalled();
   });
 
   it("starts and completes a multi-key mapping", () => {
@@ -348,6 +375,49 @@ describe("composition events and registration", () => {
     expect(engine.removeCompositionKey("3")).toBe(true);
     expect(engine.removeCompositionKey("3")).toBe(false);
     engine.clearAllCompositionKeys();
+  });
+
+  it("stores distinct entries that share the same key", () => {
+    const engine = syncEngine();
+    // Two entries under "3": a head that sets lastFlag 'times', and a chain
+    // entry that needs 'times'. They differ by fingerprint, so both are kept.
+    engine.registryCompositionKey({
+      key: "3",
+      flags: [],
+      alternativeFlag: "times",
+      needs: [],
+      execute: (ctx) => ({
+        value: 1,
+        lastFlag: "times",
+        steps: [...ctx.steps, "3"],
+      }),
+    });
+    engine.registryCompositionKey({
+      key: "3",
+      flags: [],
+      alternativeFlag: "action",
+      needs: ["times"],
+      execute: (ctx) => ({
+        value: ctx.value,
+        lastFlag: "action",
+        steps: [...ctx.steps, "3"],
+      }),
+    });
+
+    // First press on a fresh chain: only the head entry (needs: []) matches,
+    // so it runs and sets flag 'times'. Asserting here (not just at the end)
+    // proves the head ran first — a resolver that ignored `needs` and always
+    // picked the chain entry would set 'action' already.
+    expect(engine.processKey("3", {})).toBe(true);
+    expect(engine.getCompositionContext().steps).toEqual(["3"]);
+    expect(engine.getCompositionContext().lastFlag).toBe("times");
+
+    // Second press: the head no longer matches the pending 'times' flag, so
+    // the chain entry (needs: ['times']) runs and sets 'action'. Both entries
+    // append "3" to steps, so assert the flag they diverge on.
+    expect(engine.processKey("3", {})).toBe(true);
+    expect(engine.getCompositionContext().steps).toEqual(["3", "3"]);
+    expect(engine.getCompositionContext().lastFlag).toBe("action");
   });
 });
 

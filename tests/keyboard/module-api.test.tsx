@@ -52,6 +52,7 @@ import {
   prevMode,
   readLayer,
   registerMouseRegion,
+  registryCompositionKey,
   removeAction,
   removeCompositionKey,
   removeCondition,
@@ -233,6 +234,16 @@ describe("module-level keyboard API", () => {
       ["kickProcessor", () => kickProcessor("modal")],
       ["activeProcessor", () => activeProcessor("modal")],
       ["setProcessorWeight", () => setProcessorWeight("modal", 8000)],
+      [
+        "registryCompositionKey",
+        () =>
+          registryCompositionKey({
+            key: "z",
+            flags: [],
+            needs: [],
+            alternativeFlag: "z",
+          }),
+      ],
       ["removeCompositionKey", () => removeCompositionKey("nope")],
       ["clearAllCompositionKeys", () => clearAllCompositionKeys()],
       ["hasPendingComposition", () => hasPendingComposition()],
