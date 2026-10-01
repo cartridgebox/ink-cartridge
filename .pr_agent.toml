@@ -1,6 +1,6 @@
 [config]
-model = "deepseek/deepseek-v4.1-flash"
-fallback_models = ["deepseek/deepseek-v4.1-flash"]
+model = "deepseek/deepseek-flash"
+fallback_models = ["deepseek/deepseek-flash"]
 # This ID is not in PR-Agent's MAX_TOKENS table, so declare the budget explicitly
 # instead of letting it fall back to an unrelated default.
 custom_model_max_tokens = 128000
