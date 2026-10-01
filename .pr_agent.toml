@@ -1,0 +1,93 @@
+[config]
+model = "deepseek/deepseek-v4.1-flash"
+fallback_models = ["deepseek/deepseek-v4.1-flash"]
+# This ID is not in PR-Agent's MAX_TOKENS table, so declare the budget explicitly
+# instead of letting it fall back to an unrelated default.
+custom_model_max_tokens = 128000
+response_language = "en-US"
+output_relevant_configurations = false
+
+ignore_pr_title = ["^\\[Auto\\]", "^Auto", "^\\[Bot\\]"]
+ignore_pr_labels = ["dependencies", "skip-review"]
+
+max_files_in_context = 50
+
+enable_auto_approval = false
+
+repo_context_files = ["AGENTS.md", "docs-agents/coding-patterns.md", "agents/rules/testing.md"]
+
+[pr_reviewer]
+require_tests_review = true
+require_score_review = true
+require_estimate_effort_to_review = true
+require_focused_review = false
+require_security_review = true
+
+num_max_findings = 5
+persistent_comment = true
+publish_output_no_suggestions = false
+
+extra_instructions = """\
+Respond in English.
+
+ink-cartridge enhances Ink without replacing it. It is the foundational interaction layer for
+interaction-dense, multi-page terminal UIs, not an all-in-one framework and not a component kit:
+- Screen system — screen-as-component: register any component into a tree and navigate with
+  skip / back / gotoScreen; stackable layers and modal layers via openLayer / openModalLayer.
+- Keyboard system — a layered engine with a 9-stage resolution pipeline (modal → composition →
+  global sequence/keys → layer broadcast → screen stack), a focus system, key composition and
+  sequences, and mouse/keyboard focus coordination. The same engine also ships as a
+  framework-agnostic `@cartridge-engine/keyboard-engine` and a module-level API.
+- Standalone packages `@cartridge-engine/i18n`, `theme`, `event`, `init` are imported on demand.
+
+Important context for review:
+- The `@cartridge-engine/*` component packages under `packages/` (badge, select, form, ...) are
+  DEPRECATED and no longer maintained. Do not request new features or style changes in them.
+- `packages/cartridge-ui/` (`@cartridge-engine/ui`) is the rewritten successor and is pre-1.0:
+  its APIs are explicitly unstable, so treat churn there as expected rather than a defect.
+- `packages/editor/` is a standalone app (`blots-editor`), not a component package.
+
+Review against the project's own conventions (AGENTS.md and the referenced rule files). Focus on
+correctness, security, and test coverage gaps. Project-specific checks:
+- Type safety: flag `any` and `as` unless the code carries a comment justifying the assertion;
+  prefer `unknown` narrowed by type guards.
+- JSX only: `React.createElement` is forbidden in new code.
+- Tests: a new behavior test is only valid if proven by a manual mutation test (break the
+  implementation, confirm the test fails, restore). Flag behavior tests that never assert real behavior.
+- Changelog: a shipping change needs one `.changeset/*.md` file with exactly five sections in order
+  (Added, Changed, Fixed, Breaking Changes, Tests); each empty section reads `None`, and bullets
+  carry no type prefix. Flag a missing or malformed changeset.
+- Public API changes must be reflected in `src/index.ts`.
+
+Some conventions involve deliberate trade-offs. When a choice looks like a violation but may be
+intentional, ask for the rationale instead of flagging it.
+
+Do not modify code automatically. Do not merge PRs. Only provide review comments and test suggestions.
+"""
+
+[pr_description]
+publish_labels = false
+add_original_user_description = true
+keep_original_user_title = true
+generate_ai_title = true
+enable_pr_diagram = false
+publish_description_as_comment = true
+
+[pr_code_suggestions]
+num_code_suggestions_per_chunk = 3
+suggestions_score_threshold = 7
+commitable_code_suggestions = false
+focus_only_on_problems = true
+
+[pr_test]
+extra_instructions = """\
+Follow the project's own test conventions (AGENTS.md and agents/rules/testing.md).
+- Placement: core tests in `tests/`; per-package tests in `packages/<pkg>/tests/base/`;
+  `blots-editor` in `packages/editor/tests/`.
+- Black-box, concise, non-redundant. Use `ink-testing-library` with synchronous `render()`;
+  wrap `stdin.write()` in `act()` and flush effects (50ms).
+- Call `clearRegistry()` in `beforeEach`; call `clearDispatchers()` for module-level isolation.
+- Import same-package sources relatively; cross-package/core by package name.
+- Cover normal path, error path, and boundary conditions. English comments only.
+- A behavior test must be provably effective: breaking the implementation should make it fail.
+"""
