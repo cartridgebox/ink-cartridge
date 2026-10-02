@@ -600,7 +600,7 @@ describe("undo removes only the sequences it actually undid", () => {
 describe("when-gated composition entries are distinct and selectable", () => {
 	it("keeps entries differing only by their string when and picks the open one", () => {
 		const engine = syncEngine();
-		engine.addCondition("a", false);
+		engine.addCondition("a", true);
 		engine.addCondition("b", true);
 		const first = vi.fn((ctx: CompositionContext) => ({
 			value: 1,
@@ -629,10 +629,16 @@ describe("when-gated composition entries are distinct and selectable", () => {
 			execute: second,
 		});
 
-		// Two entries differ only by their `when`, so both are kept. The
-		// "a"-gated one is filtered out before resolution, leaving "b".
+		// Two entries differ only by their `when`, so both are kept.
+		// Both gates open: resolution keeps the first-registered entry.
 		expect(engine.processKey("3", {})).toBe(true);
-		expect(first).not.toHaveBeenCalled();
-		expect(second).toHaveBeenCalled();
+		expect(first).toHaveBeenCalledTimes(1);
+		expect(second).not.toHaveBeenCalled();
+
+		// Closing the first gate must expose the sibling, not an empty set.
+		// If dedup had merged the two entries, this key would fall through.
+		engine.setCondition("a", false);
+		expect(engine.processKey("3", {})).toBe(true);
+		expect(second).toHaveBeenCalledTimes(1);
 	});
 });
