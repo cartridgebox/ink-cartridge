@@ -1345,15 +1345,21 @@ export default class CompositionEngine<TComponent = unknown> {
 		return false;
 	}
 
-	private validateInput(lastFlag: string | null, entryKey: string): boolean {
-		if (!this.valueSchema || !lastFlag) return true;
-		const guard = this.valueSchema[lastFlag];
+	/**
+	 * Validate the chain value against the guard registered for its current
+	 * flag. Takes the context explicitly — a mapped chain's value lives in
+	 * `runTargetChain`'s local context while it runs, so reading
+	 * `this.context` here would check the engine's idle value instead.
+	 */
+	private validateInput(currentCtx: CompositionContext, entryKey: string): boolean {
+		if (!this.valueSchema || !currentCtx.lastFlag) return true;
+		const guard = this.valueSchema[currentCtx.lastFlag];
 		if (!guard) return true;
-		if (!guard(this.context.value)) {
+		if (!guard(currentCtx.value)) {
 			if (process.env.NODE_ENV !== "production") {
 				console.warn(
 					`[keyboard-engine] Composition key "${entryKey}": input value from flag ` +
-						`"${lastFlag}" failed type guard — clearing pending chain.`,
+						`"${currentCtx.lastFlag}" failed type guard — clearing pending chain.`,
 				);
 			}
 			return false;
@@ -1525,7 +1531,7 @@ export default class CompositionEngine<TComponent = unknown> {
 		result: CompositionKey<TComponent>,
 		currentCtx: CompositionContext,
 	): KeyOutcome {
-		if (!this.validateInput(currentCtx.lastFlag, result.key)) {
+		if (!this.validateInput(currentCtx, result.key)) {
 			return {
 				ok: false,
 				reason: "input",

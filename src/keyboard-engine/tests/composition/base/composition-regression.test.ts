@@ -432,6 +432,23 @@ describe("mapped target chains obey the same gates as typed keys", () => {
 		expect(engine.getLastMappingEvent()?.type).toBe("broken");
 	});
 
+	it("validates a continuation target key against the mapped chain's value", () => {
+		const engine = syncEngine();
+		engine.setValueSchema({
+			times: (v): v is number => typeof v === "number",
+			action: (v): v is number => typeof v === "number",
+		});
+		head(engine); // "3" → 1, flag times
+		cont(engine); // "w" → ctx.value, flag action
+		expect(engine.addMapping(["g", "h"], ["3", "w"])).toBe(true);
+
+		// The guard must see the mapped chain's value (1), not the engine's
+		// idle context — otherwise typing "3 w" works but the mapping breaks.
+		expect(engine.processKey("g", {})).toBe(true);
+		expect(engine.processKey("h", {})).toBe(true);
+		expect(engine.getLastMappingEvent()?.type).toBe("completed");
+	});
+
 	it("uses the declared flag transition when execute returns a null lastFlag", () => {
 		const engine = syncEngine();
 		head(engine);
