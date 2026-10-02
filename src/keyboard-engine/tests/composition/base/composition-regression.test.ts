@@ -627,6 +627,13 @@ describe("undo removes only the sequences it actually undid", () => {
 		expect(engine.undoComposition(1, { isolated: true })).toBeNull();
 		expect(undoW).toHaveBeenCalledTimes(1);
 		expect(undoQ).toHaveBeenCalledTimes(1);
+		// No active chain afterwards: `undo` reset the context up front, so
+		// no flag from the undone chain leaks into the next resolution.
+		expect(engine.getCompositionContext()).toEqual({
+			value: undefined,
+			lastFlag: null,
+			steps: [],
+		});
 		// The sequence is truncated, not dropped: exactly one entry ("3")
 		// survives, so a by-key undo of two has nothing to walk.
 		expect(() => engine.undoComposition(2, { byKey: true })).toThrow();
