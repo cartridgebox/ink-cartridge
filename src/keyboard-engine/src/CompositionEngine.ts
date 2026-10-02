@@ -1079,10 +1079,15 @@ export default class CompositionEngine<TComponent = unknown> {
 			}
 		}
 
+		// Remove exactly what was undone before the early return: isolated
+		// mode can stop partway through the newest sequence, so entries may
+		// have run even though no sequence completed (`currentCtx === null`).
+		// Leaving them buffered would replay their undo actions next time.
+		this.removeLastBufferedEntries(undoneEntries);
+
 		if (currentCtx === null) return null;
 
 		this.context = currentCtx;
-		this.removeLastBufferedEntries(undoneEntries);
 		this.state.compositionEngineHandle = false;
 		this.notify({ type: "undone", steps });
 		return currentCtx;

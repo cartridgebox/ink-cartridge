@@ -445,7 +445,7 @@ describe("mapped target chains obey the same gates as typed keys", () => {
 				lastFlag: null,
 				steps: [...ctx.steps, "w"],
 			}),
-		} as CompositionKey<unknown>);
+		});
 		// "e" only continues from the declared "chained" flag, never "fallback".
 		engine.registryCompositionKey({
 			key: "e",
@@ -457,7 +457,7 @@ describe("mapped target chains obey the same gates as typed keys", () => {
 				lastFlag: "done",
 				steps: [...ctx.steps, "e"],
 			}),
-		} as CompositionKey<unknown>);
+		});
 		expect(engine.addMapping(["g", "h", "j"], ["3", "w", "e"])).toBe(true);
 
 		expect(engine.processKey("g", {})).toBe(true);
@@ -478,7 +478,7 @@ describe("a released single-key mapping does not fall through to composition", (
 			alternativeFlag: "times",
 			needs: [],
 			execute: () => null,
-		} as CompositionKey<unknown>);
+		});
 		expect(engine.addMapping(["g"], ["bad"])).toBe(true);
 
 		const gExec = vi.fn((ctx: CompositionContext) => ({
@@ -491,7 +491,7 @@ describe("a released single-key mapping does not fall through to composition", (
 			alternativeFlag: "gflag",
 			needs: [],
 			execute: gExec,
-		} as CompositionKey<unknown>);
+		});
 
 		expect(engine.processKey("g", {})).toBe(false);
 		expect(engine.getLastMappingEvent()?.type).toBe("broken");
@@ -518,7 +518,7 @@ describe("undo removes only the sequences it actually undid", () => {
 				steps: [...ctx.steps, key],
 			}),
 			undoAction,
-		} as CompositionKey<unknown>);
+		});
 	}
 
 	it("keeps the older sequence whose undoAction stops the walk (isolated)", () => {
@@ -554,6 +554,47 @@ describe("undo removes only the sequences it actually undid", () => {
 		expect(engine.undoComposition(2)).not.toBeNull();
 		expect(engine.bufferedCompositionCount()).toBe(1);
 	});
+
+	it("truncates a partially-undone sequence and never replays its actions", () => {
+		const engine = syncEngine();
+		const stop = vi.fn(() => null);
+		const undoW = vi.fn((ctx: CompositionContext) => ({ ...ctx, value: 0 }));
+		const undoQ = vi.fn((ctx: CompositionContext) => ({ ...ctx, value: 0 }));
+		head(engine, { undoAction: stop }); // "3" → times
+		cont(engine, { undoAction: undoW }); // "w" → action, needs times
+		engine.registryCompositionKey({
+			key: "q",
+			flags: [],
+			alternativeFlag: "done",
+			needs: ["action"],
+			execute: (ctx) => ({
+				value: ctx.value,
+				lastFlag: "done",
+				steps: [...ctx.steps, "q"],
+			}),
+			undoAction: undoQ,
+		});
+
+		engine.processKey("3", {});
+		engine.processKey("w", {});
+		engine.processKey("q", {});
+		engine.abortComposition();
+		expect(engine.bufferedCompositionCount()).toBe(1);
+
+		// Newest-first: "q" and "w" undo, then "3" stops the walk — no
+		// sequence completes, so the walk returns null. The two undone
+		// entries must still be removed so their actions cannot run twice.
+		expect(engine.undoComposition(1, { isolated: true })).toBeNull();
+		expect(undoW).toHaveBeenCalledTimes(1);
+		expect(undoQ).toHaveBeenCalledTimes(1);
+		// The sequence is truncated, not dropped: exactly one entry ("3")
+		// survives, so a by-key undo of two has nothing to walk.
+		expect(() => engine.undoComposition(2, { byKey: true })).toThrow();
+
+		engine.undoComposition(1, { isolated: true });
+		expect(undoW).toHaveBeenCalledTimes(1);
+		expect(undoQ).toHaveBeenCalledTimes(1);
+	});
 });
 
 describe("when-gated composition entries are distinct and selectable", () => {
@@ -578,7 +619,7 @@ describe("when-gated composition entries are distinct and selectable", () => {
 			needs: [],
 			when: "a",
 			execute: first,
-		} as CompositionKey<unknown>);
+		});
 		engine.registryCompositionKey({
 			key: "3",
 			flags: [],
@@ -586,7 +627,7 @@ describe("when-gated composition entries are distinct and selectable", () => {
 			needs: [],
 			when: "b",
 			execute: second,
-		} as CompositionKey<unknown>);
+		});
 
 		// Two entries differ only by their `when`, so both are kept. The
 		// "a"-gated one is filtered out before resolution, leaving "b".
