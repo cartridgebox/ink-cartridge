@@ -31,7 +31,7 @@ ink-cartridge is not an all-in-one framework. Most business logic is implemented
 - **Screen as component** — Any React component *can be* a screen. Register it into a tree and navigate with `skip` / `back` / `gotoScreen`. No hand-written conditional rendering.
 - **Layered keyboard engine** — Each screen owns its key bindings. A 9-stage pipeline resolves conflicts between modal layers, layers, global keys, and the screen stack. The focus system partitions keys within the same layer.
 
-> **Note:** The standalone component packages under `packages/` (`@cartridge-engine/*`) are deprecated and will no longer be maintained. A rewritten component set will replace them.
+> **Note:** The standalone component packages under `packages/discarded/` (`@cartridge-engine/*`) are deprecated and will no longer be maintained. A rewritten component set will replace them.
 
 
 ## Quick Start
