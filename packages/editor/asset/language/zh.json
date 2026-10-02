@@ -9,7 +9,7 @@
   "settings.language.zh": "中文",
   "settings.sensitivity.cursor": "光标滚动灵敏度",
   "settings.sensitivity.view": "视图滚动灵敏度",
-  "settings.sensitivity.hint": "点击或拖动调整",
+  "settings.slider.hint": "点击或拖动调整",
   "settings.back": "返回",
   "editor.mode.insert": "插入",
   "editor.mode.normal": "普通",
@@ -31,6 +31,8 @@
   "settings.fileTreeRoot": "文件树根目录",
   "settings.fileTreeRoot.startup": "启动目录",
   "settings.fileTreeRoot.custom": "自定义路径",
+  "settings.mergeWindow": "撤销合并时间",
+  "settings.mergeWindow.off": "关闭",
   "settings.ok": "确定",
   "settings.cancel": "取消"
 }

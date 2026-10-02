@@ -92,6 +92,9 @@ export class EditorSession {
 			return { ok: false, error: "Binary file" };
 		}
 		this._controller.document.setText(text);
+		// Recorded positions refer to the previous text, so the history is
+		// meaningless once the document is replaced.
+		this._controller.history.clear();
 		this._filePath = filePath;
 		// Hash the NORMALIZED document text, not the raw disk bytes: the
 		// document normalizes CRLF to LF, so hashing the raw text would

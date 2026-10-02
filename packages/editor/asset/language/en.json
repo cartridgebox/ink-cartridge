@@ -9,7 +9,7 @@
   "settings.language.zh": "中文",
   "settings.sensitivity.cursor": "Cursor Wheel Sensitivity",
   "settings.sensitivity.view": "View Scroll Sensitivity",
-  "settings.sensitivity.hint": "Click or drag to adjust",
+  "settings.slider.hint": "Click or drag to adjust",
   "settings.back": "Back",
   "editor.mode.insert": "INSERT",
   "editor.mode.normal": "NORMAL",
@@ -31,6 +31,8 @@
   "settings.fileTreeRoot": "FileTree Root",
   "settings.fileTreeRoot.startup": "Startup directory",
   "settings.fileTreeRoot.custom": "Custom path",
+  "settings.mergeWindow": "Undo Merge Window",
+  "settings.mergeWindow.off": "Off",
   "settings.ok": "OK",
   "settings.cancel": "Cancel"
 }

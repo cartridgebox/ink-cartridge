@@ -11,19 +11,32 @@ import type { Document } from "./document.js";
  */
 
 export type EditOperation = {
-	apply(doc: Document): void;
+	/**
+	 * Apply the edit in place. Returns false when the edit was a no-op (the
+	 * document is unchanged), so history can skip recording a dead step.
+	 */
+	apply(doc: Document): boolean;
 	invert(doc: Document): void;
+	/**
+	 * Absorb a following edit into this one so the two share a single undo
+	 * step (e.g. two adjacent insertions form one typed run). Returns true
+	 * after folding `next` in, or false when the edit kind differs and they
+	 * must stay separate. History calls this only for edits whose cursors are
+	 * adjacent and within its merge window, so contiguity can be assumed.
+	 */
+	merge?(next: EditOperation): boolean;
 };
 
 /** Insert a string at the cursor; invert deletes exactly the inserted text. */
 export class InsertTextOp implements EditOperation {
-	constructor(private readonly text: string) {}
+	constructor(private text: string) {}
 
-	apply(doc: Document): void {
+	apply(doc: Document): boolean {
 		const { line, logical } = doc.cursor;
 		const cur = doc.getLine(line);
 		doc.setLine(line, cur.slice(0, logical) + this.text + cur.slice(logical));
 		doc.setCursor(line, logical + this.text.length);
+		return true;
 	}
 
 	invert(doc: Document): void {
@@ -33,6 +46,15 @@ export class InsertTextOp implements EditOperation {
 		doc.setLine(line, cur.slice(0, start) + cur.slice(logical));
 		doc.setCursor(line, start);
 	}
+
+	/** Merge only with another insertion; anything else ends the typed run. */
+	merge(next: EditOperation): boolean {
+		if (!(next instanceof InsertTextOp)) {
+			return false;
+		}
+		this.text += next.text;
+		return true;
+	}
 }
 
 /** Backspace: delete the char before the cursor, or join with the previous line at column 0. */
@@ -40,7 +62,7 @@ export class DeleteBeforeOp implements EditOperation {
 	private _deletedChar = "";
 	private _joined = false;
 
-	apply(doc: Document): void {
+	apply(doc: Document): boolean {
 		const { line, logical } = doc.cursor;
 		if (logical > 0) {
 			const cur = doc.getLine(line);
@@ -53,6 +75,7 @@ export class DeleteBeforeOp implements EditOperation {
 			this._joined = false;
 			doc.setLine(line, cur.slice(0, logical - units) + cur.slice(logical));
 			doc.setCursor(line, logical - units);
+			return true;
 		} else if (line > 0) {
 			const prev = doc.getLine(line - 1);
 			const cur = doc.getLine(line);
@@ -60,7 +83,9 @@ export class DeleteBeforeOp implements EditOperation {
 			doc.removeLineAt(line);
 			doc.setCursor(line - 1, prev.length);
 			this._joined = true;
+			return true;
 		}
+		return false;
 	}
 
 	invert(doc: Document): void {
@@ -88,7 +113,7 @@ export class DeleteAfterOp implements EditOperation {
 	private _deletedChar = "";
 	private _joined = false;
 
-	apply(doc: Document): void {
+	apply(doc: Document): boolean {
 		const { line, logical } = doc.cursor;
 		const cur = doc.getLine(line);
 		if (logical < cur.length) {
@@ -100,12 +125,15 @@ export class DeleteAfterOp implements EditOperation {
 			this._deletedChar = cur.slice(logical, logical + units);
 			this._joined = false;
 			doc.setLine(line, cur.slice(0, logical) + cur.slice(logical + units));
+			return true;
 		} else if (line < doc.lineCount - 1) {
 			const next = doc.getLine(line + 1);
 			doc.setLine(line, cur + next);
 			doc.removeLineAt(line + 1);
 			this._joined = true;
+			return true;
 		}
+		return false;
 	}
 
 	invert(doc: Document): void {
@@ -127,12 +155,13 @@ export class DeleteAfterOp implements EditOperation {
 
 /** Enter: split the current line at the cursor; invert rejoins the two lines. */
 export class SplitLineOp implements EditOperation {
-	apply(doc: Document): void {
+	apply(doc: Document): boolean {
 		const { line, logical } = doc.cursor;
 		const cur = doc.getLine(line);
 		doc.setLine(line, cur.slice(0, logical));
 		doc.insertLineAt(line + 1, cur.slice(logical));
 		doc.setCursor(line + 1, 0);
+		return true;
 	}
 
 	invert(doc: Document): void {
@@ -153,20 +182,29 @@ export class SplitLineOp implements EditOperation {
  */
 export class JoinLineOp implements EditOperation {
 	private _joinAt = 0;
+	private _joined = false;
 
-	apply(doc: Document): void {
+	apply(doc: Document): boolean {
+		this._joined = false;
 		const { line } = doc.cursor;
 		if (line >= doc.lineCount - 1) {
-			return;
+			return false;
 		}
 		const cur = doc.getLine(line);
 		const next = doc.getLine(line + 1);
 		this._joinAt = cur.length;
+		this._joined = true;
 		doc.setLine(line, cur + next);
 		doc.removeLineAt(line + 1);
+		return true;
 	}
 
 	invert(doc: Document): void {
+		// apply() no-ops on the last line; inverting that split would corrupt
+		// the document, so mirror the no-op.
+		if (!this._joined) {
+			return;
+		}
 		const { line } = doc.cursor;
 		const cur = doc.getLine(line);
 		doc.setLine(line, cur.slice(0, this._joinAt));
@@ -176,12 +214,13 @@ export class JoinLineOp implements EditOperation {
 
 /** Indent the current line by `indentWidth` spaces, moving the cursor along. */
 export class IndentOp implements EditOperation {
-	apply(doc: Document): void {
+	apply(doc: Document): boolean {
 		const { line, logical } = doc.cursor;
 		const cur = doc.getLine(line);
 		const spaces = " ".repeat(doc.indentWidth);
 		doc.setLine(line, spaces + cur);
 		doc.setCursor(line, logical + doc.indentWidth);
+		return true;
 	}
 
 	invert(doc: Document): void {
@@ -196,7 +235,7 @@ export class IndentOp implements EditOperation {
 export class OutdentOp implements EditOperation {
 	private _removed = 0;
 
-	apply(doc: Document): void {
+	apply(doc: Document): boolean {
 		const { line, logical } = doc.cursor;
 		const cur = doc.getLine(line);
 		const leading = /^ */.exec(cur)?.[0].length ?? 0;
@@ -205,7 +244,9 @@ export class OutdentOp implements EditOperation {
 		if (remove > 0) {
 			doc.setLine(line, cur.slice(remove));
 			doc.setCursor(line, Math.max(0, logical - remove));
+			return true;
 		}
+		return false;
 	}
 
 	invert(doc: Document): void {
