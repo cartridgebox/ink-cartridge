@@ -9,7 +9,7 @@
   "settings.language.zh": "中文",
   "settings.sensitivity.cursor": "Cursor Wheel Sensitivity",
   "settings.sensitivity.view": "View Scroll Sensitivity",
-  "settings.sensitivity.hint": "Click or drag to adjust",
+  "settings.slider.hint": "Click or drag to adjust",
   "settings.back": "Back",
   "editor.mode.insert": "INSERT",
   "editor.mode.normal": "NORMAL",

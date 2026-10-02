@@ -39,6 +39,23 @@ export function snapValue(
 	return Math.min(max, Math.max(min, value + dir * step));
 }
 
+/**
+ * Value for a click on cell `localX` (0-based) of a bar that renders exactly
+ * `steps` cells. The last cell must select `max`, so the ratio runs
+ * `localX / (steps - 1)` — dividing by `steps` would leave the final step
+ * (e.g. 2000 ms, or the 10× sensitivity) unreachable by mouse.
+ */
+export function valueFromBarX(
+	localX: number,
+	min: number,
+	max: number,
+	step: number,
+): number {
+	const steps = stepsFor(min, max, step);
+	// A zero-width bar (single value) can only mean `min`; avoid /0.
+	return steps <= 1 ? min : valueFromRatio(localX / (steps - 1), min, max, step);
+}
+
 type SliderProps = {
 	value: number;
 	min: number;
@@ -59,8 +76,7 @@ type SliderProps = {
  */
 export function Slider({ value, min, max, step, onChange, onCommit, hint }: SliderProps) {
 	const steps = stepsFor(min, max, step);
-	const valueFromX = (localX: number) =>
-		valueFromRatio(localX / steps, min, max, step);
+	const valueFromX = (localX: number) => valueFromBarX(localX, min, max, step);
 	// priority 1: the bar sits inside the draggable ModalFrame, whose region
 	// overlaps it — the child control must always win the hit test, no matter
 	// the registration order after frame drags.
@@ -107,7 +123,7 @@ export function SensitivityBar({ value, onChange, onCommit }: SensitivityBarProp
 			step={SENSITIVITY_STEP}
 			onChange={onChange}
 			onCommit={onCommit}
-			hint={t("settings.sensitivity.hint")}
+			hint={t("settings.slider.hint")}
 		/>
 	);
 }

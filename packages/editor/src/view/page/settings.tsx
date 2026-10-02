@@ -256,7 +256,7 @@ function MergeWindowPicker() {
 				step={MERGE_WINDOW_STEP}
 				onChange={setMergeWindowDraft}
 				onCommit={commit}
-				hint={t("settings.sensitivity.hint")}
+				hint={t("settings.slider.hint")}
 			/>
 			<Text>
 				{value === MERGE_WINDOW_MIN
