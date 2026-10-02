@@ -8,6 +8,7 @@ import {
 	DeleteBeforeOp,
 	InsertTextOp,
 	JoinLineOp,
+	OutdentOp,
 	SplitLineOp,
 } from "../src/core/document/operations.js";
 import { EditorController } from "../src/core/editor-controller.js";
@@ -120,6 +121,25 @@ describe("History", () => {
 		const doc = docAt("abc", 0, 1);
 		const history = new History();
 		history.run(new JoinLineOp(), doc);
+		expect(doc.lines).toEqual(["abc"]);
+		history.undo(doc);
+		expect(doc.lines).toEqual(["abc"]);
+	});
+
+	it("undoing a no-op delete or outdent leaves the document intact", () => {
+		// Backspace at the document start and outdent with no indentation both
+		// leave the document unchanged; their inverts must too. Each op captures
+		// nothing in that case (`_deletedChar` stays "", `_removed` stays 0), so
+		// the inverse re-inserts an empty string — undo must not corrupt the line.
+		const doc = docAt("abc", 0, 0);
+		const history = new History();
+		history.run(new DeleteBeforeOp(), doc);
+		expect(doc.lines).toEqual(["abc"]);
+		history.undo(doc);
+		expect(doc.lines).toEqual(["abc"]);
+		expect(doc.cursor).toMatchObject({ line: 0, logical: 0 });
+
+		history.run(new OutdentOp(), doc);
 		expect(doc.lines).toEqual(["abc"]);
 		history.undo(doc);
 		expect(doc.lines).toEqual(["abc"]);
