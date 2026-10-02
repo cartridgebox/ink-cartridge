@@ -139,10 +139,13 @@ The body MUST be in English, neatly formatted, and use exactly these five sectio
 
 One bullet per item, in English; the section already carries the type, so bullets take **no** type prefix (unlike the old `- **type**(scope): …` format). Applies to changesets written from 2026-10-01 onward — do not retro-reformat older entries.
 
+The body MUST open with a one-line summary (the "commit line") before the first section. `@changesets/cli/changelog` renders an entry as `- <commit>: <first line of body>` and indents every later line by two spaces, and `@changesets/parse` runs `summary.trim()` — so a leading blank line is stripped and `### Added` would land glued after `- <hash>: `, where GitHub renders it as literal text, not a heading. A non-empty first line pushes `### Added` onto the second line, where the two-space list indent still parses as a heading.
+
 ```md
 ---
 "ink-cartridge": minor
 ---
+Add the module-level keyboard API.
 
 ### Added
 - Module-level keyboard API: owner-independent engine operations are callable outside React.

@@ -15,10 +15,20 @@ import React, {
 	useRef,
 	useState,
 } from "react";
-import type { WheelSensitivity } from "../../core/settings/schema.js";
+import {
+	MERGE_WINDOW_MAX,
+	MERGE_WINDOW_MIN,
+	MERGE_WINDOW_STEP,
+	type WheelSensitivity,
+} from "../../core/settings/schema.js";
 import { useSettings } from "../../core/settings/useSettings.js";
 import { ModalFrame } from "../utils/modal-frame.js";
-import { SensitivityBar, snapSensitivity } from "../utils/sensitivity-bar.js";
+import {
+	SensitivityBar,
+	Slider,
+	snapSensitivity,
+	snapValue,
+} from "../utils/sensitivity-bar.js";
 
 const LANGUAGES = [
 	{ code: "en", labelKey: "settings.language.en" },
@@ -195,6 +205,64 @@ function SensitivityPicker({ sensitivityKey }: SensitivityPickerProps) {
 				onCommit={commit}
 			/>
 			<Text>{value.toFixed(1)}×</Text>
+		</ModalFrame>
+	);
+}
+
+/**
+ * Modal slider for the undo merge window. The bar is drag/click driven;
+ * dragging updates in memory only, release/click persists. `0` disables
+ * merging, so the label reads "off" instead of the bare number.
+ */
+function MergeWindowPicker() {
+	const ctx = useContext(ModalLayerElementContext);
+	const { t } = useI18n();
+	const { boundKeyboard } = useKeyboard();
+	const { closeModalLayer } = useScreenSystem();
+	const { settings, setMergeWindow, setMergeWindowDraft, commit } = useSettings();
+	const value = settings.history.mergeWindow;
+
+	useEffect(() => {
+		if (!ctx) {
+			return;
+		}
+		const snap = (dir: 1 | -1) =>
+			snapValue(value, dir, MERGE_WINDOW_MIN, MERGE_WINDOW_MAX, MERGE_WINDOW_STEP);
+		const unbinds = [
+			boundKeyboard(["left"], () => setMergeWindow(snap(-1)), {
+				elementId: ctx.id,
+			}),
+			boundKeyboard(["right"], () => setMergeWindow(snap(1)), {
+				elementId: ctx.id,
+			}),
+			boundKeyboard(
+				["escape"],
+				() => closeModalLayer(ctx.modalLayer.layerId),
+				{ elementId: ctx.id },
+			),
+		];
+		return () => unbinds.forEach((fn) => fn());
+	}, [boundKeyboard, closeModalLayer, ctx, setMergeWindow, value]);
+
+	return (
+		<ModalFrame
+			title={t("settings.mergeWindow")}
+			footer={<Text dimColor>{t("settings.back")} (Esc)</Text>}
+		>
+			<Slider
+				value={value}
+				min={MERGE_WINDOW_MIN}
+				max={MERGE_WINDOW_MAX}
+				step={MERGE_WINDOW_STEP}
+				onChange={setMergeWindowDraft}
+				onCommit={commit}
+				hint={t("settings.sensitivity.hint")}
+			/>
+			<Text>
+				{value === MERGE_WINDOW_MIN
+					? t("settings.mergeWindow.off")
+					: `${value} ms`}
+			</Text>
 		</ModalFrame>
 	);
 }
@@ -408,6 +476,14 @@ export function SettingsEntries({ onExit }: SettingsEntriesProps) {
 		});
 	}, [applyElementToModalLayer, openModalLayer]);
 
+	const openMergeWindowPicker = useCallback(() => {
+		openModalLayer("merge-window", 50);
+		applyElementToModalLayer("merge-window", {
+			elementId: "merge-window-picker",
+			element: MergeWindowPicker,
+		});
+	}, [applyElementToModalLayer, openModalLayer]);
+
 	const currentLabel =
 		LANGUAGES.find((lang) => lang.code === currentLanguage)?.labelKey ??
 		"settings.language.en";
@@ -441,6 +517,15 @@ export function SettingsEntries({ onExit }: SettingsEntriesProps) {
 						: t("settings.fileTreeRoot.startup"),
 				open: openFileTreePicker,
 			},
+			{
+				id: "merge-window",
+				label: t("settings.mergeWindow"),
+				value:
+					settings.history.mergeWindow === MERGE_WINDOW_MIN
+						? t("settings.mergeWindow.off")
+						: `${settings.history.mergeWindow} ms`,
+				open: openMergeWindowPicker,
+			},
 		],
 		[
 			t,
@@ -449,9 +534,11 @@ export function SettingsEntries({ onExit }: SettingsEntriesProps) {
 			settings.wheel.view,
 			settings.fileTree.root,
 			settings.fileTree.customPath,
+			settings.history.mergeWindow,
 			openLanguagePicker,
 			openSensitivityPicker,
 			openFileTreePicker,
+			openMergeWindowPicker,
 		],
 	);
 

@@ -21,6 +21,10 @@ export type SettingsApi = {
 	setLanguage: (code: string) => void;
 	/** Persist the file-tree root settings. */
 	setFileTree: (fileTree: EditorSettings["fileTree"]) => void;
+	/** Set the undo merge window (ms) and persist it immediately. */
+	setMergeWindow: (ms: number) => void;
+	/** Update the merge window in memory only (while dragging); commit on release. */
+	setMergeWindowDraft: (ms: number) => void;
 };
 
 /**
@@ -51,6 +55,16 @@ export function useSettings(): SettingsApi {
 				settingsStore.persist({ ...settings, language: code }),
 			setFileTree: (fileTree) =>
 				settingsStore.persist({ ...settings, fileTree }),
+			setMergeWindow: (ms) =>
+				settingsStore.persist({
+					...settings,
+					history: { ...settings.history, mergeWindow: ms },
+				}),
+			setMergeWindowDraft: (ms) =>
+				settingsStore.update({
+					...settings,
+					history: { ...settings.history, mergeWindow: ms },
+				}),
 		};
 	}, [settings]);
 }

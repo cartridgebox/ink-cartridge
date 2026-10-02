@@ -31,6 +31,8 @@
   "settings.fileTreeRoot": "FileTree Root",
   "settings.fileTreeRoot.startup": "Startup directory",
   "settings.fileTreeRoot.custom": "Custom path",
+  "settings.mergeWindow": "Undo Merge Window",
+  "settings.mergeWindow.off": "Off",
   "settings.ok": "OK",
   "settings.cancel": "Cancel"
 }

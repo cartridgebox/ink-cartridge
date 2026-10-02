@@ -13,11 +13,19 @@ import type { Document } from "./document.js";
 export type EditOperation = {
 	apply(doc: Document): void;
 	invert(doc: Document): void;
+	/**
+	 * Absorb a following edit into this one so the two share a single undo
+	 * step (e.g. two adjacent insertions form one typed run). Returns true
+	 * after folding `next` in, or false when the edit kind differs and they
+	 * must stay separate. History calls this only for edits whose cursors are
+	 * adjacent and within its merge window, so contiguity can be assumed.
+	 */
+	merge?(next: EditOperation): boolean;
 };
 
 /** Insert a string at the cursor; invert deletes exactly the inserted text. */
 export class InsertTextOp implements EditOperation {
-	constructor(private readonly text: string) {}
+	constructor(private text: string) {}
 
 	apply(doc: Document): void {
 		const { line, logical } = doc.cursor;
@@ -32,6 +40,15 @@ export class InsertTextOp implements EditOperation {
 		const start = logical - this.text.length;
 		doc.setLine(line, cur.slice(0, start) + cur.slice(logical));
 		doc.setCursor(line, start);
+	}
+
+	/** Merge only with another insertion; anything else ends the typed run. */
+	merge(next: EditOperation): boolean {
+		if (!(next instanceof InsertTextOp)) {
+			return false;
+		}
+		this.text += next.text;
+		return true;
 	}
 }
 
@@ -153,8 +170,10 @@ export class SplitLineOp implements EditOperation {
  */
 export class JoinLineOp implements EditOperation {
 	private _joinAt = 0;
+	private _joined = false;
 
 	apply(doc: Document): void {
+		this._joined = false;
 		const { line } = doc.cursor;
 		if (line >= doc.lineCount - 1) {
 			return;
@@ -162,11 +181,17 @@ export class JoinLineOp implements EditOperation {
 		const cur = doc.getLine(line);
 		const next = doc.getLine(line + 1);
 		this._joinAt = cur.length;
+		this._joined = true;
 		doc.setLine(line, cur + next);
 		doc.removeLineAt(line + 1);
 	}
 
 	invert(doc: Document): void {
+		// apply() no-ops on the last line; inverting that split would corrupt
+		// the document, so mirror the no-op.
+		if (!this._joined) {
+			return;
+		}
 		const { line } = doc.cursor;
 		const cur = doc.getLine(line);
 		doc.setLine(line, cur.slice(0, this._joinAt));

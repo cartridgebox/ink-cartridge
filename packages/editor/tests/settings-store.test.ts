@@ -32,6 +32,26 @@ describe("settings schema", () => {
 		).toEqual(DEFAULT_SETTINGS);
 	});
 
+	it("accepts a valid merge window and defaults it", () => {
+		expect(parseSettings({}).history.mergeWindow).toBe(500);
+		expect(
+			parseSettings({ history: { mergeWindow: 0 } }).history.mergeWindow,
+		).toBe(0);
+		expect(
+			parseSettings({ history: { mergeWindow: 1200 } }).history.mergeWindow,
+		).toBe(1200);
+	});
+
+	it("rejects an out-of-range or off-step merge window", () => {
+		// 2500 exceeds the max; 150 is not a 100 step; both fall back wholesale.
+		expect(
+			parseSettings({ history: { mergeWindow: 2500 } }),
+		).toEqual(DEFAULT_SETTINGS);
+		expect(
+			parseSettings({ history: { mergeWindow: 150 } }),
+		).toEqual(DEFAULT_SETTINGS);
+	});
+
 	it("rejects missing keys", () => {
 		expect(parseSettings({})).toEqual(DEFAULT_SETTINGS);
 		expect(parseSettings(null)).toEqual(DEFAULT_SETTINGS);
@@ -93,6 +113,7 @@ describe("SettingsStore", () => {
 			language: "zh",
 			wheel: { cursor: 4, view: 4 },
 			fileTree: { root: "startup", customPath: "" },
+			history: { mergeWindow: 500 },
 		});
 	});
 

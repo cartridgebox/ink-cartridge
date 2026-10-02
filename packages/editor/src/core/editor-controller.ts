@@ -1,7 +1,9 @@
 import { Document } from "./document/document.js";
+import { History } from "./document/history.js";
 import {
 	DeleteAfterOp,
 	DeleteBeforeOp,
+	type EditOperation,
 	IndentOp,
 	InsertTextOp,
 	JoinLineOp,
@@ -14,21 +16,35 @@ export type EditorOptions = {
 };
 
 export type EditorCommandArgs = Record<string, unknown> | undefined;
-export type EditorCommandHandler = (doc: Document, args: EditorCommandArgs) => void;
+
+/**
+ * A command handler. Returning an {@link EditOperation} makes the command
+ * undoable — `execute` routes the operation through the {@link History},
+ * which applies it and records the cursor positions around it. Returning
+ * nothing marks a command that mutates the document directly or only moves
+ * the cursor; neither is recorded.
+ */
+export type EditorCommandHandler = (
+	doc: Document,
+	args: EditorCommandArgs,
+) => EditOperation | void;
+
 type ChangeListener = () => void;
 
 /**
  * Coordinator between the pure core and the keymap/render layers.
  *
  * Owns the document, a command registry (so P2 vim mode only swaps key
- * bindings, never touching the core), and the change-notification channel
- * the view subscribes to. Editing commands run operations that carry their
- * own `invert`; the history stack (P1) will collect them.
+ * bindings, never touching the core), the change-notification channel the
+ * view subscribes to, and the undo/redo {@link History}. Editing commands
+ * return an atomic operation carrying its own `invert`, which `execute`
+ * routes through the history; movement commands return nothing.
  */
 export class EditorController {
 	private readonly _document: Document;
 	private readonly _commands = new Map<string, EditorCommandHandler>();
 	private readonly _listeners = new Set<ChangeListener>();
+	private readonly _history = new History();
 
 	constructor(text: string, options: EditorOptions = {}) {
 		this._document = new Document(text, { indentWidth: options.indentWidth });
@@ -37,6 +53,10 @@ export class EditorController {
 
 	get document(): Document {
 		return this._document;
+	}
+
+	get history(): History {
+		return this._history;
 	}
 
 	onChange(listener: ChangeListener): () => void {
@@ -56,34 +76,35 @@ export class EditorController {
 		if (!handler) {
 			throw new Error(`[ink-cartridge] Unknown editor command: ${id}`);
 		}
-		handler(this._document, args);
+		const op = handler(this._document, args);
+		if (op) {
+			this._history.run(op, this._document);
+		}
 		this._listeners.forEach((fn) => fn());
 	}
 
 	private _registerBuiltins(): void {
-		this.defineCommand("editor.insertText", (doc, args) => {
+		// Editing commands return their operation instead of applying it:
+		// `execute` hands it to the history, which applies it and records the
+		// cursor positions around it (see History.run).
+		this.defineCommand("editor.insertText", (_doc, args) => {
 			const text = typeof args?.text === "string" ? args.text : "";
-			if (text) {
-				new InsertTextOp(text).apply(doc);
-			}
+			return text ? new InsertTextOp(text) : undefined;
 		});
-		this.defineCommand("editor.deleteBefore", (doc) => {
-			new DeleteBeforeOp().apply(doc);
+		this.defineCommand("editor.deleteBefore", () => new DeleteBeforeOp());
+		this.defineCommand("editor.deleteAfter", () => new DeleteAfterOp());
+		this.defineCommand("editor.splitLine", () => new SplitLineOp());
+		this.defineCommand("editor.joinLine", () => new JoinLineOp());
+		this.defineCommand("editor.indent", () => new IndentOp());
+		this.defineCommand("editor.outdent", () => new OutdentOp());
+
+		// Undo/redo drive the history directly; they are not edits themselves,
+		// so they return nothing and are never recorded.
+		this.defineCommand("history.undo", () => {
+			this._history.undo(this._document);
 		});
-		this.defineCommand("editor.deleteAfter", (doc) => {
-			new DeleteAfterOp().apply(doc);
-		});
-		this.defineCommand("editor.splitLine", (doc) => {
-			new SplitLineOp().apply(doc);
-		});
-		this.defineCommand("editor.joinLine", (doc) => {
-			new JoinLineOp().apply(doc);
-		});
-		this.defineCommand("editor.indent", (doc) => {
-			new IndentOp().apply(doc);
-		});
-		this.defineCommand("editor.outdent", (doc) => {
-			new OutdentOp().apply(doc);
+		this.defineCommand("history.redo", () => {
+			this._history.redo(this._document);
 		});
 
 		this.defineCommand("cursor.moveLeft", (doc) => doc.moveLeft());

@@ -31,6 +31,8 @@
   "settings.fileTreeRoot": "文件树根目录",
   "settings.fileTreeRoot.startup": "启动目录",
   "settings.fileTreeRoot.custom": "自定义路径",
+  "settings.mergeWindow": "撤销合并时间",
+  "settings.mergeWindow.off": "关闭",
   "settings.ok": "确定",
   "settings.cancel": "取消"
 }

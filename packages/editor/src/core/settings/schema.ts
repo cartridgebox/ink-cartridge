@@ -17,6 +17,24 @@ export const sensitivitySchema = z
 	.step(0.5)
 	.default(1);
 
+/** Undo coalescing range in ms; `0` disables merging. */
+export const MERGE_WINDOW_MIN = 0;
+export const MERGE_WINDOW_MAX = 2000;
+export const MERGE_WINDOW_STEP = 100;
+export const MERGE_WINDOW_DEFAULT = 500;
+
+/**
+ * Consecutive mergeable edits closer than this (ms) collapse into one undo
+ * step. `0` turns merging off, so every edit is its own step.
+ */
+export const mergeWindowSchema = z
+	.number()
+	.int()
+	.min(MERGE_WINDOW_MIN)
+	.max(MERGE_WINDOW_MAX)
+	.multipleOf(MERGE_WINDOW_STEP)
+	.default(MERGE_WINDOW_DEFAULT);
+
 const DEFAULT_WHEEL = { cursor: 1, view: 3 } as const;
 
 /** File-tree root source: the process startup directory or a custom path. */
@@ -41,16 +59,24 @@ export const settingsSchema = z.object({
 			customPath: z.string().default(""),
 		})
 		.default({ root: "startup", customPath: "" }),
+	history: z
+		.object({
+			/** Undo coalescing window in ms; see {@link mergeWindowSchema}. */
+			mergeWindow: mergeWindowSchema,
+		})
+		.default({ mergeWindow: MERGE_WINDOW_DEFAULT }),
 });
 
 export type EditorSettings = z.infer<typeof settingsSchema>;
 export type WheelSensitivity = EditorSettings["wheel"];
 export type FileTreeSettings = EditorSettings["fileTree"];
+export type HistorySettings = EditorSettings["history"];
 
 export const DEFAULT_SETTINGS: EditorSettings = {
 	language: "en",
 	wheel: DEFAULT_WHEEL,
 	fileTree: { root: "startup", customPath: "" },
+	history: { mergeWindow: MERGE_WINDOW_DEFAULT },
 };
 
 /** Parse an unknown persisted value, falling back to defaults on any failure. */

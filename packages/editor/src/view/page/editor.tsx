@@ -195,6 +195,12 @@ export function Editor({
 		return boundKeyboard(["ctrl+tab"], () => setToolbarOpen((open) => !open));
 	}, [boundKeyboard]);
 
+	// Keep the coalescing window in step with the persisted setting; edits
+	// closer together than it share one undo step (0 disables merging).
+	useEffect(() => {
+		controller.history.setMergeWindow(settings.history.mergeWindow);
+	}, [controller, settings.history.mergeWindow]);
+
 	useEffect(() => {
 		const removeWildcard = enableWildcardPriority();
 		const unbinds: (() => void)[] = [];
@@ -310,6 +316,9 @@ export function Editor({
 		bind([":"], () => openCommandBar(), { mode: "normal" });
 		// Ctrl+S saves in normal mode (Vim-style; insert stays untouched).
 		bind(["ctrl+s"], () => session.save(), { mode: "normal" });
+		// Undo/redo also live in normal mode; insert stays untouched.
+		bind(["u"], () => controller.execute("history.undo"), { mode: "normal" });
+		bind(["ctrl+r"], () => controller.execute("history.redo"), { mode: "normal" });
 
 		return () => {
 			removeWildcard();
