@@ -60,11 +60,11 @@ export function valueFromBarX(
 /**
  * Filled-cell count for `value` on the `min..max` bar, matching
  * {@link valueFromBarX}: cell `i` selects `min + i*step`, so the value's own
- * cell is filled and everything left of it too (empty at `min`, full at
- * `max`). Deriving the count from that integer cell index — rather than from
- * the value's fraction of the range — keeps the fill aligned with the click
- * mapping: a proportional `fraction * (steps + 1)` rounds unevenly and skips a
- * cell at the midpoint.
+ * cell is filled and everything left of it too — one cell at `min`, the whole
+ * bar at `max`. Deriving the count from that integer cell index — rather than
+ * from the value's fraction of the range — keeps the fill aligned with the
+ * click mapping: a proportional `fraction * (steps + 1)` rounds unevenly and
+ * skips a cell at the midpoint.
  */
 export function filledCells(
 	value: number,
