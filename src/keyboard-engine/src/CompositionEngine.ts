@@ -1565,12 +1565,16 @@ export default class CompositionEngine<TComponent = unknown> {
 	 * (head of chain); subsequent iterations feed the previous step's
 	 * `lastFlag` forward.
 	 *
-	 * On any failure (no entries after filter, resolve returns null,
-	 * `executeResolvedKey` reports a failure) the chain is interrupted. The
-	 * returned `swallow` flag mirrors
-	 * {@link MappingKeyEntry.KeyReleaseWhenChainInterrupted}: when true, the
-	 * breaking key is silently consumed rather than released to lower
-	 * pipeline stages.
+	 * On any failure (no entries after filter, resolve returns null, a gate
+	 * rejects the key) the chain is interrupted. The returned `swallow` flag
+	 * mirrors {@link MappingKeyEntry.KeyReleaseWhenChainInterrupted}: when
+	 * true, the breaking key is silently consumed rather than released to
+	 * lower pipeline stages.
+	 *
+	 * Chains that end by design (`execute` returned `null`, or an end key
+	 * matched) still hand the keys executed so far to the undo ledger, and an
+	 * end key counts as completion rather than interruption — the same
+	 * outcomes the typed path produces.
 	 *
 	 * @param entry        The locked-in mapping key candidate.
 	 * @param ctx          Current pipeline context (for affectOverlay / category / mode filtering).
@@ -1615,7 +1619,21 @@ export default class CompositionEngine<TComponent = unknown> {
 
 			const outcome = this.executeResolvedKey(result, currentCtx);
 			if (!outcome.ok) {
-				return interrupted;
+				// A chain that ends by design — an end key matched, or
+				// `execute` returned `null` — records the keys executed so
+				// far, exactly as typing them would; gate rejections and
+				// resolve failures drop the partial chain.
+				if (
+					outcome.reason === "terminate" ||
+					outcome.reason === "endkey"
+				) {
+					if (executed.length > 0) {
+						this.buffers.push(executed);
+					}
+				}
+				// An end key is the chain's declared finish line, not an
+				// interruption: the mapped sequence completed.
+				return outcome.reason === "endkey" ? { ok: true } : interrupted;
 			}
 
 			currentCtx = outcome.ctx;

@@ -467,6 +467,46 @@ describe("mapped target chains obey the same gates as typed keys", () => {
 	});
 });
 
+describe("a mapped chain that ends by design still reaches the undo ledger", () => {
+	it("completes and records when a target key matches an end key", () => {
+		const engine = syncEngine();
+		const undo3 = vi.fn((ctx: CompositionContext) => ({ ...ctx, value: 0 }));
+		head(engine, { undoAction: undo3 });
+		cont(engine, { isEndKey: ["times"] });
+		expect(engine.addMapping(["g", "h"], ["3", "w"])).toBe(true);
+
+		expect(engine.processKey("g", {})).toBe(true);
+		expect(engine.processKey("h", {})).toBe(true);
+		// The end key is the chain's declared finish line, not an interruption.
+		expect(engine.getLastMappingEvent()?.type).toBe("completed");
+		// Typing "3" then "w" records "3" the same way.
+		expect(engine.bufferedCompositionCount()).toBe(1);
+		expect(engine.undoComposition()).not.toBeNull();
+		expect(undo3).toHaveBeenCalledTimes(1);
+	});
+
+	it("stays broken but records what already executed when execute returns null", () => {
+		const engine = syncEngine();
+		const undo3 = vi.fn((ctx: CompositionContext) => ({ ...ctx, value: 0 }));
+		head(engine, { undoAction: undo3 });
+		engine.registryCompositionKey({
+			key: "q",
+			flags: [],
+			alternativeFlag: "other",
+			needs: ["times"],
+			execute: () => null,
+		});
+		expect(engine.addMapping(["g", "h"], ["3", "q"])).toBe(true);
+
+		expect(engine.processKey("g", {})).toBe(true);
+		expect(engine.processKey("h", {})).toBe(false);
+		expect(engine.getLastMappingEvent()?.type).toBe("broken");
+		expect(engine.bufferedCompositionCount()).toBe(1);
+		expect(engine.undoComposition()).not.toBeNull();
+		expect(undo3).toHaveBeenCalledTimes(1);
+	});
+});
+
 describe("a released single-key mapping does not fall through to composition", () => {
 	it("runs only the mapping, never a composition key sharing the head", () => {
 		const engine = syncEngine();
