@@ -1593,8 +1593,8 @@ export default class CompositionEngine<TComponent = unknown> {
 		// if the user had typed the target keys themselves.
 		const executed: bufferEntry[] = [];
 
-		const interrupted = {
-			ok: false as const,
+		const interrupted: { ok: false; swallow: boolean } = {
+			ok: false,
 			swallow: entry.KeyReleaseWhenChainInterrupted ?? false,
 		};
 
