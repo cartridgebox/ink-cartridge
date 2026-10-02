@@ -595,6 +595,30 @@ describe("undo removes only the sequences it actually undid", () => {
 		expect(engine.bufferedCompositionCount()).toBe(1);
 	});
 
+	it("reports how many sequences were actually undone", () => {
+		const engine = syncEngine();
+		const stop = vi.fn(() => null);
+		head(engine, { undoAction: stop }); // "3" → times, stops the walk
+		cont(engine, { undoAction: (ctx) => ({ ...ctx, value: 0 }) }); // "w"
+		headEntry(engine, "c", (ctx) => ({ ...ctx, value: 0 }));
+
+		engine.processKey("3", {});
+		engine.processKey("w", {});
+		engine.abortComposition();
+		engine.processKey("c", {});
+		engine.abortComposition();
+		expect(engine.bufferedCompositionCount()).toBe(2);
+
+		// "c" is undone, then the "3 w" walk stops at "3", truncating that
+		// sequence. One sequence was undone — not the requested two.
+		expect(engine.undoComposition(2, { isolated: true })).not.toBeNull();
+		expect(engine.getLastCompositionEvent()).toEqual({
+			type: "undone",
+			steps: 1,
+		});
+		expect(engine.bufferedCompositionCount()).toBe(1);
+	});
+
 	it("truncates a partially-undone sequence and never replays its actions", () => {
 		const engine = syncEngine();
 		const stop = vi.fn(() => null);

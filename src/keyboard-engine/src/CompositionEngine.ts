@@ -171,7 +171,9 @@ export interface CompositionUndoneEvent {
 	type: "undone";
 	/**
 	 * Number of undone sequences (or individual keys, when `undo` was
-	 * called with `{ byKey: true }`).
+	 * called with `{ byKey: true }`). A sequence whose `undoAction` returned
+	 * `null` and stopped the walk was not undone — it stays buffered (any
+	 * entries already undone are dropped) and is not counted.
 	 */
 	steps: number;
 }
@@ -1083,13 +1085,16 @@ export default class CompositionEngine<TComponent = unknown> {
 		// mode can stop partway through the newest sequence, so entries may
 		// have run even though no sequence completed (`currentCtx === null`).
 		// Leaving them buffered would replay their undo actions next time.
-		this.removeLastBufferedEntries(undoneEntries);
+		const undoneSequences = this.removeLastBufferedEntries(undoneEntries);
 
 		if (currentCtx === null) return null;
 
 		this.context = currentCtx;
 		this.state.compositionEngineHandle = false;
-		this.notify({ type: "undone", steps });
+		// Report what was actually undone, not what was requested — a walk
+		// stopped by an `undoAction` returning `null` leaves the remaining
+		// sequences buffered.
+		this.notify({ type: "undone", steps: undoneSequences });
 		return currentCtx;
 	}
 
@@ -1097,19 +1102,25 @@ export default class CompositionEngine<TComponent = unknown> {
 	 * Remove the last `n` executed entries from the undo buffers, newest
 	 * first, deleting any sequence that empties out. `n` counts individual
 	 * keys, so a partially-undone sequence is truncated rather than dropped.
+	 *
+	 * @returns The number of sequences that were removed entirely, for the
+	 *          `undone` event's payload.
 	 */
-	private removeLastBufferedEntries(n: number): void {
+	private removeLastBufferedEntries(n: number): number {
 		let remaining = n;
+		let removedSequences = 0;
 		for (let si = this.buffers.length - 1; si >= 0 && remaining > 0; si--) {
 			const seq = this.buffers[si];
 			if (remaining >= seq.length) {
 				remaining -= seq.length;
 				this.buffers.splice(si, 1);
+				removedSequences++;
 			} else {
 				seq.splice(seq.length - remaining, remaining);
 				remaining = 0;
 			}
 		}
+		return removedSequences;
 	}
 
 	/**
