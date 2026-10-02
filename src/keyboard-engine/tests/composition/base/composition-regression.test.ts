@@ -388,3 +388,210 @@ describe("a dropped mapping prefix notifies subscribers", () => {
 		expect(engine.getLastMappingEvent()?.type).toBe("cancelled");
 	});
 });
+
+describe("mapping entries honour their when gate", () => {
+	it("skips a single-key mapping whose gate is closed", () => {
+		const engine = syncEngine();
+		engine.addCondition("on", false);
+		head(engine);
+		expect(engine.addMapping(["g"], ["3"], { when: "on" })).toBe(true);
+
+		// Gate closed — the mapping is skipped and there is no composition
+		// entry for "g", so the key falls through untouched.
+		expect(engine.processKey("g", {})).toBe(false);
+
+		engine.setCondition("on", true);
+		expect(engine.processKey("g", {})).toBe(true);
+		expect(engine.getLastMappingEvent()?.type).toBe("completed");
+	});
+
+	it("re-evaluates the gate on each key of a multi-key mapping", () => {
+		const engine = syncEngine();
+		engine.addCondition("on", true);
+		head(engine);
+		expect(engine.addMapping(["g", "h"], ["3"], { when: "on" })).toBe(true);
+
+		expect(engine.processKey("g", {})).toBe(true);
+		// The gate closes mid-sequence — the pending prefix is dropped.
+		engine.setCondition("on", false);
+		expect(engine.processKey("h", {})).toBe(false);
+		expect(engine.getLastMappingEvent()?.type).toBe("broken");
+	});
+});
+
+describe("mapped target chains obey the same gates as typed keys", () => {
+	it("honours a target key's when gate", () => {
+		const engine = syncEngine();
+		engine.addCondition("on", false);
+		head(engine);
+		cont(engine, { when: "on" });
+		expect(engine.addMapping(["g", "h"], ["3", "w"])).toBe(true);
+
+		expect(engine.processKey("g", {})).toBe(true);
+		expect(engine.processKey("h", {})).toBe(false);
+		expect(engine.getLastMappingEvent()?.type).toBe("broken");
+	});
+
+	it("uses the declared flag transition when execute returns a null lastFlag", () => {
+		const engine = syncEngine();
+		head(engine);
+		engine.registryCompositionKey({
+			key: "w",
+			flags: [{ need: "times", become: "chained" }],
+			alternativeFlag: "fallback",
+			needs: ["times"],
+			execute: (ctx) => ({
+				value: ctx.value,
+				lastFlag: null,
+				steps: [...ctx.steps, "w"],
+			}),
+		} as CompositionKey<unknown>);
+		// "e" only continues from the declared "chained" flag, never "fallback".
+		engine.registryCompositionKey({
+			key: "e",
+			flags: [],
+			alternativeFlag: "done",
+			needs: ["chained"],
+			execute: (ctx) => ({
+				value: ctx.value,
+				lastFlag: "done",
+				steps: [...ctx.steps, "e"],
+			}),
+		} as CompositionKey<unknown>);
+		expect(engine.addMapping(["g", "h", "j"], ["3", "w", "e"])).toBe(true);
+
+		expect(engine.processKey("g", {})).toBe(true);
+		expect(engine.processKey("h", {})).toBe(true);
+		expect(engine.processKey("j", {})).toBe(true);
+		expect(engine.getLastMappingEvent()?.type).toBe("completed");
+	});
+});
+
+describe("a released single-key mapping does not fall through to composition", () => {
+	it("runs only the mapping, never a composition key sharing the head", () => {
+		const engine = syncEngine();
+		// A target that terminates immediately, so the mapping is released
+		// (KeyReleaseWhenChainInterrupted defaults to false).
+		engine.registryCompositionKey({
+			key: "bad",
+			flags: [],
+			alternativeFlag: "times",
+			needs: [],
+			execute: () => null,
+		} as CompositionKey<unknown>);
+		expect(engine.addMapping(["g"], ["bad"])).toBe(true);
+
+		const gExec = vi.fn((ctx: CompositionContext) => ({
+			...ctx,
+			lastFlag: "gflag",
+		}));
+		engine.registryCompositionKey({
+			key: "g",
+			flags: [],
+			alternativeFlag: "gflag",
+			needs: [],
+			execute: gExec,
+		} as CompositionKey<unknown>);
+
+		expect(engine.processKey("g", {})).toBe(false);
+		expect(engine.getLastMappingEvent()?.type).toBe("broken");
+		// The head key matched a mapping, so the composition entry must not
+		// also fire on the same physical key.
+		expect(gExec).not.toHaveBeenCalled();
+	});
+});
+
+describe("undo removes only the sequences it actually undid", () => {
+	function headEntry(
+		engine: ReturnType<typeof createEngine>,
+		key: string,
+		undoAction: NonNullable<CompositionKey<unknown>["undoAction"]>,
+	) {
+		engine.registryCompositionKey({
+			key,
+			flags: [],
+			alternativeFlag: "times",
+			needs: [],
+			execute: (ctx) => ({
+				value: 1,
+				lastFlag: "times",
+				steps: [...ctx.steps, key],
+			}),
+			undoAction,
+		} as CompositionKey<unknown>);
+	}
+
+	it("keeps the older sequence whose undoAction stops the walk (isolated)", () => {
+		const engine = syncEngine();
+		const stop = vi.fn(() => null);
+		headEntry(engine, "a", stop);
+		headEntry(engine, "b", (ctx) => ({ ...ctx, value: 0 }));
+
+		engine.processKey("a", {});
+		engine.abortComposition();
+		engine.processKey("b", {});
+		engine.abortComposition();
+		expect(engine.bufferedCompositionCount()).toBe(2);
+
+		// Newest-first: "b" is undone, then "a" stops the walk.
+		expect(engine.undoComposition(2, { isolated: true })).not.toBeNull();
+		expect(stop).toHaveBeenCalled();
+		// Only "b" was undone; "a" must stay buffered.
+		expect(engine.bufferedCompositionCount()).toBe(1);
+	});
+
+	it("keeps the older sequence whose undoAction stops the walk (flat)", () => {
+		const engine = syncEngine();
+		const stop = vi.fn(() => null);
+		headEntry(engine, "a", stop);
+		headEntry(engine, "b", (ctx) => ({ ...ctx, value: 0 }));
+
+		engine.processKey("a", {});
+		engine.abortComposition();
+		engine.processKey("b", {});
+		engine.abortComposition();
+
+		expect(engine.undoComposition(2)).not.toBeNull();
+		expect(engine.bufferedCompositionCount()).toBe(1);
+	});
+});
+
+describe("when-gated composition entries are distinct and selectable", () => {
+	it("keeps entries differing only by their string when and picks the open one", () => {
+		const engine = syncEngine();
+		engine.addCondition("a", false);
+		engine.addCondition("b", true);
+		const first = vi.fn((ctx: CompositionContext) => ({
+			value: 1,
+			lastFlag: "times",
+			steps: [...ctx.steps, "3"],
+		}));
+		const second = vi.fn((ctx: CompositionContext) => ({
+			value: 2,
+			lastFlag: "times",
+			steps: [...ctx.steps, "3"],
+		}));
+		engine.registryCompositionKey({
+			key: "3",
+			flags: [],
+			alternativeFlag: "times",
+			needs: [],
+			when: "a",
+			execute: first,
+		} as CompositionKey<unknown>);
+		engine.registryCompositionKey({
+			key: "3",
+			flags: [],
+			alternativeFlag: "times",
+			needs: [],
+			when: "b",
+			execute: second,
+		} as CompositionKey<unknown>);
+
+		// Two entries differ only by their `when`, so both are kept. The
+		// "a"-gated one is filtered out before resolution, leaving "b".
+		expect(engine.processKey("3", {})).toBe(true);
+		expect(first).not.toHaveBeenCalled();
+		expect(second).toHaveBeenCalled();
+	});
+});
