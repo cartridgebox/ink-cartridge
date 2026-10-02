@@ -12,7 +12,9 @@ const hooksRules = reactHooks.configs.recommended.rules;
 export default tseslint.config(
   // ── Global ignores ───────────────────────────────────────────
   {
-    ignores: ['dist/**', 'node_modules/**', 'src/keyboard-engine/dist/**', 'packages/*/dist/**'],
+    // `packages/discarded/**` holds archived, no-longer-maintained
+    // component packages — excluded from lint alongside build/vitest/tsc.
+    ignores: ['dist/**', 'node_modules/**', 'src/keyboard-engine/dist/**', 'packages/*/dist/**', 'packages/discarded/**'],
   },
 
   // ── Base recommended rulesets ─────────────────────────────────
