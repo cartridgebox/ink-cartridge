@@ -41,9 +41,10 @@ export function snapValue(
 
 /**
  * Value for a click on cell `localX` (0-based) of a bar that renders exactly
- * `steps` cells. The last cell must select `max`, so the ratio runs
- * `localX / (steps - 1)` — dividing by `steps` would leave the final step
- * (e.g. 2000 ms, or the 10× sensitivity) unreachable by mouse.
+ * `steps + 1` cells — one per value from `min` to `max` inclusive. The ratio
+ * therefore runs `localX / steps`, which is exactly one value per cell; using
+ * `steps` cells instead would have to skip an interior value to still reach
+ * `max` (e.g. 1000 ms, or 5.5×, would be unreachable by mouse).
  */
 export function valueFromBarX(
 	localX: number,
@@ -53,7 +54,7 @@ export function valueFromBarX(
 ): number {
 	const steps = stepsFor(min, max, step);
 	// A zero-width bar (single value) can only mean `min`; avoid /0.
-	return steps <= 1 ? min : valueFromRatio(localX / (steps - 1), min, max, step);
+	return steps <= 0 ? min : valueFromRatio(localX / steps, min, max, step);
 }
 
 type SliderProps = {
@@ -92,12 +93,16 @@ export function Slider({ value, min, max, step, onChange, onCommit, hint }: Slid
 		},
 		{ priority: 1 },
 	);
-	const filled = Math.round((value - min) / step);
+	// One cell per value (min..max inclusive); the fill tracks the value's
+	// fraction of the range, so the bar is empty at `min` and full at `max`.
+	const total = steps + 1;
+	const fraction = max > min ? (value - min) / (max - min) : 0;
+	const filled = Math.round(fraction * total);
 	return (
 		<Box flexDirection="column" alignItems="center" gap={1}>
 			<Box ref={ref} flexDirection="row">
 				<Text>{filled > 0 ? "█".repeat(filled) : ""}</Text>
-				<Text dimColor>{"░".repeat(steps - filled)}</Text>
+				<Text dimColor>{"░".repeat(total - filled)}</Text>
 			</Box>
 			<Text dimColor>{hint}</Text>
 		</Box>

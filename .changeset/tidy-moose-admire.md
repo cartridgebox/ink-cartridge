@@ -16,7 +16,7 @@ Add editor undo/redo with a configurable merge window.
 ### Fixed
 - `JoinLineOp` no longer corrupts the document when undone after a no-op join (cursor on the last line) — its `invert` mirrors the no-op instead of splitting the line.
 - No-op edits (backspace at the document start, outdent with no indentation, join on the last line) no longer record an undo step. Previously a single `u` consumed a dead step — undoing the previous real edit took two presses — and a burst of them could evict genuine history at the stack limit.
-- The wheel-sensitivity and merge-window sliders now reach their maximum on the last cell: the click-to-value mapping divided by the cell count, leaving the top step (10× / 2000 ms) reachable only via the arrow keys.
+- The wheel-sensitivity and merge-window sliders now render one cell per value (`steps + 1` cells spanning `min`..`max`), so a mouse click reaches every value. The old mapping left the top step (10× / 2000 ms) unreachable by mouse, and dividing by the cell count instead would have skipped an interior one (5.5× / 1000 ms).
 
 ### Breaking Changes
 None
@@ -24,5 +24,5 @@ None
 ### Tests
 - `history.test.ts` covers undo/redo, cursor restore after a move, redo invalidation, the stack limit, opening a file clearing history, coalescing (window boundaries, `0` disabling it, and cursor moves breaking a run), that no-op inverts leave the document intact, and that a no-op edit records no undo step.
 - `settings-store.test.ts` covers merge-window validation (range, step, default) and persistence.
-- `sensitivity-bar.test.ts` covers the bar's cell mapping, including that the last cell selects the maximum.
+- `sensitivity-bar.test.ts` covers the bar's cell mapping: the last cell selects the maximum, every value (including interior ones) is reachable, and a single-value range collapses to `min`.
 - `editor-mode.test.tsx` covers the settings-to-history wiring: the persisted merge window drives undo coalescing in the editor.
