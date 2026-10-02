@@ -2,7 +2,7 @@
 
 Single-API demos for ink-cartridge. Each directory contains one demo file per scenario.
 
-> The standalone component packages under `packages/` (`@cartridge-engine/*`) are
+> The standalone component packages under `packages/discarded/` (`@cartridge-engine/*`) are
 > deprecated — their demos have been removed. Only core-system and mouse demos
 > remain.
 
