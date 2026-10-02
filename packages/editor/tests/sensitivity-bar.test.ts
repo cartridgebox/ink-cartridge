@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+	filledCells,
 	snapSensitivity,
 	valueFromBarX,
 	valueFromRatio,
@@ -58,5 +59,25 @@ describe("slider cell mapping", () => {
 	it("collapses a single-value range to min", () => {
 		// stepsFor(5, 5, 1) === 0, so the ratio divisor would be zero.
 		expect(valueFromBarX(3, 5, 5, 1)).toBe(5);
+	});
+});
+
+describe("slider fill mapping", () => {
+	it("fills one cell per value, aligned with the click mapping", () => {
+		// 18 steps → 19 cells. 5.0× is cell 8, so 9 cells fill; 5.5× is cell 9,
+		// so 10 fill. A proportional fill would round to 8 and 10, skipping 9 —
+		// the fill must follow the cell index the click mapping uses.
+		expect(filledCells(5, SENSITIVITY_MIN, SENSITIVITY_MAX, SENSITIVITY_STEP)).toBe(9);
+		expect(filledCells(5.5, SENSITIVITY_MIN, SENSITIVITY_MAX, SENSITIVITY_STEP)).toBe(10);
+	});
+
+	it("lights one cell at min and the whole bar at max", () => {
+		expect(filledCells(0, 0, 2000, 100)).toBe(1); // cell 0 lit
+		expect(filledCells(2000, 0, 2000, 100)).toBe(21); // all 21 cells
+	});
+
+	it("clamps out-of-range values to the bar", () => {
+		expect(filledCells(-100, 0, 2000, 100)).toBe(1);
+		expect(filledCells(9999, 0, 2000, 100)).toBe(21);
 	});
 });

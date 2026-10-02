@@ -57,6 +57,26 @@ export function valueFromBarX(
 	return steps <= 0 ? min : valueFromRatio(localX / steps, min, max, step);
 }
 
+/**
+ * Filled-cell count for `value` on the `min..max` bar, matching
+ * {@link valueFromBarX}: cell `i` selects `min + i*step`, so the value's own
+ * cell is filled and everything left of it too (empty at `min`, full at
+ * `max`). Deriving the count from that integer cell index — rather than from
+ * the value's fraction of the range — keeps the fill aligned with the click
+ * mapping: a proportional `fraction * (steps + 1)` rounds unevenly and skips a
+ * cell at the midpoint.
+ */
+export function filledCells(
+	value: number,
+	min: number,
+	max: number,
+	step: number,
+): number {
+	const total = stepsFor(min, max, step) + 1;
+	const index = Math.round((value - min) / step);
+	return Math.min(total, Math.max(1, index + 1));
+}
+
 type SliderProps = {
 	value: number;
 	min: number;
@@ -93,11 +113,10 @@ export function Slider({ value, min, max, step, onChange, onCommit, hint }: Slid
 		},
 		{ priority: 1 },
 	);
-	// One cell per value (min..max inclusive); the fill tracks the value's
-	// fraction of the range, so the bar is empty at `min` and full at `max`.
+	// One cell per value (min..max inclusive); the fill is derived from the
+	// value's own cell, so it matches what a click on that cell would select.
 	const total = steps + 1;
-	const fraction = max > min ? (value - min) / (max - min) : 0;
-	const filled = Math.round(fraction * total);
+	const filled = filledCells(value, min, max, step);
 	return (
 		<Box flexDirection="column" alignItems="center" gap={1}>
 			<Box ref={ref} flexDirection="row">
