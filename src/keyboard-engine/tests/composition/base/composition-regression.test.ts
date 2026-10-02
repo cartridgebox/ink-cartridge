@@ -595,6 +595,27 @@ describe("undo removes only the sequences it actually undid", () => {
 		expect(engine.bufferedCompositionCount()).toBe(1);
 	});
 
+	it("reports zero when a flat undo only truncates a sequence", () => {
+		const engine = syncEngine();
+		const stop = vi.fn(() => null);
+		head(engine, { undoAction: stop }); // "3" stops the walk
+		cont(engine, { undoAction: (ctx) => ({ ...ctx, value: 0 }) }); // "w"
+
+		engine.processKey("3", {});
+		engine.processKey("w", {});
+		engine.abortComposition();
+
+		// Flat: "w" undoes, then "3" stops the walk. The sequence is
+		// truncated, no sequence completed, and — unlike the isolated path —
+		// the flat path still returns its seeded context.
+		expect(engine.undoComposition(1)).not.toBeNull();
+		expect(engine.getLastCompositionEvent()).toEqual({
+			type: "undone",
+			steps: 0,
+		});
+		expect(engine.bufferedCompositionCount()).toBe(1);
+	});
+
 	it("reports how many sequences were actually undone", () => {
 		const engine = syncEngine();
 		const stop = vi.fn(() => null);

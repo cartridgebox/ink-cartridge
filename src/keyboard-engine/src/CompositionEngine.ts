@@ -174,8 +174,9 @@ export interface CompositionUndoneEvent {
 	 * called with `{ byKey: true }`). A sequence whose `undoAction` returned
 	 * `null` and stopped the walk was not undone — it stays buffered (any
 	 * entries already undone are dropped) and is not counted, so an `undo`
-	 * that only truncated a sequence reports `0` while `undo` itself returns
-	 * `null`.
+	 * that only truncated a sequence reports `0`. In isolated mode such a
+	 * call also returns `null`; the flat path still returns its seeded
+	 * context.
 	 */
 	steps: number;
 }
