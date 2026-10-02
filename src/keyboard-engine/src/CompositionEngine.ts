@@ -173,7 +173,9 @@ export interface CompositionUndoneEvent {
 	 * Number of undone sequences (or individual keys, when `undo` was
 	 * called with `{ byKey: true }`). A sequence whose `undoAction` returned
 	 * `null` and stopped the walk was not undone — it stays buffered (any
-	 * entries already undone are dropped) and is not counted.
+	 * entries already undone are dropped) and is not counted, so an `undo`
+	 * that only truncated a sequence reports `0` while `undo` itself returns
+	 * `null`.
 	 */
 	steps: number;
 }
@@ -1087,7 +1089,16 @@ export default class CompositionEngine<TComponent = unknown> {
 		// Leaving them buffered would replay their undo actions next time.
 		const undoneSequences = this.removeLastBufferedEntries(undoneEntries);
 
-		if (currentCtx === null) return null;
+		if (currentCtx === null) {
+			// The walk stopped before any sequence completed, but a partial
+			// truncation still changed the ledger — subscribers must hear
+			// about it even though the return value is `null`. `steps` is 0
+			// here: no sequence was undone in full.
+			if (undoneEntries > 0) {
+				this.notify({ type: "undone", steps: undoneSequences });
+			}
+			return null;
+		}
 
 		this.context = currentCtx;
 		this.state.compositionEngineHandle = false;

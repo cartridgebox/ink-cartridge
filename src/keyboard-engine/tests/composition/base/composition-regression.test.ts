@@ -651,6 +651,12 @@ describe("undo removes only the sequences it actually undid", () => {
 		expect(engine.undoComposition(1, { isolated: true })).toBeNull();
 		expect(undoW).toHaveBeenCalledTimes(1);
 		expect(undoQ).toHaveBeenCalledTimes(1);
+		// The ledger changed (a truncation), so subscribers are notified even
+		// though no sequence was undone in full and `undo` returned null.
+		expect(engine.getLastCompositionEvent()).toEqual({
+			type: "undone",
+			steps: 0,
+		});
 		// No active chain afterwards: `undo` reset the context up front, so
 		// no flag from the undone chain leaks into the next resolution.
 		expect(engine.getCompositionContext()).toEqual({
