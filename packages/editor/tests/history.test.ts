@@ -126,23 +126,18 @@ describe("History", () => {
 		expect(doc.lines).toEqual(["abc"]);
 	});
 
-	it("undoing a no-op delete or outdent leaves the document intact", () => {
+	it("no-op delete and outdent inverts leave the document intact", () => {
 		// Backspace at the document start and outdent with no indentation both
 		// leave the document unchanged; their inverts must too. Each op captures
 		// nothing in that case (`_deletedChar` stays "", `_removed` stays 0), so
-		// the inverse re-inserts an empty string — undo must not corrupt the line.
-		const doc = docAt("abc", 0, 0);
-		const history = new History();
-		history.run(new DeleteBeforeOp(), doc);
-		expect(doc.lines).toEqual(["abc"]);
-		history.undo(doc);
-		expect(doc.lines).toEqual(["abc"]);
-		expect(doc.cursor).toMatchObject({ line: 0, logical: 0 });
-
-		history.run(new OutdentOp(), doc);
-		expect(doc.lines).toEqual(["abc"]);
-		history.undo(doc);
-		expect(doc.lines).toEqual(["abc"]);
+		// the inverse re-inserts an empty string — it must not corrupt the line.
+		for (const op of [new DeleteBeforeOp(), new OutdentOp()]) {
+			const doc = docAt("abc", 0, 0);
+			op.apply(doc);
+			op.invert(doc);
+			expect(doc.lines).toEqual(["abc"]);
+			expect(doc.cursor).toMatchObject({ line: 0, logical: 0 });
+		}
 	});
 });
 
@@ -268,6 +263,26 @@ describe("EditorController + History", () => {
 		const controller = new EditorController("a");
 		controller.execute("history.undo");
 		expect(controller.document.lines).toEqual(["a"]);
+	});
+
+	it("does not record an edit that changed nothing", () => {
+		// Backspace at the document start and outdent with no indent both no-op;
+		// recording them would make the next `u` consume a dead step (so undoing
+		// the previous real edit would need two presses) and would evict real
+		// history at the limit.
+		const controller = new EditorController("abc");
+		controller.document.setCursor(0, 0);
+		controller.execute("editor.deleteBefore");
+		expect(controller.history.canUndo()).toBe(false);
+		controller.execute("editor.outdent");
+		expect(controller.history.canUndo()).toBe(false);
+
+		// A real edit still records, and one undo reverses it in a single press.
+		controller.document.setCursor(0, 3);
+		controller.execute("editor.insertText", { text: "!" });
+		expect(controller.history.canUndo()).toBe(true);
+		controller.execute("history.undo");
+		expect(controller.document.lines).toEqual(["abc"]);
 	});
 });
 

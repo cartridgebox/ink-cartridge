@@ -62,10 +62,18 @@ export class History {
 	 * caller) keeps the entry and the operation's effects in sync by
 	 * construction. A new edit discards the redo branch, since the document
 	 * has diverged from the state those entries would replay onto.
+	 *
+	 * A no-op edit (e.g. backspace at the document start) is not recorded: its
+	 * inverse would do nothing, so an entry for it would only make the user
+	 * press undo twice to skip past it and would evict real history at the
+	 * limit. Leaving the redo branch intact is correct too — the document did
+	 * not diverge from the state those entries replay onto.
 	 */
 	run(op: EditOperation, doc: Document): void {
 		const before = doc.cursor;
-		op.apply(doc);
+		if (!op.apply(doc)) {
+			return;
+		}
 		const after = doc.cursor;
 		const entry: HistoryEntry = {
 			op,

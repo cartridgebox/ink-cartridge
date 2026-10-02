@@ -1,7 +1,11 @@
 import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
 import React from "react";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { clearRegistry, registerComponent } from "ink-cartridge";
 import { Editor } from "../src/view/page/editor.js";
+import { settingsStore } from "../src/core/settings/useSettings.js";
 import { flush, press, renderApp, stripAnsi } from "./base/_helpers.js";
 
 /** Editor with multi-line content so cursor movement is observable. */
@@ -149,6 +153,59 @@ describe("Editor modes", () => {
 		const frame = stripAnsi(lastFrame());
 		expect(frame).toContain("5down");
 		expect(frame).toContain("Ln 1");
+		unmount();
+	});
+});
+
+describe("Editor merge-window wiring", () => {
+	/** One short line so an undone character is unambiguous in the frame. */
+	function OneLine() {
+		return <Editor value={"ab"} />;
+	}
+
+	let tempDir = "";
+	beforeEach(() => {
+		clearRegistry();
+		registerComponent(OneLine, {});
+		// Isolate the shared settings store from the real ~/.config file.
+		tempDir = mkdtempSync(join(tmpdir(), "blots-merge-wiring-"));
+		settingsStore.reset(join(tempDir, "settings.json"));
+	});
+
+	afterEach(() => {
+		vi.restoreAllMocks();
+		rmSync(tempDir, { recursive: true, force: true });
+	});
+
+	it("coalesces undo steps from the persisted merge window", async () => {
+		// Drive the coalescing clock so the window is tested deterministically:
+		// the two inserts land 700 ms apart. 700 ms is inside the configured
+		// 2000 ms window, so the run shares one undo step and a single `u`
+		// removes both characters ("Qab" is gone). Dropping the editor.tsx
+		// wiring would leave history on its 500 ms default, where 700 ms starts a
+		// new step, and one `u` would remove only the last character ("Qab"
+		// survives).
+		let now = 0;
+		vi.spyOn(Date, "now").mockImplementation(() => now);
+		settingsStore.update({
+			...settingsStore.settings,
+			history: { mergeWindow: 2000 },
+		});
+
+		const { stdin, lastFrame, unmount } = renderApp(OneLine);
+		await flush();
+		await press(stdin, "Q");
+		now = 700;
+		await press(stdin, "W");
+		await flush();
+		expect(stripAnsi(lastFrame())).toContain("QWab");
+
+		await enterNormalMode(stdin);
+		await press(stdin, "u");
+		await flush();
+		const frame = stripAnsi(lastFrame());
+		expect(frame).toContain("ab");
+		expect(frame).not.toContain("Qab");
 		unmount();
 	});
 });

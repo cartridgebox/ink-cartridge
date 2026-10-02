@@ -10,16 +10,19 @@ Add editor undo/redo with a configurable merge window.
 
 ### Changed
 - Editing commands now route through `History`: `EditorController` handlers return an `EditOperation`, and the controller applies and records it in one place.
+- `EditOperation.apply` now reports whether it changed the document, so `History` can tell a real edit from a no-op one.
 - Extracted a generic `Slider` from the wheel-sensitivity bar; the new merge-window picker reuses it instead of duplicating the control.
 
 ### Fixed
 - `JoinLineOp` no longer corrupts the document when undone after a no-op join (cursor on the last line) — its `invert` mirrors the no-op instead of splitting the line.
+- No-op edits (backspace at the document start, outdent with no indentation, join on the last line) no longer record an undo step. Previously a single `u` consumed a dead step — undoing the previous real edit took two presses — and a burst of them could evict genuine history at the stack limit.
 - The wheel-sensitivity and merge-window sliders now reach their maximum on the last cell: the click-to-value mapping divided by the cell count, leaving the top step (10× / 2000 ms) reachable only via the arrow keys.
 
 ### Breaking Changes
 None
 
 ### Tests
-- `history.test.ts` covers undo/redo, cursor restore after a move, redo invalidation, the stack limit, opening a file clearing history, and coalescing (window boundaries, `0` disabling it, and cursor moves breaking a run).
+- `history.test.ts` covers undo/redo, cursor restore after a move, redo invalidation, the stack limit, opening a file clearing history, coalescing (window boundaries, `0` disabling it, and cursor moves breaking a run), that no-op inverts leave the document intact, and that a no-op edit records no undo step.
 - `settings-store.test.ts` covers merge-window validation (range, step, default) and persistence.
 - `sensitivity-bar.test.ts` covers the bar's cell mapping, including that the last cell selects the maximum.
+- `editor-mode.test.tsx` covers the settings-to-history wiring: the persisted merge window drives undo coalescing in the editor.
