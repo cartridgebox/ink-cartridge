@@ -31,4 +31,7 @@ jobs:
           github_action_config.auto_review: "true"
           github_action_config.auto_describe: "true"
           github_action_config.auto_improve: "false"
-          github_action_config.pr_actions: '["opened", "reopened", "ready_for_review"]'
+          # `on.pull_request.types` only starts the job; this list is PR-Agent's
+          # own gate. Without "synchronize" here, pushes to an open PR boot the
+          # action but it exits without reviewing the new commits.
+          github_action_config.pr_actions: '["opened", "reopened", "ready_for_review", "synchronize"]'
