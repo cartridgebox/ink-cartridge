@@ -4,8 +4,7 @@
 Add keyboard focus switching between the editor and the file tree, and make the render rate configurable.
 
 ### Added
-- Normal-mode `Tab` toggles keyboard focus between the editor pane and the file tree pane, so the tree can be driven without the mouse.
-- Clicking the file tree drives keyboard focus to it (via ink-cartridge's `clickOnFocus`), and clicking the editor surface drives focus back — in either mode, since focusing the tree also returns the editor to normal.
+- Normal-mode `Tab` toggles keyboard focus between the editor pane and the file tree; clicking either pane focuses it, in any mode. Both panes share one focus group, so only one receives keys at a time — no mode switch is needed.
 - A "Render Rate (FPS)" setting (5–120 fps, step 5, default 30) that sets Ink's `maxFps` render throttle.
 
 ### Changed

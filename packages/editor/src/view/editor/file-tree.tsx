@@ -1,12 +1,9 @@
 import { useI18n } from "@cartridge-engine/i18n";
-import { Box, DOMElement, Text, useWindowSize } from "ink";
+import { Box, Text, useWindowSize } from "ink";
 import {
 	applyElementToModalLayer,
-	getEngine,
-	LayerElementContext,
 	ModalLayerElementContext,
 	openModalLayer,
-	subscribeFocus,
 	useKeyboard,
 	useMouseRegion,
 	useScreenSystem,
@@ -32,22 +29,11 @@ import {
 import type { EditorSession } from "../../core/io/session.js";
 import { useSettings } from "../../core/settings/useSettings.js";
 import { ModalFrame } from "../utils/modal-frame.js";
-import { elementHasFocus } from "../../utils/view/element-focus.js";
 import { setTreePos } from "../event/subscription/tree-store.js";
-import {
-	getTreeFocusRequested,
-	setTreeFocusRequested,
-	subscribeTreeFocus,
-} from "../event/subscription/tree-focus-store.js";
+import { EDITOR_PANE, PANE_GROUP, TREE_PANE, usePaneActive } from "./panes.js";
 
 /** Narrowest the pane can be; wide enough for short names. */
 const MIN_TREE_WIDTH = 24;
-/**
- * Focus-target id for the pane's keyboard bindings. Deliberately separate from
- * the layer element id (also "file-tree") so the focus state and the gated
- * bindings stay coupled to one name if either is ever renamed.
- */
-const FOCUS_ID = "file-tree";
 /** Widest the pane can be — the editor keeps at least 20 columns. */
 const MAX_TREE_WIDTH = 60;
 
@@ -68,17 +54,18 @@ export type FileTreeProps = {
 };
 
 /**
- * VSCode-style file tree pinned to the right edge of the terminal (regular
- * layer element). Recursively scans the configured root directory once per
+ * VSCode-style file tree pinned to the right edge of the terminal, rendered
+ * inline by the editor screen (so both panes share one keyboard owner and one
+ * focus group). Recursively scans the configured root directory once per
  * settings change; directories expand/collapse on click, files open in the
  * editor (with an unsaved-changes prompt when the buffer is dirty). Scrolling
  * is mouse-wheel or keyboard-cursor driven; the pane is fixed — not
  * draggable — and stays below the information bar.
  *
- * While the pane holds keyboard focus (toggled by `Tab` in normal mode on the
- * editor page), the cursor keys / `j` `k` move a selection, `Enter` opens a
- * file or expands a directory, `h` `l` collapse/expand, and `Esc` returns
- * focus to the editor.
+ * While the pane holds keyboard focus, the cursor keys / `j` `k` move a
+ * selection, `Enter` opens a file or expands a directory, `h` `l`
+ * collapse/expand, and `Tab` / `Esc` return focus to the editor. Clicking the
+ * pane focuses it.
  */
 export function FileTree({ session }: FileTreeProps) {
 	const { rows, columns } = useWindowSize();
@@ -94,27 +81,10 @@ export function FileTree({ session }: FileTreeProps) {
 	// steal focus back from the editor.
 	const [cursorIndex, setCursorIndex] = useState(0);
 	const cursorRef = useRef(0);
-	const { boundKeyboard, focusSet, kickFocusGroup } = useKeyboard();
-	// This pane's layer + element ids, used to query the engine's focus state
-	// directly. `useFocusState` is avoided here: it resolves through the
-	// engine's owner stack, which is ambiguous while a sibling layer element
-	// (the toolbar) is mounted, so the highlight would flicker. Reading the
-	// layer by id is exact.
-	const layerCtx = useContext(LayerElementContext);
-	const layerId = layerCtx?.layer.layerId;
-	const elementId = layerCtx?.id;
-	/** Whether the engine currently has this pane's focus target active. */
-	const thereIsFocus = useCallback(() => {
-		if (!layerId || !elementId) return false;
-		return elementHasFocus(getEngine().readLayer(layerId, elementId), FOCUS_ID);
-	}, [layerId, elementId]);
-	// True only while the editor page has handed this pane the keyboard.
-	const [focused, setFocused] = useState(false);
-	useEffect(() => {
-		const read = () => setFocused(thereIsFocus());
-		read();
-		return subscribeFocus(read);
-	}, [thereIsFocus]);
+	const { boundKeyboard, focusSet } = useKeyboard();
+	// The pane shares the editor's owner (it is rendered inline, not as a
+	// layer), so its focus is the "tree" target of the page's "panes" group.
+	const focused = usePaneActive(TREE_PANE);
 
 	// scanTick bumps to force a re-scan — the cache never expires on its own.
 	const [scanTick, setScanTick] = useState(0);
@@ -175,15 +145,13 @@ export function FileTree({ session }: FileTreeProps) {
 	}, []);
 
 	// The pane region shares its ref with the focus-gated bindings (see the
-	// mount-only effect below), so ink-cartridge's `clickOnFocus` forwards
-	// keyboard focus to the pane's focus target on any click — the standard
-	// mouse-drives-keyboard-focus path. Row clicks (separate regions) cover the
-	// rows themselves and request focus through the intent store instead.
-	const paneRef = useRef<DOMElement | null>(null);
-	const containerRef = useMouseRegion(
-		{ onWheel: handleWheel, onClick: () => setTreeFocusRequested(true) },
-		{ ref: paneRef }
-	);
+	// A click sets the pane's focus target explicitly. (ink-cartridge's
+	// `clickOnFocus` is not usable here: its forwarding resolves the owner from
+	// the engine's owner stack, whose top is the toolbar layer, not the page.)
+	const containerRef = useMouseRegion({
+		onWheel: handleWheel,
+		onClick: () => focusSet(TREE_PANE, PANE_GROUP),
+	});
 	// Manual refresh: the scan cache never expires on its own, so new files
 	// only appear after a click here (cache cleared + re-scan).
 	const [refreshHovered, setRefreshHovered] = useState(false);
@@ -242,16 +210,13 @@ export function FileTree({ session }: FileTreeProps) {
 	}, []);
 
 	// Latest handlers + boundKeyboard captured in refs so the mount-only
-	// binding effect below never re-runs. `boundKeyboard`'s identity changes
-	// across renders, and re-registering a focus-gated binding while the pane
-	// is unfocused re-triggers the engine's first-target auto-activation —
-	// which would steal focus from the editor. Registering exactly once (and
-	// refreshing the refs each render) sidesteps that entirely.
+	// binding effect below never re-runs (`boundKeyboard`'s identity changes
+	// across renders).
 	const handlersRef = useRef({
 		move: moveCursor,
 		activate: activateRow,
 		expand: setRowExpanded,
-		exit: () => setTreeFocusRequested(false),
+		leave: () => focusSet(EDITOR_PANE, PANE_GROUP),
 	});
 	const bindRef = useRef(boundKeyboard);
 	useEffect(() => {
@@ -259,55 +224,31 @@ export function FileTree({ session }: FileTreeProps) {
 			move: moveCursor,
 			activate: activateRow,
 			expand: setRowExpanded,
-			exit: () => setTreeFocusRequested(false),
+			leave: () => focusSet(EDITOR_PANE, PANE_GROUP),
 		};
 		bindRef.current = boundKeyboard;
 	});
 
-	// The pane's navigation keys live under the "file-tree" focus target and
-	// the normal mode, so they only fire while the editor page has handed over
-	// focus AND the editor is in normal mode. The mode gate matters: `i`
-	// reaches the editor (which switches to insert) even while the pane holds
-	// focus, and without it the pane would then swallow `j`/`k`/`h`/`l` and
-	// `Enter` as the user types.
+	// The pane's navigation keys are the "tree" target of the page's "panes"
+	// focus group, so they fire only while the tree holds focus. The group is
+	// mutually exclusive with the editor's keys, so no mode gate is needed.
 	useEffect(() => {
 		const bind = bindRef.current;
 		const h = handlersRef;
-		// Sharing the pane region's ref registers it in the engine's
-		// region-focus map, so a click on the pane forwards focus (clickOnFocus).
-		const opts = { focusId: FOCUS_ID, mode: "normal", ref: paneRef };
+		const opts = {
+			focusId: { focusId: TREE_PANE, group: PANE_GROUP },
+		};
 		const unbinds = [
 			bind(["up", "k"], () => h.current.move(-1), opts),
 			bind(["down", "j"], () => h.current.move(1), opts),
 			bind(["return"], () => h.current.activate(), opts),
 			bind(["left", "h"], () => h.current.expand(false), opts),
 			bind(["right", "l"], () => h.current.expand(true), opts),
-			bind(["escape"], () => h.current.exit(), opts),
+			bind(["escape"], () => h.current.leave(), opts),
+			bind(["tab"], () => h.current.leave(), opts),
 		];
 		return () => unbinds.forEach((unbind) => unbind());
-		// eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only on purpose (see above)
 	}, []);
-
-	// Reconcile the engine's focus to the editor's intent. The engine
-	// auto-activates the first focus target on a layer (this pane is its
-	// layer's only element), so a bare mount would grab the keyboard. And
-	// because the `useKeyboard` handles (`focusSet`/`kickFocusGroup`) are not
-	// referentially stable, this effect re-runs on re-renders — reconciling
-	// (an idempotent no-op unless intent and engine disagree) keeps focus
-	// correct no matter how often the handles churn.
-	useEffect(() => {
-		const reconcile = () => {
-			const want = getTreeFocusRequested();
-			const has = thereIsFocus();
-			if (want && !has) {
-				focusSet(FOCUS_ID);
-			} else if (!want && has) {
-				kickFocusGroup();
-			}
-		};
-		reconcile();
-		return subscribeTreeFocus(reconcile);
-	}, [focusSet, kickFocusGroup, thereIsFocus]);
 
 	// Keep the cursor and the scroll offset valid when the visible rows or the
 	// viewport change (collapse, rescan, terminal resize). The scroll bound is
@@ -401,9 +342,9 @@ export function FileTree({ session }: FileTreeProps) {
 						onWheel={handleWheel}
 						onClick={() => {
 							// Rows are their own regions (priority 1), so the pane's
-							// clickOnFocus doesn't see these clicks — request focus
-							// through the intent store instead.
-							setTreeFocusRequested(true);
+							// clickOnFocus doesn't see these clicks — set the pane
+							// target directly.
+							focusSet(TREE_PANE, PANE_GROUP);
 							if (row.node.isDir) {
 								toggleDir(row.node.path);
 							} else {

@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Box, DOMElement, measureElement, Text, useWindowSize } from "ink";
 import { EditorSession } from "../../core/io/session.js";
 import { useTree } from "../event/subscription/tree-store.js";
+import { EDITOR_PANE, usePaneActive } from "./panes.js";
 import {
 	getBarPosition,
 	setBarPosition,
@@ -118,6 +119,12 @@ export function ToolBar({
 	const { t } = useI18n();
 	const { boundKeyboard } = useKeyboard();
 	const [index, setIndex] = useState(0);
+	// The toolbar's keys are editor-pane actions. The toolbar lives in a LAYER
+	// (processed before the screen), so without this gate its `return` would
+	// consume the key ahead of the file tree (now a screen element).
+	const editorPaneActive = usePaneActive(EDITOR_PANE);
+	const editorPaneActiveRef = useRef(editorPaneActive);
+	editorPaneActiveRef.current = editorPaneActive;
 
 	const items: ToolButton[] = useMemo(
 		() => [
@@ -226,16 +233,17 @@ export function ToolBar({
 	}, [columns, rows, fileTreeOpen, treeWidth]);
 
 	useEffect(() => {
+		const whenEditorPane = () => editorPaneActiveRef.current;
 		const unbinds = [
 			boundKeyboard(["ctrl+left"], () => {
 				setIndex((prev) => (prev - 1 + items.length) % items.length);
-			}),
+			}, { when: whenEditorPane }),
 			boundKeyboard(["ctrl+right"], () => {
 				setIndex((prev) => (prev + 1) % items.length);
-			}),
+			}, { when: whenEditorPane }),
 			boundKeyboard(["return"], () => {
 				items[index].onClick();
-			}, { mode: "normal" }),
+			}, { mode: "normal", when: whenEditorPane }),
 		];
 		return () => {
 			unbinds.forEach((unbind) => unbind());

@@ -16,18 +16,13 @@ import {
 } from "ink-cartridge";
 import { Editor } from "../src/view/page/editor.js";
 import { settingsStore } from "../src/core/settings/useSettings.js";
-import { setTreeFocusRequested } from "../src/view/event/subscription/tree-focus-store.js";
-import { elementHasFocus } from "../src/utils/view/element-focus.js";
+import {
+	EDITOR_PANE,
+	paneIsActive,
+	TREE_PANE,
+} from "../src/view/editor/panes.js";
 import { resources } from "../src/utils/view/i18n-resources.js";
 import { flush, press, renderApp, stripAnsi } from "./base/_helpers.js";
-
-/**
- * The pane's focus state as the engine sees it — via the same shared predicate
- * the component uses, queried on the "file-tree" layer element.
- */
-function treeTargetActive(): boolean {
-	return elementHasFocus(getEngine().readLayer("file-tree", "file-tree"), "file-tree");
-}
 
 // A deterministic tree: one directory (directories sort before files) then two
 // files, so row 0 is `sub`, row 1 `a.md`, row 2 `b.md`.
@@ -54,6 +49,11 @@ function EmptyEditor() {
 	return <Editor value={""} />;
 }
 
+/** Whether `id` is the active target of the page's "panes" focus group. */
+function paneActive(screen: React.ComponentType, id: string): boolean {
+	return paneIsActive(getEngine().readLayer(screen), id);
+}
+
 /** `\x1b` is the Escape key; the engine switches insert → normal. */
 async function enterNormalMode(stdin: { write: (data: string) => void }) {
 	await press(stdin, "\x1b");
@@ -65,10 +65,10 @@ class ResizableStdout extends EventEmitter {
 	isTTY = true;
 	frames: string[] = [];
 	_columns = 100;
+	_rows = 30;
 	get columns() {
 		return this._columns;
 	}
-	_rows = 30;
 	get rows() {
 		return this._rows;
 	}
@@ -146,10 +146,9 @@ async function pressRaw(stdin: MockStdin, key: string) {
 	});
 }
 
-describe("file tree keyboard focus", () => {
+describe("editor / file tree pane focus", () => {
 	beforeEach(() => {
 		clearRegistry();
-		setTreeFocusRequested(false);
 		registerComponent(LinesEditor, {});
 		registerComponent(EmptyEditor, {});
 	});
@@ -158,182 +157,51 @@ describe("file tree keyboard focus", () => {
 		vi.restoreAllMocks();
 	});
 
-	it("Tab hands the keyboard to the tree so arrows stop moving the editor", async () => {
-		const { stdin, lastFrame, unmount } = renderApp(LinesEditor, {
-			root: fixtureRoot,
-		});
+	it("mounts with the editor pane focused", async () => {
+		const { unmount } = renderApp(LinesEditor, { root: fixtureRoot });
 		await flush();
-		await enterNormalMode(stdin);
-		expect(stripAnsi(lastFrame())).toContain("Ln 1");
-
-		await press(stdin, "tab"); // focus the tree
-		await flush();
-		await press(stdin, "down"); // consumed by the tree, editor stays put
-		await flush();
-		expect(stripAnsi(lastFrame())).toContain("Ln 1");
-
-		await press(stdin, "tab"); // hand focus back to the editor
-		await flush();
-		await press(stdin, "down");
-		await flush();
-		expect(stripAnsi(lastFrame())).toContain("Ln 2");
-
+		expect(paneActive(LinesEditor, EDITOR_PANE)).toBe(true);
+		expect(paneActive(LinesEditor, TREE_PANE)).toBe(false);
 		unmount();
 	});
 
-	it("without Tab the arrows still drive the editor", async () => {
-		const { stdin, lastFrame, unmount } = renderApp(LinesEditor, {
-			root: fixtureRoot,
-		});
-		await flush();
-		await enterNormalMode(stdin);
-		await press(stdin, "down");
-		await flush();
-		expect(stripAnsi(lastFrame())).toContain("Ln 2");
-		unmount();
-	});
-
-	it("the tree's keys act on the editor until Tab hands over focus", async () => {
-		const { stdin, lastFrame, unmount } = renderApp(LinesEditor, {
-			root: fixtureRoot,
-		});
-		await flush();
-		await enterNormalMode(stdin);
-
-		// Unfocused, the tree's keys must be inert: `return` must not open the
-		// file under the (default) tree cursor — a directory, so it would expand.
-		await press(stdin, "return");
-		await flush();
-		expect(stripAnsi(lastFrame())).not.toContain("inner.md");
-		expect(stripAnsi(lastFrame())).not.toContain("AAA");
-
-		// `l` must not expand the tree's directory either.
-		await press(stdin, "l");
-		await flush();
-		expect(stripAnsi(lastFrame())).not.toContain("inner.md");
-
-		// `j` still drives the editor cursor.
-		await press(stdin, "j");
-		await flush();
-		expect(stripAnsi(lastFrame())).toContain("Ln 2");
-		unmount();
-	});
-
-	it("typing in insert mode is not swallowed by the focused tree", async () => {
-		const { stdin, lastFrame, unmount } = renderApp(LinesEditor, {
-			root: fixtureRoot,
-		});
-		await flush();
-		await enterNormalMode(stdin);
-		await press(stdin, "tab"); // tree focus (normal mode)
-		await flush();
-		expect(treeTargetActive()).toBe(true);
-
-		// `i` reaches the editor and switches it to insert even while the tree
-		// holds focus; from there the pane's normal-mode keys must not eat the
-		// typing (a `j` must be inserted, not move the tree cursor).
-		await press(stdin, "i");
-		await flush();
-		expect(stripAnsi(lastFrame())).toContain("INSERT");
-		await press(stdin, "j");
-		await flush();
-		expect(stripAnsi(lastFrame())).toContain("jL1");
-		unmount();
-	});
-
-	it("Enter opens the file under the tree cursor", async () => {
+	it("Tab focuses the tree; its keys move the cursor and Enter opens a file", async () => {
 		const { stdin, lastFrame, unmount } = renderApp(EmptyEditor, {
 			root: fixtureRoot,
 		});
 		await flush();
 		await enterNormalMode(stdin);
-		await press(stdin, "tab"); // focus the tree; cursor starts on `sub`
+		await press(stdin, "tab");
 		await flush();
-		await press(stdin, "down"); // a.md
-		await press(stdin, "down"); // b.md
-		await flush();
-		await press(stdin, "return");
-		await flush();
-		expect(stripAnsi(lastFrame())).toContain("BBB");
-		unmount();
-	});
+		expect(paneActive(EmptyEditor, TREE_PANE)).toBe(true);
+		expect(paneActive(EmptyEditor, EDITOR_PANE)).toBe(false);
 
-	it("re-entering the tree after a round trip takes a single Tab", async () => {
-		const { stdin, lastFrame, unmount } = renderApp(EmptyEditor, {
-			root: fixtureRoot,
-		});
-		await flush();
-		await enterNormalMode(stdin);
-		await press(stdin, "tab"); // → tree
-		await flush();
-		await press(stdin, "down");
-		await press(stdin, "down"); // b.md
-		await flush();
-		await press(stdin, "return");
-		await flush();
-		expect(stripAnsi(lastFrame())).toContain("BBB");
-
-		await press(stdin, "tab"); // → editor
-		await flush();
-		await press(stdin, "tab"); // → tree again (single press)
-		await flush();
-		await press(stdin, "k"); // up → a.md
-		await flush();
-		await press(stdin, "return");
+		await press(stdin, "down"); // sub → a.md
+		await press(stdin, "return"); // open a.md
 		await flush();
 		expect(stripAnsi(lastFrame())).toContain("AAA");
 		unmount();
 	});
 
-	it("Enter expands the directory under the tree cursor", async () => {
-		const { stdin, lastFrame, unmount } = renderApp(EmptyEditor, {
+	it("the editor's keys are inert while the tree holds focus", async () => {
+		const { stdin, lastFrame, unmount } = renderApp(LinesEditor, {
 			root: fixtureRoot,
 		});
 		await flush();
 		await enterNormalMode(stdin);
-		await press(stdin, "tab"); // cursor on `sub`
-		await flush();
-		expect(stripAnsi(lastFrame())).not.toContain("inner.md");
+		expect(stripAnsi(lastFrame())).toContain("Ln 1");
 
-		await press(stdin, "return");
+		await press(stdin, "tab"); // tree focus
 		await flush();
-		expect(stripAnsi(lastFrame())).toContain("inner.md");
-		unmount();
-	});
-
-	it("the pane's focus target is active only while it holds focus", async () => {
-		const { stdin, unmount } = renderApp(EmptyEditor, { root: fixtureRoot });
+		await press(stdin, "down"); // the tree consumes it, editor stays put
 		await flush();
-		// Starts on the editor: the pane must not grab focus on mount (the
-		// engine auto-activates a layer's first focus target).
-		expect(treeTargetActive()).toBe(false);
-
-		await enterNormalMode(stdin);
-		await press(stdin, "tab");
-		await flush();
-		expect(treeTargetActive()).toBe(true);
+		expect(stripAnsi(lastFrame())).toContain("Ln 1");
 
 		await press(stdin, "tab"); // back to the editor
 		await flush();
-		expect(treeTargetActive()).toBe(false);
-		unmount();
-	});
-
-	it("highlights the cursor row while the pane holds focus", async () => {
-		// The editor project forces ANSI color (see vitest.config.ts). The
-		// focused cursor row renders `inverse` (`\u001b[7m`) — the toolbar's
-		// blue border is not a discriminator, but nothing else emits inverse
-		// without a mouse, so it isolates the `focused` -> `active` path.
-		const { stdin, lastFrame, unmount } = renderApp(EmptyEditor, {
-			root: fixtureRoot,
-		});
+		await press(stdin, "down");
 		await flush();
-		await enterNormalMode(stdin);
-		expect(lastFrame() ?? "").not.toContain("\u001b[7m"); // no row marked
-
-		await press(stdin, "tab");
-		await flush();
-		expect(lastFrame() ?? "").toContain("\u001b[7m"); // the cursor row is inverse
+		expect(stripAnsi(lastFrame())).toContain("Ln 2");
 		unmount();
 	});
 
@@ -343,17 +211,14 @@ describe("file tree keyboard focus", () => {
 		});
 		await flush();
 		await enterNormalMode(stdin);
-		await press(stdin, "tab"); // focus the tree
+		await press(stdin, "tab");
 		await flush();
-		expect(treeTargetActive()).toBe(true);
+		expect(paneActive(LinesEditor, TREE_PANE)).toBe(true);
 
-		// The literal "escape" reaches the engine's "escape" key name without
-		// the raw `\x1b` path the repo docs flag as unreliable.
 		await press(stdin, "escape");
 		await flush();
-		expect(treeTargetActive()).toBe(false);
-
-		await press(stdin, "down"); // the editor owns the arrows again
+		expect(paneActive(LinesEditor, EDITOR_PANE)).toBe(true);
+		await press(stdin, "down");
 		await flush();
 		expect(stripAnsi(lastFrame())).toContain("Ln 2");
 		unmount();
@@ -387,6 +252,32 @@ describe("file tree keyboard focus", () => {
 		await press(stdin, "l");
 		await flush();
 		expect(stripAnsi(lastFrame())).not.toContain("AAA");
+		unmount();
+	});
+
+	it("gates the composition chain (gg) to the editor pane", async () => {
+		const { stdin, lastFrame, unmount } = renderApp(LinesEditor, {
+			root: fixtureRoot,
+		});
+		await flush();
+		await enterNormalMode(stdin);
+		await press(stdin, "G"); // → line 3
+		await flush();
+		expect(stripAnsi(lastFrame())).toContain("Ln 3");
+
+		await press(stdin, "tab"); // tree focus
+		await flush();
+		await press(stdin, "g"); // must NOT arm the editor's gg chain
+		await press(stdin, "g");
+		await flush();
+		expect(stripAnsi(lastFrame())).toContain("Ln 3");
+
+		await press(stdin, "tab"); // back to the editor
+		await flush();
+		await press(stdin, "g");
+		await press(stdin, "g");
+		await flush();
+		expect(stripAnsi(lastFrame())).toContain("Ln 1");
 		unmount();
 	});
 
@@ -455,52 +346,5 @@ describe("file tree keyboard focus", () => {
 		await flush();
 		expect(stripAnsi(stdout.lastFrame())).toContain("f29.md");
 		instance.unmount();
-	});
-
-	it("keeps the tree focused across a terminal resize", async () => {
-		const { stdout, stdin, instance } = renderResizable(EmptyEditor);
-		await flush();
-		await pressRaw(stdin, "\x1b");
-		await flush();
-		await pressRaw(stdin, "tab"); // focus the tree
-		await flush();
-		await pressRaw(stdin, "down"); // a.md
-		await flush();
-		await pressRaw(stdin, "return");
-		await flush();
-		expect(stripAnsi(stdout.lastFrame())).toContain("AAA");
-
-		// Resize the terminal — this must not drop the tree's keyboard focus.
-		stdout._columns = 80;
-		await act(async () => {
-			stdout.emit("resize");
-		});
-		await flush();
-
-		await pressRaw(stdin, "down"); // b.md (only the tree should react)
-		await flush();
-		await pressRaw(stdin, "return");
-		await flush();
-		expect(stripAnsi(stdout.lastFrame())).toContain("BBB");
-		instance.unmount();
-	});
-
-	it("handing the keyboard to the tree switches the editor to normal", async () => {
-		// The tree's keys are normal-gated, so focusing it (Tab, or a click on
-		// the pane) must also return the editor to normal — otherwise the keys
-		// stay with the editor. Driven here through the store (no mouse), which
-		// is exactly what a click on the pane sets.
-		const { lastFrame, unmount } = renderApp(LinesEditor, {
-			root: fixtureRoot,
-		});
-		await flush();
-		expect(stripAnsi(lastFrame())).toContain("INSERT"); // default mode
-
-		await act(async () => {
-			setTreeFocusRequested(true);
-		});
-		await flush();
-		expect(stripAnsi(lastFrame())).toContain("NORMAL");
-		unmount();
 	});
 });

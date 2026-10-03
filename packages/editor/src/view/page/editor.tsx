@@ -5,10 +5,12 @@ import {
 	applyElementToModalLayer,
 	closeLayer,
 	eraseElement,
+	getEngine,
 	openLayer,
 	openModalLayer,
 	useKeyboard,
 	useMouseRegion,
+	useScreenSystem,
 } from "ink-cartridge";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { EditorSession } from "../../core/io/session.js";
@@ -20,18 +22,16 @@ import { FileTree } from "../editor/file-tree.js";
 import { ToolBar } from "../editor/tool-bar.js";
 import { InformationBar } from "../editor/information-bar.js";
 import {
-	getTreeFocusRequested,
-	setTreeFocusRequested,
-	useTreeFocusRequested,
-} from "../event/subscription/tree-focus-store.js";
+	EDITOR_PANE,
+	PANE_GROUP,
+	paneIsActive,
+	TREE_PANE,
+} from "../editor/panes.js";
 
 /** Layer hosting the floating toolbar; below modal layers so it never
  *  intercepts keys meant for a modal (e.g. the command bar). */
 const TOOLBAR_LAYER_ID = "toolbar";
 const TOOLBAR_Z_INDEX = 1;
-/** Layer hosting the file tree; a regular layer like the toolbar. */
-const FILETREE_LAYER_ID = "file-tree";
-const FILETREE_Z_INDEX = 1;
 /** Layer hosting the in-editor settings overlay (above the other panes). */
 const EDITOR_SETTINGS_LAYER_ID = "editor-settings";
 const EDITOR_SETTINGS_Z_INDEX = 2;
@@ -84,13 +84,26 @@ export function Editor({
 	const {
 		boundKeyboard,
 		enableWildcardPriority,
+		focusSet,
 		getCurrentMode,
 		registryCompositionKey,
 		removeCompositionKey,
 		setMode,
+		subscribeFocus,
 	} = useKeyboard();
 	const { t } = useI18n();
 	const { settings } = useSettings();
+	// The editor's own page keyboard layer, read to tell which pane owns focus.
+	// Read by component (not the owner stack, which sibling layers skew).
+	const { currentPath } = useScreenSystem();
+	const pageComponent = currentPath[currentPath.length - 1]?.component;
+	// Whether the editor pane currently owns focus — read by the composition
+	// `when` gates (the CompositionEngine does not consult focus targets).
+	const editorPaneActiveRef = useRef(true);
+	// `focusSet`'s identity churns across renders (useKeyboard), so effects that
+	// must not re-run on that churn read it through a ref.
+	const focusSetRef = useRef(focusSet);
+	focusSetRef.current = focusSet;
 
 	// The engine keeps modes in a ref (no React notification), so we mirror
 	// switches locally to keep the status bar live.
@@ -102,15 +115,6 @@ export function Editor({
 		},
 		[setMode],
 	);
-
-	// Handing the keyboard to the file tree (Tab, or a mouse click on the
-	// pane) is a normal-mode activity — its navigation keys are normal-gated.
-	// Switch the editor back to normal so they work even when the click lands
-	// while the editor is in insert mode.
-	const treeFocusRequested = useTreeFocusRequested();
-	useEffect(() => {
-		if (treeFocusRequested) switchMode("normal");
-	}, [treeFocusRequested, switchMode]);
 
 	const openCommandBar = useCallback(() => {
 		openModalLayer("command", 100);
@@ -166,8 +170,8 @@ export function Editor({
 					session,
 					openFileTree: () => {
 						setFileTreeOpen((open) => !open);
-						// Hiding the pane forfeits its focus (its layer unmounts).
-						setTreeFocusRequested(false);
+						// Hiding the pane forfeits its focus.
+						focusSetRef.current(EDITOR_PANE, PANE_GROUP);
 					},
 					openSettings: () => setSettingsOpen((open) => !open),
 					fileTreeOpen,
@@ -176,46 +180,26 @@ export function Editor({
 		}, 0);
 		return () => clearTimeout(timer);
 	}, [toolbarOpen, mode, session, fileTreeOpen, settingsOpen]);
-	useEffect(() => {
-		if (!fileTreeOpen) {
-			closeLayer(FILETREE_LAYER_ID);
-			return;
-		}
-		const timer = setTimeout(() => {
-			openLayer(FILETREE_LAYER_ID, FILETREE_Z_INDEX);
-			applyElement(FILETREE_LAYER_ID, {
-				elementId: "file-tree",
-				element: FileTree,
-				props: { session },
-			});
-		}, 0);
-		return () => clearTimeout(timer);
-	}, [fileTreeOpen, session]);
-	// Tab hands the keyboard between the editor and the tree, but only while
-	// the tree is open and only in normal mode (insert keeps Tab = indent).
-	// The tree binds no Tab, so the event bubbles here from the layer stage.
-	// Only the intent is recorded here; the tree reconciles the engine to it.
-	// Suppressed while the settings overlay is open: that overlay is an
-	// ordinary (non-modal) layer, so a Tab press there would otherwise toggle
-	// the tree's focus behind it and leave the tree holding the keyboard on close.
+	// Tab hands the keyboard from the editor to the file tree (normal mode;
+	// insert keeps Tab = indent). Only while the tree is open and no overlay
+	// is up. Gated to the editor pane so it does not fire while the tree owns
+	// focus (the tree's own Tab returns focus here).
 	useEffect(() => {
 		if (!fileTreeOpen || settingsOpen) return;
 		return boundKeyboard(
 			["tab"],
-			() => setTreeFocusRequested(!getTreeFocusRequested()),
-			{ mode: "normal" }
+			() => focusSetRef.current(TREE_PANE, PANE_GROUP),
+			{
+				mode: "normal",
+				focusId: { focusId: EDITOR_PANE, group: PANE_GROUP },
+			}
 		);
 	}, [boundKeyboard, fileTreeOpen, settingsOpen]);
-	// Opening the settings overlay also drops the tree's focus intent, so its
-	// focus-gated keys don't keep firing behind the menu.
+	// Opening the settings overlay returns focus to the editor, so the (now
+	// non-modal) overlay isn't competing with the tree's keys.
 	useEffect(() => {
-		if (settingsOpen) setTreeFocusRequested(false);
+		if (settingsOpen) focusSetRef.current(EDITOR_PANE, PANE_GROUP);
 	}, [settingsOpen]);
-	// Leaving the editor clears the intent; the store is a module singleton and
-	// must not leak into a later mount (e.g. re-entering from the main menu).
-	useEffect(() => {
-		return () => setTreeFocusRequested(false);
-	}, []);
 	// Both branches are deferred: settingsOpen starts false, and an immediate
 	// closeLayer on the first mount would race the provider's dispatcher
 	// registration (same child-first effect ordering as the toolbar open).
@@ -237,11 +221,21 @@ export function Editor({
 		return () => closeLayer(EDITOR_SETTINGS_LAYER_ID);
 	}, []);
 	useEffect(() => {
-		return () => closeLayer(FILETREE_LAYER_ID);
-	}, []);
-	useEffect(() => {
-		return boundKeyboard(["ctrl+tab"], () => setToolbarOpen((open) => !open));
+		return boundKeyboard(["ctrl+tab"], () => setToolbarOpen((open) => !open), {
+			focusId: { focusId: EDITOR_PANE, group: PANE_GROUP },
+		});
 	}, [boundKeyboard]);
+
+	// Track the editor pane's focus in a ref the composition `when` gates read
+	// (the CompositionEngine runs `gg`/counts without consulting focus targets).
+	useEffect(() => {
+		const read = () => {
+			const layer = pageComponent ? getEngine().readLayer(pageComponent) : undefined;
+			editorPaneActiveRef.current = paneIsActive(layer, EDITOR_PANE);
+		};
+		read();
+		return subscribeFocus(read);
+	}, [subscribeFocus, pageComponent]);
 
 	// Keep the coalescing window in step with the persisted setting; edits
 	// closer together than it share one undo step (0 disables merging).
@@ -252,12 +246,18 @@ export function Editor({
 	useEffect(() => {
 		const removeWildcard = enableWildcardPriority();
 		const unbinds: (() => void)[] = [];
+		// Every editor binding belongs to the editor pane of the "panes" group;
+		// the group's mutual exclusion keeps them from firing while the tree
+		// owns focus.
+		const asEditorPane = {
+			focusId: { focusId: EDITOR_PANE, group: PANE_GROUP },
+		};
 		const bind = (
 			keys: string[],
 			handler: (input: string) => void,
 			options: { mode?: string } = {},
 		) => {
-			unbinds.push(boundKeyboard(keys, handler, options));
+			unbinds.push(boundKeyboard(keys, handler, { ...options, ...asEditorPane }));
 		};
 
 		// insert mode: classic editing
@@ -298,6 +298,7 @@ export function Editor({
 			needs: ["goto"],
 			optional: true,
 			mode: "normal",
+			when: () => editorPaneActiveRef.current,
 			execute: (ctx) => {
 				if (ctx.lastFlag === "goto") {
 					controller.execute("cursor.documentStart");
@@ -323,6 +324,7 @@ export function Editor({
 				// via its binding below; it may still extend one (`10j`).
 				optional: digit !== "0",
 				mode: "normal",
+				when: () => editorPaneActiveRef.current,
 				execute: (ctx) => ({
 					...ctx,
 					value: (typeof ctx.value === "number" ? ctx.value : 0) * 10 + Number(digit),
@@ -384,6 +386,14 @@ export function Editor({
 		session,
 	]);
 
+	// The editor pane owns focus by default. This runs after the effect above
+	// (which registers the "editor" target) and after the tree's child effect;
+	// the engine auto-activates the group's first-registered target — the tree
+	// — so assert the editor target here. Mount-only.
+	useEffect(() => {
+		focusSetRef.current(EDITOR_PANE, PANE_GROUP);
+	}, []);
+
 	const ref = useRef(null);
 	const { height, width } = useBoxMetrics(ref);
 
@@ -408,7 +418,7 @@ export function Editor({
 	const mouseRef = useMouseRegion({
 		onClick: (event, rect) => {
 			// A click on the editor surface drives keyboard focus back here.
-			setTreeFocusRequested(false);
+			focusSet(EDITOR_PANE, PANE_GROUP);
 			const target = clickToPosition(
 				event,
 				rect,
@@ -478,6 +488,7 @@ export function Editor({
 					})}
 				</Box>
 			</Box>
+			{fileTreeOpen ? <FileTree session={session} /> : null}
 		</Box>
 	);
 }
