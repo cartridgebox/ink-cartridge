@@ -1,5 +1,5 @@
 import { useI18n } from "@cartridge-engine/i18n";
-import { Box, Text, useWindowSize } from "ink";
+import { Box, DOMElement, Text, useWindowSize } from "ink";
 import {
 	applyElementToModalLayer,
 	getEngine,
@@ -174,7 +174,16 @@ export function FileTree({ session }: FileTreeProps) {
 		});
 	}, []);
 
-	const containerRef = useMouseRegion({ onWheel: handleWheel });
+	// The pane region shares its ref with the focus-gated bindings (see the
+	// mount-only effect below), so ink-cartridge's `clickOnFocus` forwards
+	// keyboard focus to the pane's focus target on any click — the standard
+	// mouse-drives-keyboard-focus path. Row clicks (separate regions) cover the
+	// rows themselves and request focus through the intent store instead.
+	const paneRef = useRef<DOMElement | null>(null);
+	const containerRef = useMouseRegion(
+		{ onWheel: handleWheel, onClick: () => setTreeFocusRequested(true) },
+		{ ref: paneRef }
+	);
 	// Manual refresh: the scan cache never expires on its own, so new files
 	// only appear after a click here (cache cleared + re-scan).
 	const [refreshHovered, setRefreshHovered] = useState(false);
@@ -264,7 +273,9 @@ export function FileTree({ session }: FileTreeProps) {
 	useEffect(() => {
 		const bind = bindRef.current;
 		const h = handlersRef;
-		const opts = { focusId: FOCUS_ID, mode: "normal" };
+		// Sharing the pane region's ref registers it in the engine's
+		// region-focus map, so a click on the pane forwards focus (clickOnFocus).
+		const opts = { focusId: FOCUS_ID, mode: "normal", ref: paneRef };
 		const unbinds = [
 			bind(["up", "k"], () => h.current.move(-1), opts),
 			bind(["down", "j"], () => h.current.move(1), opts),
@@ -389,6 +400,10 @@ export function FileTree({ session }: FileTreeProps) {
 						}
 						onWheel={handleWheel}
 						onClick={() => {
+							// Rows are their own regions (priority 1), so the pane's
+							// clickOnFocus doesn't see these clicks — request focus
+							// through the intent store instead.
+							setTreeFocusRequested(true);
 							if (row.node.isDir) {
 								toggleDir(row.node.path);
 							} else {

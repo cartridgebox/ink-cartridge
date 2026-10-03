@@ -22,6 +22,7 @@ import { InformationBar } from "../editor/information-bar.js";
 import {
 	getTreeFocusRequested,
 	setTreeFocusRequested,
+	useTreeFocusRequested,
 } from "../event/subscription/tree-focus-store.js";
 
 /** Layer hosting the floating toolbar; below modal layers so it never
@@ -101,6 +102,15 @@ export function Editor({
 		},
 		[setMode],
 	);
+
+	// Handing the keyboard to the file tree (Tab, or a mouse click on the
+	// pane) is a normal-mode activity — its navigation keys are normal-gated.
+	// Switch the editor back to normal so they work even when the click lands
+	// while the editor is in insert mode.
+	const treeFocusRequested = useTreeFocusRequested();
+	useEffect(() => {
+		if (treeFocusRequested) switchMode("normal");
+	}, [treeFocusRequested, switchMode]);
 
 	const openCommandBar = useCallback(() => {
 		openModalLayer("command", 100);
@@ -397,6 +407,8 @@ export function Editor({
 	// render's metrics.
 	const mouseRef = useMouseRegion({
 		onClick: (event, rect) => {
+			// A click on the editor surface drives keyboard focus back here.
+			setTreeFocusRequested(false);
 			const target = clickToPosition(
 				event,
 				rect,

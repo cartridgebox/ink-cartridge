@@ -112,6 +112,14 @@ function renderResizable(screen: React.ComponentType, root = fixtureRoot) {
 	});
 	const stdout = new ResizableStdout();
 	const stdin = new MockStdin();
+	// Point the mouse listener at the mock streams so xterm-mouse reports reach
+	// the engine (the default is process.stdin/stdout).
+	const mouseOptions = {
+		inputStream: stdin as unknown as NodeJS.ReadStream,
+		outputStream: stdout as unknown as NodeJS.WriteStream,
+	} as unknown as NonNullable<
+		React.ComponentProps<typeof KeyboardProvider>["mouseOptions"]
+	>;
 	const instance = inkRender(
 		<ScenarioManagementProvider defaultScreen={screen} fullScreen>
 			<LanguageProvider
@@ -122,6 +130,7 @@ function renderResizable(screen: React.ComponentType, root = fixtureRoot) {
 				<KeyboardProvider
 					autoTab={false}
 					mouse
+					mouseOptions={mouseOptions}
 					modes={["insert", "normal"]}
 					defaultMode="insert"
 				>
@@ -144,6 +153,12 @@ async function pressRaw(stdin: MockStdin, key: string) {
 	await act(async () => {
 		stdin.write(key);
 	});
+}
+
+/** xterm SGR mouse press+release at 1-based cell (x, y). */
+async function clickAt(stdin: MockStdin, x: number, y: number) {
+	await pressRaw(stdin, `\x1b[<0;${x};${y}M`);
+	await pressRaw(stdin, `\x1b[<0;${x};${y}m`);
 }
 
 describe("file tree keyboard focus", () => {
@@ -482,6 +497,60 @@ describe("file tree keyboard focus", () => {
 		await pressRaw(stdin, "return");
 		await flush();
 		expect(stripAnsi(stdout.lastFrame())).toContain("BBB");
+		instance.unmount();
+	});
+
+	it("handing the keyboard to the tree switches the editor to normal", async () => {
+		// The tree's keys are normal-gated, so focusing it (Tab, or a click on
+		// the pane) must also return the editor to normal — otherwise the keys
+		// stay with the editor. Driven here through the store (no mouse), which
+		// is exactly what a click on the pane sets.
+		const { lastFrame, unmount } = renderApp(LinesEditor, {
+			root: fixtureRoot,
+		});
+		await flush();
+		expect(stripAnsi(lastFrame())).toContain("INSERT"); // default mode
+
+		await act(async () => {
+			setTreeFocusRequested(true);
+		});
+		await flush();
+		expect(stripAnsi(lastFrame())).toContain("NORMAL");
+		unmount();
+	});
+
+	it("clicking the tree pane drives keyboard focus to the tree", async () => {
+		const { stdin, instance } = renderResizable(EmptyEditor, fixtureRoot);
+		await flush();
+		await pressRaw(stdin, "\x1b"); // normal mode
+		await flush();
+		expect(treeTargetActive()).toBe(false);
+
+		// Click the empty area below the rows (bottom-right of the pane) — the
+		// pane region, whose shared ref makes ink-cartridge forward focus.
+		await clickAt(stdin, 98, 28);
+		await flush();
+		expect(treeTargetActive()).toBe(true);
+		instance.unmount();
+	});
+
+	it("clicking the editor surface drives keyboard focus back to the editor", async () => {
+		const { stdout, stdin, instance } = renderResizable(LinesEditor, fixtureRoot);
+		await flush();
+		await pressRaw(stdin, "\x1b"); // normal mode
+		await flush();
+		await pressRaw(stdin, "tab"); // focus the tree
+		await flush();
+		expect(treeTargetActive()).toBe(true);
+
+		await clickAt(stdin, 10, 5); // left side: the editor surface
+		await flush();
+		expect(treeTargetActive()).toBe(false);
+
+		// The editor owns the arrows again.
+		await pressRaw(stdin, "down");
+		await flush();
+		expect(stripAnsi(stdout.lastFrame())).toContain("Ln 2");
 		instance.unmount();
 	});
 });
