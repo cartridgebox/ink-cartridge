@@ -33,12 +33,12 @@ const pkg = {
   },
   dependencies: {
     'ink-cartridge': 'latest',
-    ink: '^7.1.0',
-    react: '^19.2.4',
+    ink: '^8.0.0',
+    react: '^19.3.0',
   },
   devDependencies: {
     '@types/node': '^20.19.39',
-    '@types/react': '^19.2.14',
+    '@types/react': '^19.3.0',
     tsx: '^4',
     typescript: '^5.9.3',
   },
