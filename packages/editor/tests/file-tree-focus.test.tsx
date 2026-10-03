@@ -54,7 +54,11 @@ function paneActive(screen: React.ComponentType, id: string): boolean {
 	return paneIsActive(getEngine().readLayer(screen), id);
 }
 
-/** `\x1b` is the Escape key; the engine switches insert → normal. */
+/**
+ * The engine switches insert → normal on Escape. Written as the raw `\x1b`
+ * because only the key-descriptor path (a lone ESC) reaches the insert-mode
+ * Escape binding; the multi-char `"escape"` input does not (verified).
+ */
 async function enterNormalMode(stdin: { write: (data: string) => void }) {
 	await press(stdin, "\x1b");
 	await flush();
@@ -215,7 +219,7 @@ describe("editor / file tree pane focus", () => {
 		await flush();
 		expect(paneActive(LinesEditor, TREE_PANE)).toBe(true);
 
-		await press(stdin, "escape");
+		await press(stdin, "\x1b");
 		await flush();
 		expect(paneActive(LinesEditor, EDITOR_PANE)).toBe(true);
 		await press(stdin, "down");
