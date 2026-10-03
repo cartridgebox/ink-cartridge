@@ -67,28 +67,24 @@ Call `useMouseRegion` at the top level of a component (it needs `useId` and seve
 
 ## Callbacks and the event object
 
-| Callback | Fires when | Signature |
-|---|---|---|
-| `onClick` | A click hits the region | `(event, rect) => void` |
-| `onWheel` | A wheel event hits the region | `(event, rect) => void` |
-| `onEnter` | The mouse enters the region | `(event, rect) => void` |
-| `onLeave` | The mouse leaves the region | `(event) => void` |
-| `onDragStart` | The first `drag` after a press inside the region | `(event, rect) => void` |
-| `onDragMove` | Every `drag` while dragging | `(event, rect) => void` |
-| `onDragEnd` | The `release` that ends a drag | `(event, rect) => void` |
+- `onClick` {(event, rect) => void} A click hits the region.
+- `onWheel` {(event, rect) => void} A wheel event hits the region.
+- `onEnter` {(event, rect) => void} The mouse enters the region.
+- `onLeave` {(event) => void} The mouse leaves the region.
+- `onDragStart` {(event, rect) => void} The first `drag` after a press inside the region.
+- `onDragMove` {(event, rect) => void} Every `drag` while dragging.
+- `onDragEnd` {(event, rect) => void} The `release` that ends a drag.
 
 `onLeave` only receives `event`; every other callback also receives the hit rectangle `rect`.
 
 Fields on the event object:
 
-| Field | Description |
-|---|---|
-| `x` / `y` | 1-based terminal column / row |
-| `button` | `left` / `middle` / `right` / `wheel-up` / `wheel-down` / `wheel-left` / `wheel-right` / `back` / `forward` / `none` / `unknown` |
-| `action` | `move` / `press` / `release` / `drag` / `wheel` / `click` |
-| `shift` / `alt` / `ctrl` | Whether the modifier was held during the event |
-| `protocol` | `SGR` (modern, effectively unlimited coordinates) or `ESC` (legacy, capped at 223) |
-| `raw` / `data` | Raw button code from the terminal protocol / the raw ANSI sequence |
+- `x` / `y` {number} 1-based terminal column / row.
+- `button` {string} `left` / `middle` / `right` / `wheel-up` / `wheel-down` / `wheel-left` / `wheel-right` / `back` / `forward` / `none` / `unknown`.
+- `action` {string} `move` / `press` / `release` / `drag` / `wheel` / `click`.
+- `shift` / `alt` / `ctrl` {boolean} Whether the modifier was held during the event.
+- `protocol` {string} `SGR` (modern, effectively unlimited coordinates) or `ESC` (legacy, capped at 223).
+- `raw` / `data` {number | string} Raw button code from the terminal protocol / the raw ANSI sequence.
 
 ## Converting to a local cell position
 

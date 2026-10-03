@@ -40,11 +40,16 @@ const sidebarEn = [
     items: [{ text: 'Quick Start', link: '/quick-start-1' }]
   },
   {
+    text: 'Concepts',
+    items: [{ text: 'Core Concepts', link: '/concepts/core-model' }]
+  },
+  {
     text: 'Base',
     items: [
       { text: 'Organize Your Screen', link: '/screen/screen-registry' },
       { text: 'Navigation', link: '/screen/navigation' },
       { text: 'Basic Binding', link: '/keyboard/base-bind' },
+      { text: 'Key Names', link: '/keyboard/key-names' },
       { text: 'Intermediate Binding', link: '/keyboard/boundKeyboard-advanced' },
       { text: 'Focus System', link: '/keyboard/focus-system' }
     ]
@@ -60,7 +65,8 @@ const sidebarEn = [
       { text: 'Modal Layer Element Keyboard', link: '/screen/modal-layer-element-keyboard' },
       { text: 'Passing Keys with allowModal', link: '/screen/allow-modal' },
       { text: 'Modal Missed Keys', link: '/screen/modal-miss-listener' },
-      { text: 'Binding Attribution & the Owner Stack', link: '/screen/binding-attribution' }
+      { text: 'Binding Attribution & the Owner Stack', link: '/screen/binding-attribution' },
+      { text: 'Layer z-index', link: '/screen/layer-z-index' }
     ]
   },
   {
@@ -70,7 +76,14 @@ const sidebarEn = [
       { text: 'Shortcuts & Actions', link: '/keyboard/shortcuts-actions' },
       { text: 'Multi-key Sequences', link: '/keyboard/boundSequence' },
       { text: 'Stopping Key Propagation', link: '/keyboard/stop' },
-      { text: 'Passing Keys Through', link: '/keyboard/penetration' }
+      { text: 'Passing Keys Through', link: '/keyboard/penetration' },
+      { text: 'Modes', link: '/keyboard/modes' },
+      { text: 'Global Key Bindings', link: '/keyboard/global-keys' },
+      { text: 'Mapping Keys', link: '/keyboard/mapping-keys' },
+      { text: 'Composition Engine', link: '/keyboard/composition' },
+      { text: 'Custom Processors', link: '/keyboard/processors' },
+      { text: 'Module-level Keyboard API', link: '/keyboard/module-api' },
+      { text: 'Using the Engine without React', link: '/keyboard/non-react' }
     ]
   },
   {
@@ -79,6 +92,10 @@ const sidebarEn = [
       { text: 'Mouse Region Basics', link: '/mouse/mouse-base' },
       { text: 'Mouse-Driven Keyboard Focus', link: '/mouse/mouse-focus' }
     ]
+  },
+  {
+    text: 'More',
+    items: [{ text: 'Troubleshooting', link: '/troubleshooting' }]
   }
 ]
 
@@ -88,11 +105,16 @@ const sidebarZh = [
     items: [{ text: '快速开始', link: '/zh/quick-start-1' }]
   },
   {
+    text: '概念',
+    items: [{ text: '核心概念', link: '/zh/concepts/core-model' }]
+  },
+  {
     text: '基础',
     items: [
       { text: '组织屏幕', link: '/zh/screen/screen-registry' },
       { text: '屏幕导航', link: '/zh/screen/navigation' },
       { text: '基本绑定', link: '/zh/keyboard/base-bind' },
+      { text: '键名规范', link: '/zh/keyboard/key-names' },
       { text: '中级绑定', link: '/zh/keyboard/boundKeyboard-advanced' },
       { text: '焦点系统', link: '/zh/keyboard/focus-system' }
     ]
@@ -108,7 +130,8 @@ const sidebarZh = [
       { text: '模态层内元素的键盘响应', link: '/zh/screen/modal-layer-element-keyboard' },
       { text: 'allowModal 放行键盘事件', link: '/zh/screen/allow-modal' },
       { text: '监听模态层的丢失键', link: '/zh/screen/modal-miss-listener' },
-      { text: '绑定方法的归属与所有者栈', link: '/zh/screen/binding-attribution' }
+      { text: '绑定方法的归属与所有者栈', link: '/zh/screen/binding-attribution' },
+      { text: '图层层级', link: '/zh/screen/layer-z-index' }
     ]
   },
   {
@@ -118,7 +141,14 @@ const sidebarZh = [
       { text: '快捷键与动作', link: '/zh/keyboard/shortcuts-actions' },
       { text: '多键序列', link: '/zh/keyboard/boundSequence' },
       { text: '停止键传播', link: '/zh/keyboard/stop' },
-      { text: '键的穿透', link: '/zh/keyboard/penetration' }
+      { text: '键的穿透', link: '/zh/keyboard/penetration' },
+      { text: '模式', link: '/zh/keyboard/modes' },
+      { text: '全局键绑定', link: '/zh/keyboard/global-keys' },
+      { text: '映射键', link: '/zh/keyboard/mapping-keys' },
+      { text: '组合引擎', link: '/zh/keyboard/composition' },
+      { text: '自定义处理器', link: '/zh/keyboard/processors' },
+      { text: '模块级键盘 API', link: '/zh/keyboard/module-api' },
+      { text: '在非 React 环境使用引擎', link: '/zh/keyboard/non-react' }
     ]
   },
   {
@@ -127,6 +157,10 @@ const sidebarZh = [
       { text: '鼠标区域基础', link: '/zh/mouse/mouse-base' },
       { text: '鼠标与键盘焦点联动', link: '/zh/mouse/mouse-focus' }
     ]
+  },
+  {
+    text: '更多',
+    items: [{ text: '故障排除', link: '/zh/troubleshooting' }]
   }
 ]
 

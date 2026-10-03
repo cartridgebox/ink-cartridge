@@ -67,28 +67,24 @@ x >= rect.x && x < rect.x + rect.width && y >= rect.y && y < rect.y + rect.heigh
 
 ## 回调与事件对象
 
-| 回调 | 触发时机 | 签名 |
-|---|---|---|
-| `onClick` | 点击命中区域 | `(event, rect) => void` |
-| `onWheel` | 滚轮命中区域 | `(event, rect) => void` |
-| `onEnter` | 鼠标移入区域 | `(event, rect) => void` |
-| `onLeave` | 鼠标移出区域 | `(event) => void` |
-| `onDragStart` | 区域内按下后产生第一个 `drag` | `(event, rect) => void` |
-| `onDragMove` | 拖拽过程中每次 `drag` | `(event, rect) => void` |
-| `onDragEnd` | 拖拽结束的 `release` | `(event, rect) => void` |
+- `onClick` {(event, rect) => void} 点击命中区域。
+- `onWheel` {(event, rect) => void} 滚轮命中区域。
+- `onEnter` {(event, rect) => void} 鼠标移入区域。
+- `onLeave` {(event) => void} 鼠标移出区域。
+- `onDragStart` {(event, rect) => void} 区域内按下后产生第一个 `drag`。
+- `onDragMove` {(event, rect) => void} 拖拽过程中每次 `drag`。
+- `onDragEnd` {(event, rect) => void} 拖拽结束的 `release`。
 
 `onLeave` 只拿到 `event`，其余回调都会额外拿到被命中的矩形 `rect`。
 
 事件对象的字段：
 
-| 字段 | 说明 |
-|---|---|
-| `x` / `y` | 1-based 的终端列 / 行 |
-| `button` | `left` / `middle` / `right` / `wheel-up` / `wheel-down` / `wheel-left` / `wheel-right` / `back` / `forward` / `none` / `unknown` |
-| `action` | `move` / `press` / `release` / `drag` / `wheel` / `click` |
-| `shift` / `alt` / `ctrl` | 事件发生时修饰键是否按下 |
-| `protocol` | `SGR`（现代协议，坐标无实际上限）或 `ESC`（旧协议，坐标上限 223） |
-| `raw` / `data` | 终端原始按钮码 / 原始 ANSI 序列 |
+- `x` / `y` {number} 1-based 的终端列 / 行。
+- `button` {string} `left` / `middle` / `right` / `wheel-up` / `wheel-down` / `wheel-left` / `wheel-right` / `back` / `forward` / `none` / `unknown`。
+- `action` {string} `move` / `press` / `release` / `drag` / `wheel` / `click`。
+- `shift` / `alt` / `ctrl` {boolean} 事件发生时修饰键是否按下。
+- `protocol` {string} `SGR`（现代协议，坐标无实际上限）或 `ESC`（旧协议，坐标上限 223）。
+- `raw` / `data` {number | string} 终端原始按钮码 / 原始 ANSI 序列。
 
 ## 把坐标换算成区域内的格位
 

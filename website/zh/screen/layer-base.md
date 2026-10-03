@@ -111,18 +111,14 @@ render(
 openLayer(layerId: string, zIndex: number, options?: LayerOptions): void
 ```
 
-| 参数 | 类型 | 必填 | 说明 |
-| --- | --- | --- | --- |
-| `layerId` | `string` | 是 | 图层的唯一标识，同一个 ID 只能开启一次 |
-| `zIndex` | `number` | 是 | 图层的优先级；越大越靠前，键盘与鼠标优先级也越高 |
-| `options` | `LayerOptions` | 否 | 可选配置，见下表 |
+- `layerId` {string} 图层的唯一标识，同一个 ID 只能开启一次。
+- `zIndex` {number} 图层的优先级；越大越靠前，键盘与鼠标优先级也越高。
+- `[options]` {LayerOptions} 可选配置，见下。
 
 `LayerOptions` 的可选字段：
 
-| 字段 | 类型 | 说明 |
-| --- | --- | --- |
-| `crossPage` | `boolean` | 默认为 `false`；为 `true` 时，图层在页面切换（`skip` / `back` / `gotoScreen`）时不会被自动清除 |
-| `automaticTakeoverKeyboard` | `boolean \| ComponentType[]` | 默认为 `false`；控制图层键盘绑定的作用范围（详见后续文章） |
+- `[crossPage]` {boolean} 为 `true` 时，图层在页面切换（`skip` / `back` / `gotoScreen`）时不会被自动清除。 **默认值：** `false`。
+- `[automaticTakeoverKeyboard]` {boolean | ComponentType[]} 控制图层键盘绑定的作用范围（详见后续文章）。 **默认值：** `false`。
 
 > **Note:** `openLayer` 只开启一个空容器。开启之后还需要用 `applyElement` 挂载元素，否则屏幕上不会显示任何内容。
 
@@ -136,12 +132,10 @@ applyElement<C extends ComponentType<any>>(targetLayerId: string, layerElement: 
 
 `layerElement` 需要提供：
 
-| 字段 | 类型 | 必填 | 说明 |
-| --- | --- | --- | --- |
-| `element` | `ComponentType<C>` | 是 | 挂载进图层的组件 |
-| `elementId` | `string` | 是 | 元素在图层内的唯一标识 |
-| `props` | `ComponentProps<C>` | 否 | 传给元素的 props，与 `skip()` 的 `params` 一样会做类型校验 |
-| `active` | `boolean` | 否 | 默认为 `true`；为 `false` 时元素暂停接收键盘事件 |
+- `element` {ComponentType&lt;C&gt;} 挂载进图层的组件。
+- `elementId` {string} 元素在图层内的唯一标识。
+- `[props]` {ComponentProps&lt;C&gt;} 传给元素的 props，与 `skip()` 的 `params` 一样会做类型校验。
+- `[active]` {boolean} 为 `false` 时元素暂停接收键盘事件。 **默认值：** `true`。
 
 `props` 的类型会严格校验：传入的 props 必须与 `element` 组件声明的 props 一致，否则编译期就会报错。例如：
 

@@ -121,18 +121,14 @@ render(
 openModalLayer(layerId: string, zIndex: number, options?: ModalLayerOptions): void
 ```
 
-| 参数 | 类型 | 必填 | 说明 |
-| --- | --- | --- | --- |
-| `layerId` | `string` | 是 | 模态层的唯一标识；与普通图层共用 ID 命名空间 |
-| `zIndex` | `number` | 是 | 模态层的优先级；越大越靠前，键盘优先级也越高 |
-| `options` | `ModalLayerOptions` | 否 | 可选配置，见下表 |
+- `layerId` {string} 模态层的唯一标识；与普通图层共用 ID 命名空间。
+- `zIndex` {number} 模态层的优先级；越大越靠前，键盘优先级也越高。
+- `[options]` {ModalLayerOptions} 可选配置，见下。
 
 `ModalLayerOptions` 与 `LayerOptions` 相同：
 
-| 字段 | 类型 | 说明 |
-| --- | --- | --- |
-| `crossPage` | `boolean` | 默认为 `false`；为 `true` 时，模态层在页面切换（`skip` / `back` / `gotoScreen`）时不会被自动清除 |
-| `automaticTakeoverKeyboard` | `boolean \| ComponentType[]` | 默认为 `false`；控制模态层键盘接管的作用范围（详见后续文章） |
+- `[crossPage]` {boolean} 为 `true` 时，模态层在页面切换（`skip` / `back` / `gotoScreen`）时不会被自动清除。 **默认值：** `false`。
+- `[automaticTakeoverKeyboard]` {boolean | ComponentType[]} 控制模态层键盘接管的作用范围（详见后续文章）。 **默认值：** `false`。
 
 > **Note:** `openModalLayer` 只开启一个空容器。开启之后还需要用 `applyElementToModalLayer` 挂载元素，否则屏幕上不会显示任何内容。
 
@@ -149,12 +145,10 @@ applyElementToModalLayer<C extends ComponentType<any>>(
 
 `modalLayerElement` 需要提供：
 
-| 字段 | 类型 | 必填 | 说明 |
-| --- | --- | --- | --- |
-| `element` | `ComponentType<C>` | 是 | 挂载进模态层的组件 |
-| `elementId` | `string` | 是 | 元素在模态层内的唯一标识 |
-| `props` | `ComponentProps<C>` | 否 | 传给元素的 props，会做类型校验 |
-| `active` | `boolean` | 否 | 默认为 `true`；为 `false` 时元素暂停接收键盘事件（见后续文章） |
+- `element` {ComponentType&lt;C&gt;} 挂载进模态层的组件。
+- `elementId` {string} 元素在模态层内的唯一标识。
+- `[props]` {ComponentProps&lt;C&gt;} 传给元素的 props，会做类型校验。
+- `[active]` {boolean} 为 `false` 时元素暂停接收键盘事件（见后续文章）。 **默认值：** `true`。
 
 ## 使用 `ModalLayerElementContext` 读取模态层信息
 

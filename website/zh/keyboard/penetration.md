@@ -65,11 +65,9 @@ useEffect(() => penetration(['escape'], { focusId: 'searchInput' }), [penetratio
 
 ## Options
 
-| Option | Type | 说明 |
-|---|---|---|
-| `focusId` | `string \| FocusRef` | 只在该焦点目标激活时放行；`FocusRef` 为 `{ group, focusId }` |
-| `when` | `(() => boolean) \| string` | 条件守卫，回调或已注册的命名条件 id |
-| `elementId` | `string` | 规则作用于哪个元素；图层元素内由 Hook 自动注入 |
+- `focusId` {string | FocusRef} 只在该焦点目标激活时放行；`FocusRef` 为 `{ group, focusId }`。
+- `when` {(() => boolean) | string} 条件守卫，回调或已注册的命名条件 id。
+- `elementId` {string} 规则作用于哪个元素；图层元素内由 Hook 自动注入。
 
 ## 返回值与错误
 

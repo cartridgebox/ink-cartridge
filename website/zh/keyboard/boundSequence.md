@@ -61,15 +61,13 @@ useEffect(() => {
 
 `SequenceOptions` 继承自 `BoundKeyboardOptions`，并新增了 `timeout` 与 `exclusive`：
 
-| 选项 | 类型 | 说明 |
-|------|------|------|
-| `timeout` | `number` | 相邻按键之间的最大间隔（毫秒），默认 `500` |
-| `exclusive` | `boolean` | 待续期间按错键时：`false` 取消序列并落到普通绑定；`true` 静默吞掉并继续等待，默认 `false` |
-| `when` | `(() => boolean) \| string` | 条件（函数或命名条件 id）。序列只在条件为真时启动与续写 |
-| `mode` | `string` | 只在指定模式下生效（模式需预先注册） |
-| `focusId` | `string \| FocusRef` | 把序列绑定到指定的焦点目标 / 焦点组，仅当该目标激活时匹配 |
-| `elementId` | `string` | 把序列绑定到当前图层的指定元素 |
-| `stopsWorkingAfterLayerAppearing` | `boolean` | 仅页面绑定：一旦任何图层出现，序列失效 |
+- `timeout` {number} 相邻按键之间的最大间隔（毫秒）。 **默认值：** `500`。
+- `exclusive` {boolean} 待续期间按错键时：`false` 取消序列并落到普通绑定；`true` 静默吞掉并继续等待。 **默认值：** `false`。
+- `when` {(() => boolean) | string} 条件（函数或命名条件 id）。序列只在条件为真时启动与续写。
+- `mode` {string} 只在指定模式下生效（模式需预先注册）。
+- `focusId` {string | FocusRef} 把序列绑定到指定的焦点目标 / 焦点组，仅当该目标激活时匹配。
+- `elementId` {string} 把序列绑定到当前图层的指定元素。
+- `stopsWorkingAfterLayerAppearing` {boolean} 仅页面绑定：一旦任何图层出现，序列失效。
 
 ### `timeout` 与 `exclusive`
 

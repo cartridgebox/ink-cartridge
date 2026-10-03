@@ -26,11 +26,9 @@ allowModal(keys: string[], options?: AllowModalOptions): () => void
 
 `AllowModalOptions` 的可选字段：
 
-| 字段 | 类型 | 说明 |
-| --- | --- | --- |
-| `elementId` | `string` | 放行规则归属的元素。在模态层元素内通过 `useKeyboard()` 调用时自动注入，通常无需手动传 |
-| `focusId` | `string \| FocusRef` | 把放行规则限定到指定的焦点目标；只有在该焦点目标内放行才生效。字符串形式指默认焦点层里的焦点 ID，对象形式 `{ group, focusId }` 限定到指定焦点组 |
-| `when` | `(() => boolean) \| string` | 条件。可以是函数，也可以是已注册的条件 ID。为 `false` 时该放行规则失效，按键仍被屏障拦截 |
+- `[elementId]` {string} 放行规则归属的元素。在模态层元素内通过 `useKeyboard()` 调用时自动注入，通常无需手动传。
+- `[focusId]` {string | FocusRef} 把放行规则限定到指定的焦点目标；只有在该焦点目标内放行才生效。字符串形式指默认焦点层里的焦点 ID，对象形式 `{ group, focusId }` 限定到指定焦点组。
+- `[when]` {(() => boolean) | string} 条件。可以是函数，也可以是已注册的条件 ID。为 `false` 时该放行规则失效，按键仍被屏障拦截。
 
 `allowModal` 必须在模态层的组件内调用。通过 `useKeyboard()` 获取的 `allowModal` 会自动把规则归属到当前模态层的元素上，无需手动传 `elementId`：
 

@@ -26,11 +26,9 @@ allowModal(keys: string[], options?: AllowModalOptions): () => void
 
 The optional fields of `AllowModalOptions`:
 
-| Field | Type | Description |
-| --- | --- | --- |
-| `elementId` | `string` | The element the allow rule applies to. Auto-injected by `useKeyboard()` when called inside a modal element; usually no need to pass it |
-| `focusId` | `string \| FocusRef` | Scopes the allow rule to a named focus target; the rule only takes effect within that target. A string refers to a focus id in the default focus layer; the object form `{ group, focusId }` scopes it to a named focus group |
-| `when` | `(() => boolean) \| string` | A condition — a function or a registered condition id. When it's `false`, the allow rule is ignored and the key stays blocked by the barrier |
+- `[elementId]` {string} The element the allow rule applies to. Auto-injected by `useKeyboard()` when called inside a modal element; usually no need to pass it.
+- `[focusId]` {string | FocusRef} Scopes the allow rule to a named focus target; the rule only takes effect within that target. A string refers to a focus id in the default focus layer; the object form `{ group, focusId }` scopes it to a named focus group.
+- `[when]` {(() => boolean) | string} A condition — a function or a registered condition id. When it's `false`, the allow rule is ignored and the key stays blocked by the barrier.
 
 `allowModal` must be called inside a modal layer's component. The `allowModal` from `useKeyboard()` attributes the rule to the current modal layer's element automatically — no need to pass `elementId` by hand:
 

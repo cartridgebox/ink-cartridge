@@ -11,10 +11,8 @@
 
 ## 特性预估
 
-| 选项 | 类型 | 作用 |
-| :--- | :--- | :--- |
-| `when` | () => boolean 或者 string | 动态启用/禁用此绑定，`when` 返回 true 时，绑定生效，返回 false 时，绑定失效。 |
-| `observer` | (remaining: number) => void | 必须与 times 同时使用。在 times 计数归零之前，每次按键都会触发此回调，并传入剩余还需按下的次数。 |
+- `when` {() => boolean | string} 动态启用/禁用此绑定：返回 `true` 时绑定生效，返回 `false` 时绑定失效。
+- `observer` {(remaining: number) => void} 必须与 `times` 同时使用。在 `times` 计数归零之前，每次按键都会触发此回调，并传入剩余还需按下的次数。
 
 ## 使用 `boundKeyboard` 配合 `when` 与条件系统
 

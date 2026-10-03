@@ -30,11 +30,9 @@ useModalMissListener(cb: ModalMissCallback, options?: ModalMissOptions): () => v
 
 `options` 的可选字段：
 
-| 字段 | 类型 | 说明 |
-| --- | --- | --- |
-| `monitorWhen` | `boolean` | 默认为 `false`。为 `true` 时，命中某个 `when` 条件为 `false` 的绑定的按键也视为丢失键；否则视为已处理 |
-| `monitorFocusMismatch` | `boolean` | 默认为 `false`。为 `true` 时，命中非激活焦点目标的绑定的按键也视为丢失键 |
-| `elementId` | `string` | 监听归属的元素。在模态层元素内通过 `useKeyboard()` 调用时自动注入，通常无需手动传 |
+- `[monitorWhen]` {boolean} 为 `true` 时，命中某个 `when` 条件为 `false` 的绑定的按键也视为丢失键；否则视为已处理。 **默认值：** `false`。
+- `[monitorFocusMismatch]` {boolean} 为 `true` 时，命中非激活焦点目标的绑定的按键也视为丢失键。 **默认值：** `false`。
+- `[elementId]` {string} 监听归属的元素。在模态层元素内通过 `useKeyboard()` 调用时自动注入，通常无需手动传。
 
 `useModalMissListener` 必须在**模态层内**调用才生效。在普通图层内调用不会报错，但监听不会真正激活。
 
