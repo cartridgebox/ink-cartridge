@@ -105,4 +105,35 @@ describe("Settings language switching", () => {
 		expect(stripAnsi(lastFrame())).toContain("1.5×");
 		unmount();
 	});
+
+	it("adjusts the render rate via the slider picker", async () => {
+		const { stdin, lastFrame, unmount } = renderApp(MainMenu);
+		await flush();
+		await press(stdin, "s"); // open settings
+		await flush();
+		// Rows: language, cursor, view, file-tree-root, merge-window, fps.
+		for (let i = 0; i < 5; i++) {
+			await press(stdin, "down");
+		}
+		await flush();
+		await press(stdin, "\r"); // open the fps picker modal
+		await flush();
+		expect(stripAnsi(lastFrame())).toContain("Render Rate (FPS)");
+		expect(stripAnsi(lastFrame())).toContain("30 fps"); // the default
+
+		await press(stdin, "right"); // +5 step
+		await flush();
+		expect(stripAnsi(lastFrame())).toContain("35 fps");
+
+		await press(stdin, "left");
+		await press(stdin, "left");
+		await flush();
+		expect(stripAnsi(lastFrame())).toContain("25 fps");
+
+		await press(stdin, "\x1b"); // close the picker
+		await flush();
+		// The settings row reflects the new value.
+		expect(stripAnsi(lastFrame())).toContain("25 fps");
+		unmount();
+	});
 });

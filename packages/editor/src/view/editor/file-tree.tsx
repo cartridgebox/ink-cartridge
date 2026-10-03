@@ -13,6 +13,7 @@ import React, {
 	useContext,
 	useEffect,
 	useMemo,
+	useRef,
 	useState,
 } from "react";
 import { basename } from "node:path";
@@ -29,11 +30,23 @@ import type { EditorSession } from "../../core/io/session.js";
 import { useSettings } from "../../core/settings/useSettings.js";
 import { ModalFrame } from "../utils/modal-frame.js";
 import { setTreePos } from "../event/subscription/tree-store.js";
+import { EDITOR_PANE, PANE_GROUP, TREE_PANE, usePaneActive } from "./panes.js";
 
 /** Narrowest the pane can be; wide enough for short names. */
 const MIN_TREE_WIDTH = 24;
 /** Widest the pane can be — the editor keeps at least 20 columns. */
 const MAX_TREE_WIDTH = 60;
+
+/**
+ * Scroll offset that keeps `cursor` inside the `[top, top + viewport)` window,
+ * moving as little as possible: up if the cursor is above, down if below.
+ * `viewport` must be ≥ 1.
+ */
+function revealScrollTop(cursor: number, top: number, viewport: number): number {
+	if (cursor < top) return cursor;
+	if (cursor >= top + viewport) return cursor - viewport + 1;
+	return top;
+}
 
 export type FileTreeProps = {
 	/** The shared file session; clicking a file opens it here. */
@@ -41,12 +54,18 @@ export type FileTreeProps = {
 };
 
 /**
- * VSCode-style file tree pinned to the right edge of the terminal (regular
- * layer element). Recursively scans the configured root directory once per
+ * VSCode-style file tree pinned to the right edge of the terminal, rendered
+ * inline by the editor screen (so both panes share one keyboard owner and one
+ * focus group). Recursively scans the configured root directory once per
  * settings change; directories expand/collapse on click, files open in the
  * editor (with an unsaved-changes prompt when the buffer is dirty). Scrolling
- * is mouse-wheel only; the pane is fixed — not draggable — and stays below
- * the information bar.
+ * is mouse-wheel or keyboard-cursor driven; the pane is fixed — not
+ * draggable — and stays below the information bar.
+ *
+ * While the pane holds keyboard focus, the cursor keys / `j` `k` move a
+ * selection, `Enter` opens a file or expands a directory, `h` `l`
+ * collapse/expand, and `Tab` / `Esc` return focus to the editor. Clicking the
+ * pane focuses it.
  */
 export function FileTree({ session }: FileTreeProps) {
 	const { rows, columns } = useWindowSize();
@@ -55,6 +74,17 @@ export function FileTree({ session }: FileTreeProps) {
 	const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
 	const [scrollTop, setScrollTop] = useState(0);
 	const [hoveredPath, setHoveredPath] = useState<string | null>(null);
+	// Keyboard selection: index into `visibleRows`. Mirrored in a ref so the
+	// (mount-only) key bindings below read the latest value without ever
+	// re-registering — re-registering a focus-gated binding while the pane is
+	// unfocused would re-trigger the engine's first-target auto-activation and
+	// steal focus back from the editor.
+	const [cursorIndex, setCursorIndex] = useState(0);
+	const cursorRef = useRef(0);
+	const { boundKeyboard, focusSet } = useKeyboard();
+	// The pane shares the editor's owner (it is rendered inline, not as a
+	// layer), so its focus is the "tree" target of the page's "panes" group.
+	const focused = usePaneActive(TREE_PANE);
 
 	// scanTick bumps to force a re-scan — the cache never expires on its own.
 	const [scanTick, setScanTick] = useState(0);
@@ -78,6 +108,8 @@ export function FileTree({ session }: FileTreeProps) {
 		setPrevRoot(root);
 		setExpanded(new Set());
 		setScrollTop(0);
+		cursorRef.current = 0;
+		setCursorIndex(0);
 	}
 
 	const visibleRows = useMemo(
@@ -112,7 +144,13 @@ export function FileTree({ session }: FileTreeProps) {
 		});
 	}, []);
 
-	const containerRef = useMouseRegion({ onWheel: handleWheel });
+	// A click sets the pane's focus target explicitly. (ink-cartridge's
+	// `clickOnFocus` is not usable here: its forwarding resolves the owner from
+	// the engine's owner stack, whose top is the toolbar layer, not the page.)
+	const containerRef = useMouseRegion({
+		onWheel: handleWheel,
+		onClick: () => focusSet(TREE_PANE, PANE_GROUP),
+	});
 	// Manual refresh: the scan cache never expires on its own, so new files
 	// only appear after a click here (cache cleared + re-scan).
 	const [refreshHovered, setRefreshHovered] = useState(false);
@@ -126,6 +164,112 @@ export function FileTree({ session }: FileTreeProps) {
 	});
 	const viewportRows = Math.max(1, rows - 4);
 	const visible = visibleRows.slice(scrollTop, scrollTop + viewportRows);
+
+	// Latest values read by the stable bindings, refreshed every render.
+	const navRef = useRef({ rows: visibleRows, viewport: viewportRows });
+	useEffect(() => {
+		navRef.current = { rows: visibleRows, viewport: viewportRows };
+	});
+
+	const moveCursor = useCallback((delta: number) => {
+		const { rows, viewport } = navRef.current;
+		const max = Math.max(0, rows.length - 1);
+		const next = Math.min(Math.max(0, cursorRef.current + delta), max);
+		cursorRef.current = next;
+		setCursorIndex(next);
+		// Keep the cursor inside the viewport (keyboard replaces wheel-only scrolling).
+		setScrollTop((top) => revealScrollTop(next, top, viewport));
+	}, []);
+
+	const activateRow = useCallback(() => {
+		const row = navRef.current.rows[cursorRef.current];
+		if (!row) return;
+		if (row.node.isDir) {
+			toggleDir(row.node.path);
+		} else {
+			openFile(row.node.path);
+		}
+	}, [openFile, toggleDir]);
+
+	// Left collapses an expanded directory; right expands a collapsed one.
+	// Both are no-ops on files (and on already-settled directories).
+	const setRowExpanded = useCallback((open: boolean) => {
+		const row = navRef.current.rows[cursorRef.current];
+		if (!row || !row.node.isDir) return;
+		const path = row.node.path;
+		// Read the current value inside the updater, not from the pre-render ref:
+		// two keys batched into one render (e.g. a coalesced `l l`) would both see
+		// the old set and toggle back, defeating the idempotence guard.
+		setExpanded((prev) => {
+			if (prev.has(path) === open) return prev;
+			const next = new Set(prev);
+			toggleExpanded(next, path);
+			return next;
+		});
+	}, []);
+
+	// Latest handlers + boundKeyboard captured in refs so the mount-only
+	// binding effect below never re-runs (`boundKeyboard`'s identity changes
+	// across renders).
+	const handlersRef = useRef({
+		move: moveCursor,
+		activate: activateRow,
+		expand: setRowExpanded,
+		leave: () => focusSet(EDITOR_PANE, PANE_GROUP),
+	});
+	const bindRef = useRef(boundKeyboard);
+	useEffect(() => {
+		handlersRef.current = {
+			move: moveCursor,
+			activate: activateRow,
+			expand: setRowExpanded,
+			leave: () => focusSet(EDITOR_PANE, PANE_GROUP),
+		};
+		bindRef.current = boundKeyboard;
+	});
+
+	// The pane's navigation keys are the "tree" target of the page's "panes"
+	// focus group, so they fire only while the tree holds focus. The group is
+	// mutually exclusive with the editor's keys, so no mode gate is needed.
+	useEffect(() => {
+		const bind = bindRef.current;
+		const h = handlersRef;
+		const opts = {
+			focusId: { focusId: TREE_PANE, group: PANE_GROUP },
+		};
+		const unbinds = [
+			bind(["up", "k"], () => h.current.move(-1), opts),
+			bind(["down", "j"], () => h.current.move(1), opts),
+			bind(["return"], () => h.current.activate(), opts),
+			bind(["left", "h"], () => h.current.expand(false), opts),
+			bind(["right", "l"], () => h.current.expand(true), opts),
+			bind(["escape"], () => h.current.leave(), opts),
+			bind(["tab"], () => h.current.leave(), opts),
+		];
+		return () => unbinds.forEach((unbind) => unbind());
+	}, []);
+
+	// Keep the cursor and the scroll offset valid when the visible rows or the
+	// viewport change (collapse, rescan, terminal resize). The scroll bound is
+	// the last viewport offset (`length - viewportRows`), not the last row index
+	// — clamping to the index would leave the slice past the end and render
+	// blank rows. And a shrinking viewport can leave the cursor below the
+	// window, so `revealScrollTop` re-derives the offset for it too.
+	useEffect(() => {
+		const maxCursor = Math.max(0, visibleRows.length - 1);
+		if (cursorRef.current > maxCursor) {
+			cursorRef.current = maxCursor;
+			setCursorIndex(maxCursor);
+		}
+		const viewport = navRef.current.viewport;
+		const maxScroll = Math.max(0, visibleRows.length - viewport);
+		setScrollTop((top) =>
+			Math.min(
+				maxScroll,
+				Math.max(0, revealScrollTop(cursorRef.current, Math.min(top, maxScroll), viewport))
+			)
+		);
+	}, [visibleRows.length, viewportRows]);
 
 	// Fit the pane to its widest visible line (indent + arrow + name), so
 	// long file names stay readable; capped so the editor keeps room.
@@ -161,7 +305,7 @@ export function FileTree({ session }: FileTreeProps) {
 			width={treeWidth}
 			height={rows - 1}
 			borderStyle="bold"
-			borderColor="white"
+			borderColor={focused ? "blue" : "white"}
 			// Match the editor surface so the pane reads as part of it.
 			backgroundColor="#1e1e1e"
 			borderBackgroundColor="#1e1e1e"
@@ -182,19 +326,24 @@ export function FileTree({ session }: FileTreeProps) {
 					<Text dimColor>{t("fileTree.fail")}</Text>
 				</Box>
 			) : (
-				visible.map((row) => (
+				visible.map((row, i) => (
 					<TreeRow
 						key={row.node.path}
 						node={row.node}
 						depth={row.depth}
 						expanded={expanded.has(row.node.path)}
 						hovered={hoveredPath === row.node.path}
+						active={focused && scrollTop + i === cursorIndex}
 						onEnter={() => setHoveredPath(row.node.path)}
 						onLeave={() =>
 							setHoveredPath((h) => (h === row.node.path ? null : h))
 						}
 						onWheel={handleWheel}
 						onClick={() => {
+							// Rows are their own regions (priority 1), so the pane's
+							// clickOnFocus doesn't see these clicks — set the pane
+							// target directly.
+							focusSet(TREE_PANE, PANE_GROUP);
 							if (row.node.isDir) {
 								toggleDir(row.node.path);
 							} else {
@@ -214,6 +363,8 @@ type TreeRowProps = {
 	/** Whether this directory is expanded (drives the arrow direction). */
 	expanded: boolean;
 	hovered: boolean;
+	/** Whether this row holds the keyboard cursor while the pane is focused. */
+	active: boolean;
 	onEnter: () => void;
 	onLeave: () => void;
 	onWheel: (event: { button: string }) => void;
@@ -232,6 +383,7 @@ function TreeRow({
 	depth,
 	expanded,
 	hovered,
+	active,
 	onEnter,
 	onLeave,
 	onWheel,
@@ -253,7 +405,7 @@ function TreeRow({
 	const indent = "  ".repeat(Math.max(0, depth - 1));
 	return (
 		<Box ref={ref} paddingLeft={1}>
-			<Text inverse={hovered} bold={node.isDir}>
+			<Text inverse={hovered || active} bold={node.isDir}>
 				{indent}
 				{arrow}
 				{node.name}

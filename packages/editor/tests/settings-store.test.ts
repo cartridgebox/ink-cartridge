@@ -52,6 +52,18 @@ describe("settings schema", () => {
 		).toEqual(DEFAULT_SETTINGS);
 	});
 
+	it("accepts a valid render rate and defaults it", () => {
+		expect(parseSettings({}).fps).toBe(30);
+		expect(parseSettings({ fps: 5 }).fps).toBe(5);
+		expect(parseSettings({ fps: 120 }).fps).toBe(120);
+	});
+
+	it("rejects an out-of-range or off-step render rate", () => {
+		// 200 exceeds the max; 12 is not a 5 step; both fall back wholesale.
+		expect(parseSettings({ fps: 200 })).toEqual(DEFAULT_SETTINGS);
+		expect(parseSettings({ fps: 12 })).toEqual(DEFAULT_SETTINGS);
+	});
+
 	it("rejects missing keys", () => {
 		expect(parseSettings({})).toEqual(DEFAULT_SETTINGS);
 		expect(parseSettings(null)).toEqual(DEFAULT_SETTINGS);
@@ -78,11 +90,14 @@ describe("SettingsStore", () => {
 		dir = tempDir();
 		writeFileSync(
 			file(),
-			JSON.stringify({ wheel: { cursor: 5, view: 2 } }),
+			JSON.stringify({ wheel: { cursor: 5, view: 2 }, fps: 60 }),
 			"utf8",
 		);
 		const store = new SettingsStore(file());
 		expect(store.settings.wheel).toEqual({ cursor: 5, view: 2 });
+		// The `settings` getter hydrates synchronously, so the boot-time
+		// `maxFps: settingsStore.settings.fps` reads the persisted value.
+		expect(store.settings.fps).toBe(60);
 	});
 
 	it("falls back to defaults on corrupt JSON", () => {
@@ -114,6 +129,7 @@ describe("SettingsStore", () => {
 			wheel: { cursor: 4, view: 4 },
 			fileTree: { root: "startup", customPath: "" },
 			history: { mergeWindow: 500 },
+			fps: 30,
 		});
 	});
 

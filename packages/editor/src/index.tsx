@@ -34,4 +34,8 @@ render(
         <CurrentScreen />
       </KeyboardProvider>
     </LanguageProvider>
-  </ScenarioManagementProvider>);
+  </ScenarioManagementProvider>, {
+	// Ink reads the render rate once, at construction — a settings change
+	// takes effect on the next launch.
+	maxFps: settingsStore.settings.fps
+});

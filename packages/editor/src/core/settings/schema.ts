@@ -37,6 +37,27 @@ export const mergeWindowSchema = z
 
 const DEFAULT_WHEEL = { cursor: 1, view: 3 } as const;
 
+/** Render throttle range for Ink's `maxFps` (frames per second). */
+export const FPS_MIN = 5;
+export const FPS_MAX = 120;
+export const FPS_STEP = 5;
+/** Ink's own default render rate. */
+export const FPS_DEFAULT = 30;
+
+/**
+ * Maximum frames per second Ink renders at. Applied when the app boots (Ink
+ * reads `maxFps` once, at render construction), so a change takes effect on
+ * the next launch.
+ */
+export const fpsSchema = z
+	.number()
+	.int()
+	.min(FPS_MIN)
+	.max(FPS_MAX)
+	.multipleOf(FPS_STEP)
+	.default(FPS_DEFAULT);
+
+
 /** File-tree root source: the process startup directory or a custom path. */
 export const fileTreeRootSchema = z.enum(["startup", "custom"]).default("startup");
 
@@ -65,6 +86,8 @@ export const settingsSchema = z.object({
 			mergeWindow: mergeWindowSchema,
 		})
 		.default({ mergeWindow: MERGE_WINDOW_DEFAULT }),
+	/** Render rate (frames per second); applied on the next launch. */
+	fps: fpsSchema,
 });
 
 export type EditorSettings = z.infer<typeof settingsSchema>;
@@ -77,6 +100,7 @@ export const DEFAULT_SETTINGS: EditorSettings = {
 	wheel: DEFAULT_WHEEL,
 	fileTree: { root: "startup", customPath: "" },
 	history: { mergeWindow: MERGE_WINDOW_DEFAULT },
+	fps: FPS_DEFAULT,
 };
 
 /** Parse an unknown persisted value, falling back to defaults on any failure. */
