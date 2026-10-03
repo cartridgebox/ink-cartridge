@@ -43,6 +43,6 @@ Only normal characters are eligible for wildcard `"*"` matching. Use it to tell 
 
 ## Uses
 
-- **Custom host**: without React, `normalizeKeyNames` and `isNormalCharacter` are required when constructing a `KeyboardEngine`.
+- **Custom host**: without React, constructing a `KeyboardEngine` requires `normalizeKeyNames` and `isNormalChar` (derivable from `isInkSpecialKey`, e.g. `(key) => !isInkSpecialKey(key)`).
 - **Input handling**: when building a text field, filter control keys with `isNormalCharacter`.
 - **Stable spelling**: write binding strings in normalized form to stay consistent across terminals.

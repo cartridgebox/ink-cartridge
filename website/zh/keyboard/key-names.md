@@ -43,6 +43,6 @@ normalizeKeyNames("", { tab: true, shift: true })     // ["shift+tab"]
 
 ## 用途
 
-- **自定义宿主**：非 React 集成时，`normalizeKeyNames` 与 `isNormalCharacter` 是构造 `KeyboardEngine` 的必填项。
+- **自定义宿主**：非 React 集成时，构造 `KeyboardEngine` 需提供 `normalizeKeyNames` 与 `isNormalChar`（可由 `isInkSpecialKey` 派生，如 `(key) => !isInkSpecialKey(key)`）两个必填项。
 - **输入判定**：实现输入框 / 文本编辑时，用 `isNormalCharacter` 过滤控制键。
 - **稳定书写**：绑定字符串统一用归一化形式，可跨终端保持一致。
