@@ -6,8 +6,9 @@ import { useSyncExternalStore } from "react";
  * The editor (a screen) and the tree (a layer element) sit on different
  * keyboard-engine owners, so they cannot share a focus group. The editor
  * records its intent here; the tree reconciles the engine's focus to it —
- * on mount and on every change. Reconciling (rather than a one-shot kick)
- * keeps focus correct even though the tree remounts on terminal resize.
+ * on mount and on every change. Reconciling (rather than a one-shot call)
+ * keeps focus correct even though the keyboard handles the tree uses are not
+ * referentially stable and re-run its effects.
  */
 let requested = false;
 const listeners = new Set<() => void>();

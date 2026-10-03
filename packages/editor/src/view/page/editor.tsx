@@ -131,9 +131,10 @@ export function Editor({
 	// button; the overlay itself closes via its Exit button or Esc.
 	const [settingsOpen, setSettingsOpen] = useState(false);
 	// Whether the file tree pane holds the keyboard (toggled by Tab in normal
-	// mode) lives in a module store: the editor only records the intent, and
-	// the tree reconciles the engine's focus to it. This survives the tree
-	// remounting on terminal resize (a one-shot engine call would not).
+	// mode) lives in a module store. The editor (a screen) cannot hold the
+	// tree's focus target directly: they sit on different keyboard-engine
+	// owners and the tree owns its own focus-gated bindings. The editor
+	// records the intent; the tree reconciles the engine's focus to it.
 
 	useEffect(() => {
 		if (!toolbarOpen) {

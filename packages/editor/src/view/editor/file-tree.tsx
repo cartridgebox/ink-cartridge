@@ -262,9 +262,11 @@ export function FileTree({ session }: FileTreeProps) {
 
 	// Reconcile the engine's focus to the editor's intent. The engine
 	// auto-activates the first focus target on a layer (this pane is its
-	// layer's only element), so a bare mount would grab the keyboard; and the
-	// pane remounts on terminal resize, which would otherwise drop focus.
-	// Reconciling on mount and on every intent change keeps both correct.
+	// layer's only element), so a bare mount would grab the keyboard. And
+	// because the `useKeyboard` handles (`focusSet`/`kickFocusGroup`) are not
+	// referentially stable, this effect re-runs on re-renders — reconciling
+	// (an idempotent no-op unless intent and engine disagree) keeps focus
+	// correct no matter how often the handles churn.
 	useEffect(() => {
 		const reconcile = () => {
 			const want = getTreeFocusRequested();
