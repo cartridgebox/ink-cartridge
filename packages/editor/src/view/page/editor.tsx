@@ -185,14 +185,17 @@ export function Editor({
 	// the tree is open and only in normal mode (insert keeps Tab = indent).
 	// The tree binds no Tab, so the event bubbles here from the layer stage.
 	// Only the intent is recorded here; the tree reconciles the engine to it.
+	// Suppressed while the settings overlay is open: that overlay is an
+	// ordinary (non-modal) layer, so a Tab press there would otherwise toggle
+	// the tree's focus behind it and leave the tree holding the keyboard on close.
 	useEffect(() => {
-		if (!fileTreeOpen) return;
+		if (!fileTreeOpen || settingsOpen) return;
 		return boundKeyboard(
 			["tab"],
 			() => setTreeFocusRequested(!getTreeFocusRequested()),
 			{ mode: "normal" }
 		);
-	}, [boundKeyboard, fileTreeOpen]);
+	}, [boundKeyboard, fileTreeOpen, settingsOpen]);
 	// Leaving the editor clears the intent; the store is a module singleton and
 	// must not leak into a later mount (e.g. re-entering from the main menu).
 	useEffect(() => {
