@@ -11,10 +11,8 @@ Additionally, `boundKeyboard` has three overloads, but we only cover the most ba
 
 ## Feature overview
 
-| Option | Type | Description |
-| :--- | :--- | :--- |
-| `when` | () => boolean or string | Dynamically enable/disable the binding. When `when` returns `true`, the binding is active; when it returns `false`, the binding is disabled. |
-| `observer` | (remaining: number) => void | Must be used together with `times`. Before the `times` count reaches zero, every key press triggers this callback, passing the number of remaining presses. |
+- `when` {() => boolean | string} Dynamically enable/disable the binding: active when it returns `true`, disabled when it returns `false`.
+- `observer` {(remaining: number) => void} Must be used with `times`. Before the `times` count reaches zero, every key press triggers this callback with the number of presses remaining.
 
 ## Using `boundKeyboard` with `when` and the condition system
 

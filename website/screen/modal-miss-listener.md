@@ -30,11 +30,9 @@ The callback `cb` receives a `ModalMissEvent`, whose `miss` field distinguishes 
 
 The optional fields of `options`:
 
-| Field | Type | Description |
-| --- | --- | --- |
-| `monitorWhen` | `boolean` | Defaults to `false`. When `true`, a key hitting a binding whose `when` condition is `false` is also treated as a missed key; otherwise it's treated as handled |
-| `monitorFocusMismatch` | `boolean` | Defaults to `false`. When `true`, a key hitting a binding on a non-active focus target is also treated as a missed key |
-| `elementId` | `string` | The element the listener belongs to. Auto-injected by `useKeyboard()` when called inside a modal element; usually no need to pass it |
+- `[monitorWhen]` {boolean} When `true`, a key hitting a binding whose `when` condition is `false` is also treated as a missed key; otherwise it's treated as handled. **Default:** `false`.
+- `[monitorFocusMismatch]` {boolean} When `true`, a key hitting a binding on a non-active focus target is also treated as a missed key. **Default:** `false`.
+- `[elementId]` {string} The element the listener belongs to. Auto-injected by `useKeyboard()` when called inside a modal element; usually no need to pass it.
 
 `useModalMissListener` must be called **inside a modal layer** to take effect. Calling it inside an ordinary layer doesn't throw, but the listener never truly activates.
 

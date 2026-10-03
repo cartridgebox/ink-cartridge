@@ -65,11 +65,9 @@ Within a layer the order is **bindings → penetration → stop**, so penetratio
 
 ## Options
 
-| Option | Type | Description |
-|---|---|---|
-| `focusId` | `string \| FocusRef` | Release only while that focus target is active; `FocusRef` is `{ group, focusId }` |
-| `when` | `(() => boolean) \| string` | Condition guard — callback or registered named condition id |
-| `elementId` | `string` | Which element the rule applies to; injected by the hook inside layer elements |
+- `focusId` {string | FocusRef} Release only while that focus target is active; `FocusRef` is `{ group, focusId }`.
+- `when` {(() => boolean) | string} Condition guard — callback or registered named condition id.
+- `elementId` {string} Which element the rule applies to; injected by the hook inside layer elements.
 
 ## Return value and errors
 

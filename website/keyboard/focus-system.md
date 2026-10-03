@@ -36,12 +36,10 @@ Additionally, ink-cartridge supports multi-focus: default groups and named group
 
 ## Basic focus methods preview
 
-| Method | Type signature | Description |
-|------|---------|------|
-| `focusSet` | `(focusId: string, groupOrOptions?: string \| FocusSetOptions) => void` | Force activation. Immediately switches focus to the given `focusId`. If a `group` is specified, switches within that group. |
-| `focusNext` | `(groupOrOptions?: string \| FocusSetOptions) => void` | Move forward. In the current or default group, moves focus to the **next** target in registration order (Tab behavior). |
-| `focusPrev` | `(groupOrOptions?: string \| FocusSetOptions) => void` | Move backward. In the current or default group, moves focus to the **previous** target in registration order (Shift+Tab behavior). |
-| `focusCurrent` | `(groupOrOptions?: string \| FocusSetOptions) => FocusCurrentResult` | Query the current focus. Returns the `focusId` currently holding focus and its group. Useful for debugging or reading state (does not trigger rendering). |
+- `focusSet(focusId, groupOrOptions?)` {void} Force activation. Immediately switches focus to the given `focusId`. If a `group` is specified, switches within that group.
+- `focusNext(groupOrOptions?)` {void} Move forward. In the current or default group, moves focus to the **next** target in registration order (Tab behavior).
+- `focusPrev(groupOrOptions?)` {void} Move backward. In the current or default group, moves focus to the **previous** target in registration order (Shift+Tab behavior).
+- `focusCurrent(groupOrOptions?)` {FocusCurrentResult} Query the current focus. Returns the `focusId` currently holding focus and its group. Useful for debugging or reading state (does not trigger rendering).
 
 ## What is focus, and what is a focus target
 

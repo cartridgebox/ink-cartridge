@@ -61,15 +61,13 @@ So every rule you learned in *Binding Attribution & the Owner Stack*, *Focus Sys
 
 `SequenceOptions` extends `BoundKeyboardOptions` and adds `timeout` and `exclusive`:
 
-| Option | Type | Description |
-|------|------|------|
-| `timeout` | `number` | Max gap between consecutive key presses (ms). Default `500` |
-| `exclusive` | `boolean` | On a mismatched key during a pending sequence: `false` cancels the sequence and lets the key fall through; `true` silently consumes it and keeps waiting. Default `false` |
-| `when` | `(() => boolean) \| string` | Condition (function or named condition id). The sequence only starts and continues while this is `true` |
-| `mode` | `string` | Only active in the given mode (modes must be registered first) |
-| `focusId` | `string \| FocusRef` | Scope the sequence to a focus target / focus group; only matches while that target is active |
-| `elementId` | `string` | Scope the sequence to a specific element on the current layer |
-| `stopsWorkingAfterLayerAppearing` | `boolean` | Page bindings only: the sequence stops working once any layer is present |
+- `timeout` {number} Max gap between consecutive key presses (ms). **Default:** `500`.
+- `exclusive` {boolean} On a mismatched key during a pending sequence: `false` cancels the sequence and lets the key fall through; `true` silently consumes it and keeps waiting. **Default:** `false`.
+- `when` {(() => boolean) | string} Condition (function or named condition id). The sequence only starts and continues while this is `true`.
+- `mode` {string} Only active in the given mode (modes must be registered first).
+- `focusId` {string | FocusRef} Scope the sequence to a focus target / focus group; only matches while that target is active.
+- `elementId` {string} Scope the sequence to a specific element on the current layer.
+- `stopsWorkingAfterLayerAppearing` {boolean} Page bindings only: the sequence stops working once any layer is present.
 
 ### `timeout` and `exclusive`
 

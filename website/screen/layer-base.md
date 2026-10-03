@@ -112,18 +112,14 @@ The signature of `openLayer`:
 openLayer(layerId: string, zIndex: number, options?: LayerOptions): void
 ```
 
-| Argument | Type | Required | Description |
-| --- | --- | --- | --- |
-| `layerId` | `string` | Yes | The layer's unique ID; the same ID can only be opened once |
-| `zIndex` | `number` | Yes | The layer's priority; a higher value puts it on top and gives it higher keyboard and mouse priority |
-| `options` | `LayerOptions` | No | Optional config, see the table below |
+- `layerId` {string} The layer's unique ID; the same ID can only be opened once.
+- `zIndex` {number} The layer's priority; a higher value puts it on top and gives it higher keyboard and mouse priority.
+- `[options]` {LayerOptions} Optional config, see below.
 
 The optional fields of `LayerOptions`:
 
-| Field | Type | Description |
-| --- | --- | --- |
-| `crossPage` | `boolean` | Defaults to `false`; when `true`, the layer is not auto-cleared on page switches (`skip` / `back` / `gotoScreen`) |
-| `automaticTakeoverKeyboard` | `boolean \| ComponentType[]` | Defaults to `false`; controls the scope of the layer's keyboard bindings (covered in a later article) |
+- `[crossPage]` {boolean} When `true`, the layer is not auto-cleared on page switches (`skip` / `back` / `gotoScreen`). **Default:** `false`.
+- `[automaticTakeoverKeyboard]` {boolean | ComponentType[]} Controls the scope of the layer's keyboard bindings (covered in a later article). **Default:** `false`.
 
 > **Note:** `openLayer` only opens an empty container. You still need `applyElement` to mount elements, otherwise nothing shows on screen.
 
@@ -137,12 +133,10 @@ applyElement<C extends ComponentType<any>>(targetLayerId: string, layerElement: 
 
 `layerElement` provides:
 
-| Field | Type | Required | Description |
-| --- | --- | --- | --- |
-| `element` | `ComponentType<C>` | Yes | The component to mount into the layer |
-| `elementId` | `string` | Yes | The element's unique ID within the layer |
-| `props` | `ComponentProps<C>` | No | Props passed to the element, type-checked just like `skip()`'s `params` |
-| `active` | `boolean` | No | Defaults to `true`; when `false`, the element stops receiving keyboard events |
+- `element` {ComponentType&lt;C&gt;} The component to mount into the layer.
+- `elementId` {string} The element's unique ID within the layer.
+- `[props]` {ComponentProps&lt;C&gt;} Props passed to the element, type-checked just like `skip()`'s `params`.
+- `[active]` {boolean} When `false`, the element stops receiving keyboard events. **Default:** `true`.
 
 `props` is strictly type-checked: the props you pass must match the prop type declared by the `element` component, otherwise it's a compile error. For example:
 

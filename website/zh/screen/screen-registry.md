@@ -148,11 +148,10 @@ function registerComponent<C extends React.ComponentType<any>>(
 ): void
 ```
 
-| 参数 | 类型 | 必填 | 说明 |
-| --- | --- | --- | --- |
-| `component` | `React.ComponentType<any>` | 是 | 注册为屏幕的 React 组件，同时作为注册的唯一标识 |
-| `template` | `React.ComponentProps<C>` | 否 | 初始模板，即屏幕的默认 props；导航时与传入的 props 合并。省略时默认为 `{}` |
-| `options.parent` | `React.ComponentType<any>` | 否 | 父屏幕组件；不声明则该屏幕是根屏幕（候选） |
+- `component` {React.ComponentType&lt;any&gt;} 注册为屏幕的 React 组件，同时作为注册的唯一标识。
+- `[template]` {React.ComponentProps&lt;C&gt;} 初始模板，即屏幕的默认 props；导航时与传入的 props 合并。 **默认值：** `{}`。
+- `[options]` {RegisterOptions}
+  - `[parent]` {React.ComponentType&lt;any&gt;} 父屏幕组件；不声明则该屏幕是根屏幕（候选）。
 
 `RegisterOptions` 的完整定义：
 

@@ -148,11 +148,10 @@ function registerComponent<C extends React.ComponentType<any>>(
 ): void
 ```
 
-| Argument | Type | Required | Description |
-| --- | --- | --- | --- |
-| `component` | `React.ComponentType<any>` | Yes | The React component registered as a screen; also serves as the unique registration key |
-| `template` | `React.ComponentProps<C>` | No | The initial template, i.e. the screen's default props; merged with props passed during navigation. When omitted, defaults to `{}` |
-| `options.parent` | `React.ComponentType<any>` | No | The parent screen component; when omitted, the screen is a root screen (candidate) |
+- `component` {React.ComponentType&lt;any&gt;} The React component registered as a screen; also serves as the unique registration key.
+- `[template]` {React.ComponentProps&lt;C&gt;} The initial template, i.e. the screen's default props; merged with props passed during navigation. **Default:** `{}`.
+- `[options]` {RegisterOptions}
+  - `[parent]` {React.ComponentType&lt;any&gt;} The parent screen component; when omitted, the screen is a root screen (candidate).
 
 The full definition of `RegisterOptions`:
 

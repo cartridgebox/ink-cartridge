@@ -121,18 +121,14 @@ One behavior worth noticing: while the modal layer is open, the `a` key on the H
 openModalLayer(layerId: string, zIndex: number, options?: ModalLayerOptions): void
 ```
 
-| Argument | Type | Required | Description |
-| --- | --- | --- | --- |
-| `layerId` | `string` | Yes | The modal layer's unique ID; shares the ID namespace with ordinary layers |
-| `zIndex` | `number` | Yes | The modal layer's priority; a higher value puts it on top and gives it higher keyboard priority |
-| `options` | `ModalLayerOptions` | No | Optional config, see the table below |
+- `layerId` {string} The modal layer's unique ID; shares the ID namespace with ordinary layers.
+- `zIndex` {number} The modal layer's priority; a higher value puts it on top and gives it higher keyboard priority.
+- `[options]` {ModalLayerOptions} Optional config, see below.
 
 `ModalLayerOptions` is the same as `LayerOptions`:
 
-| Field | Type | Description |
-| --- | --- | --- |
-| `crossPage` | `boolean` | Defaults to `false`; when `true`, the modal layer is not auto-cleared on page switches (`skip` / `back` / `gotoScreen`) |
-| `automaticTakeoverKeyboard` | `boolean \| ComponentType[]` | Defaults to `false`; controls the scope of the modal layer's keyboard takeover (covered in a later article) |
+- `[crossPage]` {boolean} When `true`, the modal layer is not auto-cleared on page switches (`skip` / `back` / `gotoScreen`). **Default:** `false`.
+- `[automaticTakeoverKeyboard]` {boolean | ComponentType[]} Controls the scope of the modal layer's keyboard takeover (covered in a later article). **Default:** `false`.
 
 > **Note:** `openModalLayer` only opens an empty container. You still need `applyElementToModalLayer` to mount elements, otherwise nothing shows on screen.
 
@@ -149,12 +145,10 @@ applyElementToModalLayer<C extends ComponentType<any>>(
 
 `modalLayerElement` provides:
 
-| Field | Type | Required | Description |
-| --- | --- | --- | --- |
-| `element` | `ComponentType<C>` | Yes | The component to mount into the modal layer |
-| `elementId` | `string` | Yes | The element's unique ID within the modal layer |
-| `props` | `ComponentProps<C>` | No | Props passed to the element, type-checked |
-| `active` | `boolean` | No | Defaults to `true`; when `false`, the element stops receiving keyboard events (see a later article) |
+- `element` {ComponentType&lt;C&gt;} The component to mount into the modal layer.
+- `elementId` {string} The element's unique ID within the modal layer.
+- `[props]` {ComponentProps&lt;C&gt;} Props passed to the element, type-checked.
+- `[active]` {boolean} When `false`, the element stops receiving keyboard events (see a later article). **Default:** `true`.
 
 ## Reading modal layer info with `ModalLayerElementContext`
 
