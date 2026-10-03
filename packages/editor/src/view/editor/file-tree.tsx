@@ -243,18 +243,23 @@ export function FileTree({ session }: FileTreeProps) {
 		bindRef.current = boundKeyboard;
 	});
 
-	// The pane's navigation keys live under the "file-tree" focus target, so
-	// they only fire while the editor page has handed over focus.
+	// The pane's navigation keys live under the "file-tree" focus target and
+	// the normal mode, so they only fire while the editor page has handed over
+	// focus AND the editor is in normal mode. The mode gate matters: `i`
+	// reaches the editor (which switches to insert) even while the pane holds
+	// focus, and without it the pane would then swallow `j`/`k`/`h`/`l` and
+	// `Enter` as the user types.
 	useEffect(() => {
 		const bind = bindRef.current;
 		const h = handlersRef;
+		const opts = { focusId: FOCUS_ID, mode: "normal" };
 		const unbinds = [
-			bind(["up", "k"], () => h.current.move(-1), { focusId: FOCUS_ID }),
-			bind(["down", "j"], () => h.current.move(1), { focusId: FOCUS_ID }),
-			bind(["return"], () => h.current.activate(), { focusId: FOCUS_ID }),
-			bind(["left", "h"], () => h.current.expand(false), { focusId: FOCUS_ID }),
-			bind(["right", "l"], () => h.current.expand(true), { focusId: FOCUS_ID }),
-			bind(["escape"], () => h.current.exit(), { focusId: FOCUS_ID }),
+			bind(["up", "k"], () => h.current.move(-1), opts),
+			bind(["down", "j"], () => h.current.move(1), opts),
+			bind(["return"], () => h.current.activate(), opts),
+			bind(["left", "h"], () => h.current.expand(false), opts),
+			bind(["right", "l"], () => h.current.expand(true), opts),
+			bind(["escape"], () => h.current.exit(), opts),
 		];
 		return () => unbinds.forEach((unbind) => unbind());
 		// eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only on purpose (see above)

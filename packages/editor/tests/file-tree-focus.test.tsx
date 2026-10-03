@@ -38,6 +38,13 @@ writeFileSync(join(fixtureRoot, "sub", "inner.md"), "INNER");
 writeFileSync(join(fixtureRoot, "a.md"), "AAA");
 writeFileSync(join(fixtureRoot, "b.md"), "BBB");
 
+// 30 files, taller than the pane's viewport (rows - 4), so keyboard navigation
+// must scroll to keep the cursor visible.
+const tallRoot = mkdtempSync(join(tmpdir(), "blots-tree-tall-"));
+for (let i = 0; i < 30; i++) {
+	writeFileSync(join(tallRoot, `f${String(i).padStart(2, "0")}.md`), `# ${i}`);
+}
+
 /** Multi-line document so the editor cursor readout (`Ln N`) can change. */
 function LinesEditor() {
 	return <Editor value={"L1\nL2\nL3"} />;
@@ -98,10 +105,10 @@ class MockStdin extends EventEmitter {
  * structurally sufficient for Ink's own useWindowSize but not full Node
  * stream instances, so they are asserted into the expected types.
  */
-function renderResizable(screen: React.ComponentType) {
+function renderResizable(screen: React.ComponentType, root = fixtureRoot) {
 	settingsStore.update({
 		...settingsStore.settings,
-		fileTree: { root: "custom", customPath: fixtureRoot },
+		fileTree: { root: "custom", customPath: root },
 	});
 	const stdout = new ResizableStdout();
 	const stdin = new MockStdin();
@@ -209,6 +216,28 @@ describe("file tree keyboard focus", () => {
 		await press(stdin, "j");
 		await flush();
 		expect(stripAnsi(lastFrame())).toContain("Ln 2");
+		unmount();
+	});
+
+	it("typing in insert mode is not swallowed by the focused tree", async () => {
+		const { stdin, lastFrame, unmount } = renderApp(LinesEditor, {
+			root: fixtureRoot,
+		});
+		await flush();
+		await enterNormalMode(stdin);
+		await press(stdin, "tab"); // tree focus (normal mode)
+		await flush();
+		expect(treeTargetActive()).toBe(true);
+
+		// `i` reaches the editor and switches it to insert even while the tree
+		// holds focus; from there the pane's normal-mode keys must not eat the
+		// typing (a `j` must be inserted, not move the tree cursor).
+		await press(stdin, "i");
+		await flush();
+		expect(stripAnsi(lastFrame())).toContain("INSERT");
+		await press(stdin, "j");
+		await flush();
+		expect(stripAnsi(lastFrame())).toContain("jL1");
 		unmount();
 	});
 
@@ -341,6 +370,25 @@ describe("file tree keyboard focus", () => {
 		await flush();
 		expect(stripAnsi(lastFrame())).not.toContain("AAA");
 		unmount();
+	});
+
+	it("keyboard navigation scrolls the pane to keep the cursor visible", async () => {
+		const { stdout, stdin, instance } = renderResizable(EmptyEditor, tallRoot);
+		await flush();
+		await pressRaw(stdin, "\x1b");
+		await flush();
+		await pressRaw(stdin, "tab"); // focus the tree
+		await flush();
+		expect(stripAnsi(stdout.lastFrame())).toContain("f00.md"); // top visible
+
+		for (let i = 0; i < 29; i++) {
+			await pressRaw(stdin, "down"); // to the last of the 30 files
+		}
+		await flush();
+		const frame = stripAnsi(stdout.lastFrame());
+		expect(frame).toContain("f29.md"); // the cursor row is in view
+		expect(frame).not.toContain("f00.md"); // and the top scrolled off
+		instance.unmount();
 	});
 
 	it("keeps the tree focused across a terminal resize", async () => {

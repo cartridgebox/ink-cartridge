@@ -9,7 +9,6 @@ Add keyboard focus switching between the editor and the file tree, and make the 
 
 ### Changed
 - The file tree supports keyboard navigation while focused: arrows / `j` `k` move the selection, `Enter` opens a file or expands a directory, `h` `l` collapse/expand, and `Esc` returns focus to the editor. The focused pane is highlighted.
-- The render rate is no longer hard-coded to 120 fps; it comes from the setting and takes effect on the next launch (Ink reads `maxFps` once, at render construction).
 
 ### Fixed
 None
