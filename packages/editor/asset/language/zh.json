@@ -33,6 +33,8 @@
   "settings.fileTreeRoot.custom": "自定义路径",
   "settings.mergeWindow": "撤销合并时间",
   "settings.mergeWindow.off": "关闭",
+  "settings.fps": "渲染帧率 (FPS)",
+  "settings.fps.restart": "重启后生效 · Esc 关闭",
   "settings.ok": "确定",
   "settings.cancel": "取消"
 }

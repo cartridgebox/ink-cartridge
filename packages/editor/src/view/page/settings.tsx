@@ -16,6 +16,9 @@ import React, {
 	useState,
 } from "react";
 import {
+	FPS_MAX,
+	FPS_MIN,
+	FPS_STEP,
 	MERGE_WINDOW_MAX,
 	MERGE_WINDOW_MIN,
 	MERGE_WINDOW_STEP,
@@ -267,6 +270,56 @@ function MergeWindowPicker() {
 	);
 }
 
+/**
+ * Modal slider for the render rate. Left/right step by {@link FPS_STEP} and
+ * persist immediately; the bar is drag/click driven. Ink reads the rate at
+ * render construction, so the footer notes it applies on the next launch.
+ */
+function FpsPicker() {
+	const ctx = useContext(ModalLayerElementContext);
+	const { t } = useI18n();
+	const { boundKeyboard } = useKeyboard();
+	const { closeModalLayer } = useScreenSystem();
+	const { settings, setFps, setFpsDraft, commit } = useSettings();
+	const value = settings.fps;
+
+	useEffect(() => {
+		if (!ctx) {
+			return;
+		}
+		const snap = (dir: 1 | -1) =>
+			snapValue(value, dir, FPS_MIN, FPS_MAX, FPS_STEP);
+		const unbinds = [
+			boundKeyboard(["left"], () => setFps(snap(-1)), { elementId: ctx.id }),
+			boundKeyboard(["right"], () => setFps(snap(1)), { elementId: ctx.id }),
+			boundKeyboard(
+				["escape"],
+				() => closeModalLayer(ctx.modalLayer.layerId),
+				{ elementId: ctx.id },
+			),
+		];
+		return () => unbinds.forEach((fn) => fn());
+	}, [boundKeyboard, closeModalLayer, ctx, setFps, value]);
+
+	return (
+		<ModalFrame
+			title={t("settings.fps")}
+			footer={<Text dimColor>{t("settings.fps.restart")}</Text>}
+		>
+			<Slider
+				value={value}
+				min={FPS_MIN}
+				max={FPS_MAX}
+				step={FPS_STEP}
+				onChange={setFpsDraft}
+				onCommit={commit}
+				hint={t("settings.slider.hint")}
+			/>
+			<Text>{`${value} fps`}</Text>
+		</ModalFrame>
+	);
+}
+
 type PickerButtonProps = {
 	label: string;
 	active: boolean;
@@ -484,6 +537,14 @@ export function SettingsEntries({ onExit }: SettingsEntriesProps) {
 		});
 	}, [applyElementToModalLayer, openModalLayer]);
 
+	const openFpsPicker = useCallback(() => {
+		openModalLayer("fps", 50);
+		applyElementToModalLayer("fps", {
+			elementId: "fps-picker",
+			element: FpsPicker,
+		});
+	}, [applyElementToModalLayer, openModalLayer]);
+
 	const currentLabel =
 		LANGUAGES.find((lang) => lang.code === currentLanguage)?.labelKey ??
 		"settings.language.en";
@@ -526,6 +587,12 @@ export function SettingsEntries({ onExit }: SettingsEntriesProps) {
 						: `${settings.history.mergeWindow} ms`,
 				open: openMergeWindowPicker,
 			},
+			{
+				id: "fps",
+				label: t("settings.fps"),
+				value: `${settings.fps} fps`,
+				open: openFpsPicker,
+			},
 		],
 		[
 			t,
@@ -535,10 +602,12 @@ export function SettingsEntries({ onExit }: SettingsEntriesProps) {
 			settings.fileTree.root,
 			settings.fileTree.customPath,
 			settings.history.mergeWindow,
+			settings.fps,
 			openLanguagePicker,
 			openSensitivityPicker,
 			openFileTreePicker,
 			openMergeWindowPicker,
+			openFpsPicker,
 		],
 	);
 

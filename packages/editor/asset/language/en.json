@@ -33,6 +33,8 @@
   "settings.fileTreeRoot.custom": "Custom path",
   "settings.mergeWindow": "Undo Merge Window",
   "settings.mergeWindow.off": "Off",
+  "settings.fps": "Render Rate (FPS)",
+  "settings.fps.restart": "Applies on restart · Esc to close",
   "settings.ok": "OK",
   "settings.cancel": "Cancel"
 }

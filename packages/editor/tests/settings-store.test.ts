@@ -52,6 +52,18 @@ describe("settings schema", () => {
 		).toEqual(DEFAULT_SETTINGS);
 	});
 
+	it("accepts a valid render rate and defaults it", () => {
+		expect(parseSettings({}).fps).toBe(30);
+		expect(parseSettings({ fps: 5 }).fps).toBe(5);
+		expect(parseSettings({ fps: 120 }).fps).toBe(120);
+	});
+
+	it("rejects an out-of-range or off-step render rate", () => {
+		// 200 exceeds the max; 12 is not a 5 step; both fall back wholesale.
+		expect(parseSettings({ fps: 200 })).toEqual(DEFAULT_SETTINGS);
+		expect(parseSettings({ fps: 12 })).toEqual(DEFAULT_SETTINGS);
+	});
+
 	it("rejects missing keys", () => {
 		expect(parseSettings({})).toEqual(DEFAULT_SETTINGS);
 		expect(parseSettings(null)).toEqual(DEFAULT_SETTINGS);
@@ -114,6 +126,7 @@ describe("SettingsStore", () => {
 			wheel: { cursor: 4, view: 4 },
 			fileTree: { root: "startup", customPath: "" },
 			history: { mergeWindow: 500 },
+			fps: 30,
 		});
 	});
 

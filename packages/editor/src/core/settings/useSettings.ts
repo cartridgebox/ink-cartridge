@@ -25,6 +25,10 @@ export type SettingsApi = {
 	setMergeWindow: (ms: number) => void;
 	/** Update the merge window in memory only (while dragging); commit on release. */
 	setMergeWindowDraft: (ms: number) => void;
+	/** Set the render rate (fps) and persist it immediately. */
+	setFps: (fps: number) => void;
+	/** Update the render rate in memory only (while dragging); commit on release. */
+	setFpsDraft: (fps: number) => void;
 };
 
 /**
@@ -65,6 +69,8 @@ export function useSettings(): SettingsApi {
 					...settings,
 					history: { ...settings.history, mergeWindow: ms },
 				}),
+			setFps: (fps) => settingsStore.persist({ ...settings, fps }),
+			setFpsDraft: (fps) => settingsStore.update({ ...settings, fps }),
 		};
 	}, [settings]);
 }
