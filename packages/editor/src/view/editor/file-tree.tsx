@@ -286,15 +286,19 @@ export function FileTree({ session }: FileTreeProps) {
 		return subscribeTreeFocus(reconcile);
 	}, [focusSet, kickFocusGroup, thereIsFocus]);
 
-	// Keep the cursor in range when the visible rows shrink (collapse, rescan).
+	// Keep the cursor and the scroll offset in range when the visible rows
+	// shrink (collapse, rescan). The scroll bound is the last viewport offset
+	// (`length - viewportRows`), not the last row index — clamping to the index
+	// would leave the slice past the end and render blank rows under the list.
 	useEffect(() => {
-		const max = Math.max(0, visibleRows.length - 1);
-		if (cursorRef.current > max) {
-			cursorRef.current = max;
-			setCursorIndex(max);
+		const maxCursor = Math.max(0, visibleRows.length - 1);
+		if (cursorRef.current > maxCursor) {
+			cursorRef.current = maxCursor;
+			setCursorIndex(maxCursor);
 		}
-		setScrollTop((top) => Math.min(top, max));
-	}, [visibleRows.length]);
+		const maxScroll = Math.max(0, visibleRows.length - navRef.current.viewport);
+		setScrollTop((top) => Math.min(top, maxScroll));
+	}, [visibleRows.length, viewportRows]);
 
 	// Fit the pane to its widest visible line (indent + arrow + name), so
 	// long file names stay readable; capped so the editor keeps room.

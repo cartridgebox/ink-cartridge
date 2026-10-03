@@ -69,8 +69,9 @@ class ResizableStdout extends EventEmitter {
 	get columns() {
 		return this._columns;
 	}
+	_rows = 30;
 	get rows() {
-		return 30;
+		return this._rows;
 	}
 	write = (frame: string) => {
 		this.frames.push(frame);
@@ -406,6 +407,30 @@ describe("file tree keyboard focus", () => {
 		const frame = stripAnsi(stdout.lastFrame());
 		expect(frame).toContain("f29.md"); // the cursor row is in view
 		expect(frame).not.toContain("f00.md"); // and the top scrolled off
+		instance.unmount();
+	});
+
+	it("re-clamps the scroll offset when the viewport grows", async () => {
+		const { stdout, stdin, instance } = renderResizable(EmptyEditor, tallRoot);
+		await flush();
+		await pressRaw(stdin, "\x1b");
+		await flush();
+		await pressRaw(stdin, "tab");
+		await flush();
+		for (let i = 0; i < 29; i++) {
+			await pressRaw(stdin, "down"); // scroll to the bottom
+		}
+		await flush();
+		expect(stripAnsi(stdout.lastFrame())).not.toContain("f00.md"); // scrolled off
+
+		// A taller terminal fits every row, so the offset must reset to 0 —
+		// otherwise the slice starts past the data and renders blank rows.
+		stdout._rows = 60;
+		await act(async () => {
+			stdout.emit("resize");
+		});
+		await flush();
+		expect(stripAnsi(stdout.lastFrame())).toContain("f00.md");
 		instance.unmount();
 	});
 
