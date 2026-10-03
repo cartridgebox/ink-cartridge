@@ -6,12 +6,12 @@
  * group. Focus within a group is mutually exclusive, which is what keeps the
  * two panes from both receiving keys at once.
  */
+import { useEffect, useState } from "react";
+import { getEngine, subscribeFocus, useScreenSystem } from "ink-cartridge";
+
 export const PANE_GROUP = "panes";
 export const EDITOR_PANE = "editor";
 export const TREE_PANE = "tree";
-
-import { useEffect, useState } from "react";
-import { getEngine, subscribeFocus, useScreenSystem } from "ink-cartridge";
 
 /** Minimal shape of a keyboard layer's active focus entries. */
 type FocusEntries = {
