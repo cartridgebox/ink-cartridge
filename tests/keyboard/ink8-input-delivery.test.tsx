@@ -14,18 +14,28 @@ import {
 } from '../../src/keyboard/provider.js';
 import { useKeyboard } from '../../src/keyboard/hook.js';
 
-/** Every input the engine handed to a wildcard binding, in arrival order. */
+/** Every character the engine handed to a wildcard binding, in arrival order. */
 const received: string[] = [];
 
-/** Echoes wildcard input and records the raw handoff at the engine boundary. */
+/** Named-key hits (e.g. the up arrow), to prove escape sequences arrive. */
+const namedHits: string[] = [];
+
+/** Echoes wildcard input and records raw handoffs at the engine boundary. */
 function RecordingApp() {
   const { boundKeyboard } = useKeyboard();
   const [text, setText] = useState('');
   useEffect(() => {
-    return boundKeyboard(['*'], (input) => {
+    const offWildcard = boundKeyboard(['*'], (input) => {
       received.push(input);
       setText((t) => t + input);
     });
+    const offUp = boundKeyboard(['up'], () => {
+      namedHits.push('up');
+    });
+    return () => {
+      offWildcard();
+      offUp();
+    };
   }, [boundKeyboard]);
   return <Text>{text.length > 0 ? text : '(empty)'}</Text>;
 }
@@ -54,6 +64,7 @@ describe('input delivery under Ink 8', () => {
     clearDispatchers();
     clearShortcutOperations();
     received.length = 0;
+    namedHits.length = 0;
     registerComponent(RecordingApp, {});
   });
 
@@ -71,8 +82,17 @@ describe('input delivery under Ink 8', () => {
     unmount();
   });
 
-  it('never hands SGR mouse reports to the keyboard pipeline', async () => {
+  it('delivers escape sequences but not SGR mouse reports', async () => {
     const { stdin, lastFrame, unmount } = renderApp();
+
+    // Control: an up-arrow escape sequence reaches the pipeline, proving the
+    // harness delivers escape sequences and the negative case below is not
+    // vacuous.
+    await act(async () => {
+      stdin.write('\x1b[A');
+    });
+    await flush();
+    expect(namedHits).toEqual(['up']);
 
     await act(async () => {
       stdin.write('\x1b[<0;20;5M'); // press report
@@ -83,8 +103,14 @@ describe('input delivery under Ink 8', () => {
     });
     await flush();
 
-    expect(received).toEqual([]);
-    expect(lastFrame()).toContain('(empty)');
+    // The pipeline is live (the arrow fired above, and this key lands here),
+    // yet neither mouse report surfaced as input.
+    await act(async () => {
+      stdin.write('b');
+    });
+    await flush();
+    expect(received).toEqual(['b']);
+    expect(lastFrame()).not.toContain('[<');
 
     unmount();
   });

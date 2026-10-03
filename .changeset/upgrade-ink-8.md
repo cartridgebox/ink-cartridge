@@ -24,4 +24,4 @@ None
 None
 
 ### Tests
-- `tests/keyboard/ink8-input-delivery.test.tsx` asserts plain keypresses still reach `boundKeyboard` handlers and that SGR mouse reports are never handed to the keyboard pipeline — pinning the input path the Ink 8 `useInput` change touches.
+- `tests/keyboard/ink8-input-delivery.test.tsx` pins the Ink 8 input path: plain keypresses and an arrow-key escape sequence still reach `boundKeyboard` handlers, while SGR mouse reports are not handed to the pipeline. The arrow-key case is a control proving escape sequences reach `useInput` at all, so the mouse-report case is not vacuous.
