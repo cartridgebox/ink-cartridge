@@ -44,7 +44,7 @@ Cycles to the next mode. From no-mode it enters the **first** registered mode.
 
 ## prevMode()
 
-Cycles to the previous mode. From no-mode it enters the **second-to-last** mode (not the last) — a quirk of the ring arithmetic.
+Cycles to the previous mode. From no-mode the current index matches nothing, so it lands on the **second-to-last** registered mode rather than the last. To enter the mode list deterministically from no-mode, use `nextMode()`.
 
 - Returns: nothing.
 

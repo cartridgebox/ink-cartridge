@@ -46,7 +46,11 @@ useEffect(() => {
   // Continuation: d responds after flag "times", reads the count, ends the chain
   registryCompositionKey({
     key: "d", flags: [], needs: ["times"], alternativeFlag: "action",
-    execute: (ctx) => { deleteLines(ctx.value as number); return null },
+    execute: (ctx) => {
+      if (typeof ctx.value !== "number") return null;  // narrow, don't assert
+      deleteLines(ctx.value);
+      return null;
+    },
   })
 }, [])
 ```

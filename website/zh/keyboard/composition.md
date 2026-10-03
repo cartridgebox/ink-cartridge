@@ -46,7 +46,11 @@ useEffect(() => {
   // 承接：d 在 flag "times" 之后响应，读取次数并终止链
   registryCompositionKey({
     key: "d", flags: [], needs: ["times"], alternativeFlag: "action",
-    execute: (ctx) => { deleteLines(ctx.value as number); return null },
+    execute: (ctx) => {
+      if (typeof ctx.value !== "number") return null;  // 收窄而非断言
+      deleteLines(ctx.value);
+      return null;
+    },
   })
 }, [])
 ```
