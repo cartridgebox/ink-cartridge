@@ -1,6 +1,6 @@
 {
 	"name": "blots-editor",
-	"version": "0.0.18",
+	"version": "0.0.19",
 	"description": "A lightweight Markdown editor for the terminal, built on ink-cartridge",
 	"type": "module",
 	"main": "./dist/index.js",
