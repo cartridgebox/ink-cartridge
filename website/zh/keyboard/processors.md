@@ -47,7 +47,7 @@
   - `after` {string} 插到某处理器所在阶段之后，自成阶段。
 - 返回：无。
 
-省略 `options` 时权重为 `0`，排在所有内置之后。
+省略 `options` 时权重为 `0`，处理器会**并入 `screen-stack` 阶段**（该阶段权重同为 `0`），在该阶段内按插入顺序排在 `screen-stack` 之后——并非排在所有内置之后的独立阶段。阶段作为整体被消费，因此它只会看到 `screen-stack` 未消费的事件。若要排在所有内置之后的独立阶段，请传负权重（如 `{ weight: -1 }`）。
 
 ```tsx
 const { addProcessor } = useKeyboard()

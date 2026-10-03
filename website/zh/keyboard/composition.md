@@ -108,9 +108,13 @@ useEffect(() => {
 
 - 返回：无。
 
-## subscribeComposition(fn) / getLastCompositionEvent()
+## subscribeComposition(fn)
 
-- `fn` {Function} 状态变化时调用；返回取消订阅的函数。
-- `getLastCompositionEvent()` 返回：{CompositionEvent | null} 最近一次事件。
+- `fn` {Function} 状态变化时调用。
+- 返回：{Function} 取消订阅的函数。
+
+## getLastCompositionEvent()
+
+- 返回：{CompositionEvent | null} 最近一次事件。
 
 事件类型：`started`、`continued`、`completed`、`aborted`、`broken`、`consumed`、`undone`、`cleared`。

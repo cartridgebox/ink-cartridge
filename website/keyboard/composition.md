@@ -108,9 +108,13 @@ Clears the undo history.
 
 - Returns: nothing.
 
-## subscribeComposition(fn) / getLastCompositionEvent()
+## subscribeComposition(fn)
 
-- `fn` {Function} Called on state changes; returns an unsubscribe function.
-- `getLastCompositionEvent()` returns: {CompositionEvent | null} The most recent event.
+- `fn` {Function} Called on state changes.
+- Returns: {Function} An unsubscribe function.
+
+## getLastCompositionEvent()
+
+- Returns: {CompositionEvent | null} The most recent event.
 
 Event types: `started`, `continued`, `completed`, `aborted`, `broken`, `consumed`, `undone`, `cleared`.

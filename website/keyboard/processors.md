@@ -47,7 +47,7 @@ Inserts a processor into the pipeline.
   - `after` {string} Insert after the stage holding a given processor, as its own stage.
 - Returns: nothing.
 
-Omitting `options` uses weight `0`, after every built-in.
+Omitting `options` uses weight `0`, so the processor **merges into the `screen-stack` stage** (which also has weight `0`) and runs after `screen-stack` in insertion order within that stage — not a stage strictly after every built-in. Because a stage is consumed as a whole, it only sees events `screen-stack` did not consume. For a stage strictly after every built-in, pass a negative weight (e.g. `{ weight: -1 }`).
 
 ```tsx
 const { addProcessor } = useKeyboard()
