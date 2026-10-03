@@ -144,7 +144,6 @@ export function FileTree({ session }: FileTreeProps) {
 		});
 	}, []);
 
-	// The pane region shares its ref with the focus-gated bindings (see the
 	// A click sets the pane's focus target explicitly. (ink-cartridge's
 	// `clickOnFocus` is not usable here: its forwarding resolves the owner from
 	// the engine's owner stack, whose top is the toolbar layer, not the page.)
