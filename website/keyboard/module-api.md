@@ -88,7 +88,7 @@ useEffect(() => {
 
 ## Return value and errors
 
-- Module-level functions return nothing (except the read functions such as `getGlobalKeys`), matching the hook version.
+- Module-level functions return exactly what their `useKeyboard()` counterparts return: most are `void`, but several return `boolean` (`addMode`, `removeMode`, `setMode`, `addMapping`, `removeMappingKey`, `removeMapping`, `addAction`, `hasAction`, `activeProcessor`, `kickProcessor`, `setProcessorWeight`, …), and the read functions return a snapshot (e.g. `getGlobalKeys`).
 - With no `KeyboardProvider` mounted they throw:
 
   ```

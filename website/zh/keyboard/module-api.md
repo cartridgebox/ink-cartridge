@@ -88,7 +88,7 @@ useEffect(() => {
 
 ## 返回值与错误
 
-- 模块级函数**没有返回值**（`getGlobalKeys` 等读取类除外），与 Hook 版一致。
+- 模块级函数的返回值与其 `useKeyboard()` 版本**完全一致**：多数为 `void`，但若干返回 `boolean`（`addMode`、`removeMode`、`setMode`、`addMapping`、`removeMappingKey`、`removeMapping`、`addAction`、`hasAction`、`activeProcessor`、`kickProcessor`、`setProcessorWeight` 等），读取类返回快照（如 `getGlobalKeys`）。
 - 没有任何 `KeyboardProvider` 挂载时抛错：
 
   ```
