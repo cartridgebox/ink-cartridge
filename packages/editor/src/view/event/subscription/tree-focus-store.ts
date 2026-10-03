@@ -1,5 +1,3 @@
-import { useSyncExternalStore } from "react";
-
 /**
  * Whether the editor page wants the file tree to hold the keyboard.
  *
@@ -35,9 +33,4 @@ export function setTreeFocusRequested(next: boolean): void {
 /** Subscribe to intent changes; returns an unsubscribe function. */
 export function subscribeTreeFocus(listener: () => void): () => void {
 	return subscribe(listener);
-}
-
-/** Reactive binding: re-renders whenever the intent changes. */
-export function useTreeFocusRequested(): boolean {
-	return useSyncExternalStore(subscribe, getTreeFocusRequested, getTreeFocusRequested);
 }

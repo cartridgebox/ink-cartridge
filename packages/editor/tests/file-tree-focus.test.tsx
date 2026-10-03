@@ -186,6 +186,32 @@ describe("file tree keyboard focus", () => {
 		unmount();
 	});
 
+	it("the tree's keys act on the editor until Tab hands over focus", async () => {
+		const { stdin, lastFrame, unmount } = renderApp(LinesEditor, {
+			root: fixtureRoot,
+		});
+		await flush();
+		await enterNormalMode(stdin);
+
+		// Unfocused, the tree's keys must be inert: `return` must not open the
+		// file under the (default) tree cursor — a directory, so it would expand.
+		await press(stdin, "return");
+		await flush();
+		expect(stripAnsi(lastFrame())).not.toContain("inner.md");
+		expect(stripAnsi(lastFrame())).not.toContain("AAA");
+
+		// `l` must not expand the tree's directory either.
+		await press(stdin, "l");
+		await flush();
+		expect(stripAnsi(lastFrame())).not.toContain("inner.md");
+
+		// `j` still drives the editor cursor.
+		await press(stdin, "j");
+		await flush();
+		expect(stripAnsi(lastFrame())).toContain("Ln 2");
+		unmount();
+	});
+
 	it("Enter opens the file under the tree cursor", async () => {
 		const { stdin, lastFrame, unmount } = renderApp(EmptyEditor, {
 			root: fixtureRoot,
