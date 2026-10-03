@@ -196,6 +196,11 @@ export function Editor({
 			{ mode: "normal" }
 		);
 	}, [boundKeyboard, fileTreeOpen, settingsOpen]);
+	// Opening the settings overlay also drops the tree's focus intent, so its
+	// focus-gated keys don't keep firing behind the menu.
+	useEffect(() => {
+		if (settingsOpen) setTreeFocusRequested(false);
+	}, [settingsOpen]);
 	// Leaving the editor clears the intent; the store is a module singleton and
 	// must not leak into a later mount (e.g. re-entering from the main menu).
 	useEffect(() => {
