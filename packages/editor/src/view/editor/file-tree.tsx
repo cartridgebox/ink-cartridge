@@ -190,9 +190,9 @@ export function FileTree({ session }: FileTreeProps) {
 	const visible = visibleRows.slice(scrollTop, scrollTop + viewportRows);
 
 	// Latest values read by the stable bindings, refreshed every render.
-	const navRef = useRef({ rows: visibleRows, viewport: viewportRows, expanded });
+	const navRef = useRef({ rows: visibleRows, viewport: viewportRows });
 	useEffect(() => {
-		navRef.current = { rows: visibleRows, viewport: viewportRows, expanded };
+		navRef.current = { rows: visibleRows, viewport: viewportRows };
 	});
 
 	const moveCursor = useCallback((delta: number) => {
@@ -216,18 +216,21 @@ export function FileTree({ session }: FileTreeProps) {
 	}, [openFile, toggleDir]);
 
 	// Left collapses an expanded directory; right expands a collapsed one.
-	// Both are no-ops on files (and on wrong-state directories).
-	const setRowExpanded = useCallback(
-		(open: boolean) => {
-			const row = navRef.current.rows[cursorRef.current];
-			if (!row || !row.node.isDir) return;
-			const isExpanded = navRef.current.expanded.has(row.node.path);
-			if (isExpanded !== open) {
-				toggleDir(row.node.path);
-			}
-		},
-		[toggleDir]
-	);
+	// Both are no-ops on files (and on already-settled directories).
+	const setRowExpanded = useCallback((open: boolean) => {
+		const row = navRef.current.rows[cursorRef.current];
+		if (!row || !row.node.isDir) return;
+		const path = row.node.path;
+		// Read the current value inside the updater, not from the pre-render ref:
+		// two keys batched into one render (e.g. a coalesced `l l`) would both see
+		// the old set and toggle back, defeating the idempotence guard.
+		setExpanded((prev) => {
+			if (prev.has(path) === open) return prev;
+			const next = new Set(prev);
+			toggleExpanded(next, path);
+			return next;
+		});
+	}, []);
 
 	// Latest handlers + boundKeyboard captured in refs so the mount-only
 	// binding effect below never re-runs. `boundKeyboard`'s identity changes
