@@ -48,6 +48,12 @@ async function flush(): Promise<void> {
 // runs when it is on, so these cases isolate what Ink itself hands to
 // `useInput` — the behaviour Ink 8 changed (unrecognised control sequences
 // are now dropped at the source instead of arriving as stripped text).
+//
+// Under Ink 8 the filter is therefore inert on the hot path — the drop happens
+// inside Ink before it reaches `useInput` — and is retained only as a
+// compatibility shim for the `ink >=5` peer range (Ink 5-7). Its own logic is
+// unit-tested in base/mouse-report-filter.test.ts, and the tracking-on path is
+// exercised end-to-end by mouse-filter-integration.test.tsx.
 function renderApp() {
   return render(
     <ScenarioManagementProvider defaultScreen={RecordingApp} fullScreen>
