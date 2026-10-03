@@ -42,6 +42,12 @@ import {
 
 /** Narrowest the pane can be; wide enough for short names. */
 const MIN_TREE_WIDTH = 24;
+/**
+ * Focus-target id for the pane's keyboard bindings. Deliberately separate from
+ * the layer element id (also "file-tree") so the focus state and the gated
+ * bindings stay coupled to one name if either is ever renamed.
+ */
+const FOCUS_ID = "file-tree";
 /** Widest the pane can be — the editor keeps at least 20 columns. */
 const MAX_TREE_WIDTH = 60;
 
@@ -93,7 +99,7 @@ export function FileTree({ session }: FileTreeProps) {
 		return (
 			!!el &&
 			el.currentFocusIds.some(
-				(c) => c.fromGroup === defaultTargetsSymbol && c.id === elementId
+				(c) => c.fromGroup === defaultTargetsSymbol && c.id === FOCUS_ID
 			)
 		);
 	}, [layerId, elementId]);
@@ -249,12 +255,12 @@ export function FileTree({ session }: FileTreeProps) {
 		const bind = bindRef.current;
 		const h = handlersRef;
 		const unbinds = [
-			bind(["up", "k"], () => h.current.move(-1), { focusId: "file-tree" }),
-			bind(["down", "j"], () => h.current.move(1), { focusId: "file-tree" }),
-			bind(["return"], () => h.current.activate(), { focusId: "file-tree" }),
-			bind(["left", "h"], () => h.current.expand(false), { focusId: "file-tree" }),
-			bind(["right", "l"], () => h.current.expand(true), { focusId: "file-tree" }),
-			bind(["escape"], () => h.current.exit(), { focusId: "file-tree" }),
+			bind(["up", "k"], () => h.current.move(-1), { focusId: FOCUS_ID }),
+			bind(["down", "j"], () => h.current.move(1), { focusId: FOCUS_ID }),
+			bind(["return"], () => h.current.activate(), { focusId: FOCUS_ID }),
+			bind(["left", "h"], () => h.current.expand(false), { focusId: FOCUS_ID }),
+			bind(["right", "l"], () => h.current.expand(true), { focusId: FOCUS_ID }),
+			bind(["escape"], () => h.current.exit(), { focusId: FOCUS_ID }),
 		];
 		return () => unbinds.forEach((unbind) => unbind());
 		// eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only on purpose (see above)
@@ -272,7 +278,7 @@ export function FileTree({ session }: FileTreeProps) {
 			const want = getTreeFocusRequested();
 			const has = thereIsFocus();
 			if (want && !has) {
-				focusSet("file-tree");
+				focusSet(FOCUS_ID);
 			} else if (!want && has) {
 				kickFocusGroup();
 			}

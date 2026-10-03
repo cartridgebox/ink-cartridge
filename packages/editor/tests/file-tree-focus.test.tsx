@@ -9,6 +9,7 @@ import { LanguageProvider } from "@cartridge-engine/i18n";
 import {
 	clearRegistry,
 	CurrentScreen,
+	getEngine,
 	KeyboardProvider,
 	registerComponent,
 	ScenarioManagementProvider,
@@ -232,6 +233,60 @@ describe("file tree keyboard focus", () => {
 		await press(stdin, "return");
 		await flush();
 		expect(stripAnsi(lastFrame())).toContain("inner.md");
+		unmount();
+	});
+
+	it("the pane's focus target is active only while it holds focus", async () => {
+		const { stdin, unmount } = renderApp(EmptyEditor, { root: fixtureRoot });
+		await flush();
+		// Mirrors the pane's own predicate: the "file-tree" target active on the
+		// "file-tree" layer element. This is what drives the highlight/`active`
+		// row, and it is what a rename of either id would silently break.
+		const targetActive = () => {
+			const el = getEngine().readLayer("file-tree", "file-tree");
+			return !!el && el.currentFocusIds.some((c) => c.id === "file-tree");
+		};
+		expect(targetActive()).toBe(false); // starts on the editor
+
+		await enterNormalMode(stdin);
+		await press(stdin, "tab");
+		await flush();
+		expect(targetActive()).toBe(true);
+
+		await press(stdin, "tab"); // back to the editor
+		await flush();
+		expect(targetActive()).toBe(false);
+		unmount();
+	});
+
+	it("h/l collapse and expand the selected directory", async () => {
+		const { stdin, lastFrame, unmount } = renderApp(EmptyEditor, {
+			root: fixtureRoot,
+		});
+		await flush();
+		await enterNormalMode(stdin);
+		await press(stdin, "tab"); // cursor on `sub`, collapsed
+		await flush();
+		expect(stripAnsi(lastFrame())).not.toContain("inner.md");
+
+		await press(stdin, "l"); // expand
+		await flush();
+		expect(stripAnsi(lastFrame())).toContain("inner.md");
+
+		await press(stdin, "l"); // redundant expand → must stay expanded
+		await flush();
+		expect(stripAnsi(lastFrame())).toContain("inner.md");
+
+		await press(stdin, "h"); // collapse
+		await flush();
+		expect(stripAnsi(lastFrame())).not.toContain("inner.md");
+
+		// On a file row, h/l are no-ops — they must not open the file.
+		await press(stdin, "down"); // a.md
+		await flush();
+		await press(stdin, "l");
+		await flush();
+		expect(stripAnsi(lastFrame())).not.toContain("AAA");
 		unmount();
 	});
 
