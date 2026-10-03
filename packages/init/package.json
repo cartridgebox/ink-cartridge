@@ -1,6 +1,6 @@
 {
   "name": "@cartridge-engine/init",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Scaffold a new ink-cartridge project",
   "type": "module",
   "main": "./dist/cli.js",

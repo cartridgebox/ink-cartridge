@@ -1,6 +1,6 @@
 {
   "name": "@cartridge-engine/ui",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "ink-cartridge ui kit",
   "type": "module",
   "main": "./dist/index.js",

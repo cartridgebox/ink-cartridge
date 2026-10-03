@@ -1,6 +1,6 @@
 {
   "name": "@cartridge-engine/i18n",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Type-safe internationalization (i18n) for Ink apps — LanguageProvider, useI18n, and the make-language-type CLI",
   "type": "module",
   "main": "./dist/index.js",
