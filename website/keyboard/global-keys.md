@@ -125,7 +125,7 @@ globalSequence([
 
 ## Registration: replace vs add
 
-Both functions **replace** the previous global keys / sequences by default; passing `{ mode: "add" }` appends to the existing list. A replacing call also clears any in-flight pending sequence.
+Both functions **replace** the previous global keys / sequences by default; passing `{ mode: "add" }` appends to the existing list **without** clearing a pending sequence. A replacing call clears any in-flight pending global sequence.
 
 ```tsx
 useEffect(() => {
