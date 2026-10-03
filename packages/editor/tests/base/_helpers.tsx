@@ -35,12 +35,20 @@ export async function press(
 	});
 }
 
-/** Render a registered screen with the full provider chain the app uses. */
-export function renderApp(defaultScreen: React.ComponentType) {
+/**
+ * Render a registered screen with the full provider chain the app uses.
+ *
+ * `options.root` points the file tree at a specific directory (defaults to
+ * the shared empty temp dir) — pass it when a test needs known tree entries.
+ */
+export function renderApp(
+	defaultScreen: React.ComponentType,
+	options?: { root?: string },
+) {
 	vi.spyOn(console, "warn").mockImplementation(() => {});
 	settingsStore.update({
 		...settingsStore.settings,
-		fileTree: { root: "custom", customPath: treeRoot },
+		fileTree: { root: "custom", customPath: options?.root ?? treeRoot },
 	});
 	return render(
 		<ScenarioManagementProvider defaultScreen={defaultScreen} fullScreen>

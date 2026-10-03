@@ -19,6 +19,10 @@ import { EditorSetting } from "../editor/editor-setting.js";
 import { FileTree } from "../editor/file-tree.js";
 import { ToolBar } from "../editor/tool-bar.js";
 import { InformationBar } from "../editor/information-bar.js";
+import {
+	getTreeFocusRequested,
+	setTreeFocusRequested,
+} from "../event/subscription/tree-focus-store.js";
 
 /** Layer hosting the floating toolbar; below modal layers so it never
  *  intercepts keys meant for a modal (e.g. the command bar). */
@@ -126,6 +130,10 @@ export function Editor({
 	// The in-editor settings overlay toggles via the toolbar's Settings
 	// button; the overlay itself closes via its Exit button or Esc.
 	const [settingsOpen, setSettingsOpen] = useState(false);
+	// Whether the file tree pane holds the keyboard (toggled by Tab in normal
+	// mode) lives in a module store: the editor only records the intent, and
+	// the tree reconciles the engine's focus to it. This survives the tree
+	// remounting on terminal resize (a one-shot engine call would not).
 
 	useEffect(() => {
 		if (!toolbarOpen) {
@@ -145,7 +153,11 @@ export function Editor({
 				props: {
 					currentMode: mode,
 					session,
-					openFileTree: () => setFileTreeOpen((open) => !open),
+					openFileTree: () => {
+						setFileTreeOpen((open) => !open);
+						// Hiding the pane forfeits its focus (its layer unmounts).
+						setTreeFocusRequested(false);
+					},
 					openSettings: () => setSettingsOpen((open) => !open),
 					fileTreeOpen,
 				},
@@ -168,6 +180,23 @@ export function Editor({
 		}, 0);
 		return () => clearTimeout(timer);
 	}, [fileTreeOpen, session]);
+	// Tab hands the keyboard between the editor and the tree, but only while
+	// the tree is open and only in normal mode (insert keeps Tab = indent).
+	// The tree binds no Tab, so the event bubbles here from the layer stage.
+	// Only the intent is recorded here; the tree reconciles the engine to it.
+	useEffect(() => {
+		if (!fileTreeOpen) return;
+		return boundKeyboard(
+			["tab"],
+			() => setTreeFocusRequested(!getTreeFocusRequested()),
+			{ mode: "normal" }
+		);
+	}, [boundKeyboard, fileTreeOpen]);
+	// Leaving the editor clears the intent; the store is a module singleton and
+	// must not leak into a later mount (e.g. re-entering from the main menu).
+	useEffect(() => {
+		return () => setTreeFocusRequested(false);
+	}, []);
 	// Both branches are deferred: settingsOpen starts false, and an immediate
 	// closeLayer on the first mount would race the provider's dispatcher
 	// registration (same child-first effect ordering as the toolbar open).
