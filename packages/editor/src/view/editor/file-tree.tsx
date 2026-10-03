@@ -51,6 +51,17 @@ const FOCUS_ID = "file-tree";
 /** Widest the pane can be — the editor keeps at least 20 columns. */
 const MAX_TREE_WIDTH = 60;
 
+/**
+ * Scroll offset that keeps `cursor` inside the `[top, top + viewport)` window,
+ * moving as little as possible: up if the cursor is above, down if below.
+ * `viewport` must be ≥ 1.
+ */
+function revealScrollTop(cursor: number, top: number, viewport: number): number {
+	if (cursor < top) return cursor;
+	if (cursor >= top + viewport) return cursor - viewport + 1;
+	return top;
+}
+
 export type FileTreeProps = {
 	/** The shared file session; clicking a file opens it here. */
 	session: EditorSession;
@@ -191,9 +202,7 @@ export function FileTree({ session }: FileTreeProps) {
 		cursorRef.current = next;
 		setCursorIndex(next);
 		// Keep the cursor inside the viewport (keyboard replaces wheel-only scrolling).
-		setScrollTop((top) =>
-			next < top ? next : next >= top + viewport ? next - viewport + 1 : top
-		);
+		setScrollTop((top) => revealScrollTop(next, top, viewport));
 	}, []);
 
 	const activateRow = useCallback(() => {
@@ -286,18 +295,26 @@ export function FileTree({ session }: FileTreeProps) {
 		return subscribeTreeFocus(reconcile);
 	}, [focusSet, kickFocusGroup, thereIsFocus]);
 
-	// Keep the cursor and the scroll offset in range when the visible rows
-	// shrink (collapse, rescan). The scroll bound is the last viewport offset
-	// (`length - viewportRows`), not the last row index — clamping to the index
-	// would leave the slice past the end and render blank rows under the list.
+	// Keep the cursor and the scroll offset valid when the visible rows or the
+	// viewport change (collapse, rescan, terminal resize). The scroll bound is
+	// the last viewport offset (`length - viewportRows`), not the last row index
+	// — clamping to the index would leave the slice past the end and render
+	// blank rows. And a shrinking viewport can leave the cursor below the
+	// window, so `revealScrollTop` re-derives the offset for it too.
 	useEffect(() => {
 		const maxCursor = Math.max(0, visibleRows.length - 1);
 		if (cursorRef.current > maxCursor) {
 			cursorRef.current = maxCursor;
 			setCursorIndex(maxCursor);
 		}
-		const maxScroll = Math.max(0, visibleRows.length - navRef.current.viewport);
-		setScrollTop((top) => Math.min(top, maxScroll));
+		const viewport = navRef.current.viewport;
+		const maxScroll = Math.max(0, visibleRows.length - viewport);
+		setScrollTop((top) =>
+			Math.min(
+				maxScroll,
+				Math.max(0, revealScrollTop(cursorRef.current, Math.min(top, maxScroll), viewport))
+			)
+		);
 	}, [visibleRows.length, viewportRows]);
 
 	// Fit the pane to its widest visible line (indent + arrow + name), so

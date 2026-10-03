@@ -434,6 +434,30 @@ describe("file tree keyboard focus", () => {
 		instance.unmount();
 	});
 
+	it("keeps the cursor in view when the viewport shrinks", async () => {
+		const { stdout, stdin, instance } = renderResizable(EmptyEditor, tallRoot);
+		await flush();
+		await pressRaw(stdin, "\x1b");
+		await flush();
+		await pressRaw(stdin, "tab");
+		await flush();
+		for (let i = 0; i < 29; i++) {
+			await pressRaw(stdin, "down"); // cursor on the last row, scrolled down
+		}
+		await flush();
+		expect(stripAnsi(stdout.lastFrame())).toContain("f29.md");
+
+		// A shorter terminal shrinks the viewport below the cursor's row; the
+		// offset must rise so the cursor row stays visible.
+		stdout._rows = 10;
+		await act(async () => {
+			stdout.emit("resize");
+		});
+		await flush();
+		expect(stripAnsi(stdout.lastFrame())).toContain("f29.md");
+		instance.unmount();
+	});
+
 	it("keeps the tree focused across a terminal resize", async () => {
 		const { stdout, stdin, instance } = renderResizable(EmptyEditor);
 		await flush();
