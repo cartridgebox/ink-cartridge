@@ -23,8 +23,7 @@ import { flush, press, renderApp, stripAnsi } from "./base/_helpers.js";
 
 /**
  * The pane's focus state as the engine sees it — via the same shared predicate
- * the component uses (including the default-group check), queried on the
- * "file-tree" layer element.
+ * the component uses, queried on the "file-tree" layer element.
  */
 function treeTargetActive(): boolean {
 	return elementHasFocus(getEngine().readLayer("file-tree", "file-tree"), "file-tree");

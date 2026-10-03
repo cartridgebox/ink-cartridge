@@ -90,11 +90,14 @@ describe("SettingsStore", () => {
 		dir = tempDir();
 		writeFileSync(
 			file(),
-			JSON.stringify({ wheel: { cursor: 5, view: 2 } }),
+			JSON.stringify({ wheel: { cursor: 5, view: 2 }, fps: 60 }),
 			"utf8",
 		);
 		const store = new SettingsStore(file());
 		expect(store.settings.wheel).toEqual({ cursor: 5, view: 2 });
+		// The `settings` getter hydrates synchronously, so the boot-time
+		// `maxFps: settingsStore.settings.fps` reads the persisted value.
+		expect(store.settings.fps).toBe(60);
 	});
 
 	it("falls back to defaults on corrupt JSON", () => {
