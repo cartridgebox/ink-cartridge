@@ -2,7 +2,6 @@ import { useI18n } from "@cartridge-engine/i18n";
 import { Box, Text, useWindowSize } from "ink";
 import {
 	applyElementToModalLayer,
-	defaultTargetsSymbol,
 	getEngine,
 	LayerElementContext,
 	ModalLayerElementContext,
@@ -33,6 +32,7 @@ import {
 import type { EditorSession } from "../../core/io/session.js";
 import { useSettings } from "../../core/settings/useSettings.js";
 import { ModalFrame } from "../utils/modal-frame.js";
+import { elementHasFocus } from "../../utils/view/element-focus.js";
 import { setTreePos } from "../event/subscription/tree-store.js";
 import {
 	getTreeFocusRequested,
@@ -95,13 +95,7 @@ export function FileTree({ session }: FileTreeProps) {
 	/** Whether the engine currently has this pane's focus target active. */
 	const thereIsFocus = useCallback(() => {
 		if (!layerId || !elementId) return false;
-		const el = getEngine().readLayer(layerId, elementId);
-		return (
-			!!el &&
-			el.currentFocusIds.some(
-				(c) => c.fromGroup === defaultTargetsSymbol && c.id === FOCUS_ID
-			)
-		);
+		return elementHasFocus(getEngine().readLayer(layerId, elementId), FOCUS_ID);
 	}, [layerId, elementId]);
 	// True only while the editor page has handed this pane the keyboard.
 	const [focused, setFocused] = useState(false);

@@ -17,8 +17,18 @@ import {
 import { Editor } from "../src/view/page/editor.js";
 import { settingsStore } from "../src/core/settings/useSettings.js";
 import { setTreeFocusRequested } from "../src/view/event/subscription/tree-focus-store.js";
+import { elementHasFocus } from "../src/utils/view/element-focus.js";
 import { resources } from "../src/utils/view/i18n-resources.js";
 import { flush, press, renderApp, stripAnsi } from "./base/_helpers.js";
+
+/**
+ * The pane's focus state as the engine sees it — via the same shared predicate
+ * the component uses (including the default-group check), queried on the
+ * "file-tree" layer element.
+ */
+function treeTargetActive(): boolean {
+	return elementHasFocus(getEngine().readLayer("file-tree", "file-tree"), "file-tree");
+}
 
 // A deterministic tree: one directory (directories sort before files) then two
 // files, so row 0 is `sub`, row 1 `a.md`, row 2 `b.md`.
@@ -239,23 +249,40 @@ describe("file tree keyboard focus", () => {
 	it("the pane's focus target is active only while it holds focus", async () => {
 		const { stdin, unmount } = renderApp(EmptyEditor, { root: fixtureRoot });
 		await flush();
-		// Mirrors the pane's own predicate: the "file-tree" target active on the
-		// "file-tree" layer element. This is what drives the highlight/`active`
-		// row, and it is what a rename of either id would silently break.
-		const targetActive = () => {
-			const el = getEngine().readLayer("file-tree", "file-tree");
-			return !!el && el.currentFocusIds.some((c) => c.id === "file-tree");
-		};
-		expect(targetActive()).toBe(false); // starts on the editor
+		// Starts on the editor: the pane must not grab focus on mount (the
+		// engine auto-activates a layer's first focus target).
+		expect(treeTargetActive()).toBe(false);
 
 		await enterNormalMode(stdin);
 		await press(stdin, "tab");
 		await flush();
-		expect(targetActive()).toBe(true);
+		expect(treeTargetActive()).toBe(true);
 
 		await press(stdin, "tab"); // back to the editor
 		await flush();
-		expect(targetActive()).toBe(false);
+		expect(treeTargetActive()).toBe(false);
+		unmount();
+	});
+
+	it("Esc returns focus to the editor", async () => {
+		const { stdin, lastFrame, unmount } = renderApp(LinesEditor, {
+			root: fixtureRoot,
+		});
+		await flush();
+		await enterNormalMode(stdin);
+		await press(stdin, "tab"); // focus the tree
+		await flush();
+		expect(treeTargetActive()).toBe(true);
+
+		// The literal "escape" reaches the engine's "escape" key name without
+		// the raw `\x1b` path the repo docs flag as unreliable.
+		await press(stdin, "escape");
+		await flush();
+		expect(treeTargetActive()).toBe(false);
+
+		await press(stdin, "down"); // the editor owns the arrows again
+		await flush();
+		expect(stripAnsi(lastFrame())).toContain("Ln 2");
 		unmount();
 	});
 
