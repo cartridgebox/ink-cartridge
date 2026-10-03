@@ -319,6 +319,24 @@ describe("file tree keyboard focus", () => {
 		unmount();
 	});
 
+	it("highlights the cursor row while the pane holds focus", async () => {
+		// The editor project forces ANSI color (see vitest.config.ts). The
+		// focused cursor row renders `inverse` (`\u001b[7m`) — the toolbar's
+		// blue border is not a discriminator, but nothing else emits inverse
+		// without a mouse, so it isolates the `focused` -> `active` path.
+		const { stdin, lastFrame, unmount } = renderApp(EmptyEditor, {
+			root: fixtureRoot,
+		});
+		await flush();
+		await enterNormalMode(stdin);
+		expect(lastFrame() ?? "").not.toContain("\u001b[7m"); // no row marked
+
+		await press(stdin, "tab");
+		await flush();
+		expect(lastFrame() ?? "").toContain("\u001b[7m"); // the cursor row is inverse
+		unmount();
+	});
+
 	it("Esc returns focus to the editor", async () => {
 		const { stdin, lastFrame, unmount } = renderApp(LinesEditor, {
 			root: fixtureRoot,
