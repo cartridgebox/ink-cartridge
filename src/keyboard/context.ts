@@ -115,16 +115,16 @@ export interface KeyboardContextValue {
   focusUnregister: (
     focusId: string,
     groupOrOptions?: string | FocusSetOptions,
-  ) => void;
+  ) => boolean;
 
   focusSet: (
     focusId: string,
     groupOrOptions?: string | FocusSetOptions,
-  ) => void;
+  ) => boolean;
 
-  focusNext: (groupOrOptions?: string | FocusSetOptions) => void;
+  focusNext: (groupOrOptions?: string | FocusSetOptions) => boolean;
 
-  focusPrev: (groupOrOptions?: string | FocusSetOptions) => void;
+  focusPrev: (groupOrOptions?: string | FocusSetOptions) => boolean;
 
   focusCurrent: (groupOrOptions?: string | FocusSetOptions) => {
     noOwner?: boolean;
@@ -138,22 +138,22 @@ export interface KeyboardContextValue {
 
   subscribeFocus: (listener: () => void) => () => void;
 
-  defineShortcutAction: (entries: ShortcutOperationEntry[]) => void;
-  addAction: (entry: ShortcutOperationEntry) => void;
+  defineShortcutAction: (entries: ShortcutOperationEntry[]) => boolean;
+  addAction: (entry: ShortcutOperationEntry) => boolean;
   hasAction: (actionId: string) => boolean;
-  removeAction: (actionId: string) => void;
-  modifyAction: (actionId: string, keys: string[]) => void;
+  removeAction: (actionId: string) => boolean;
+  modifyAction: (actionId: string, keys: string[]) => boolean;
   clearShortcutOperations: () => void;
 
-  defineSequenceAction: (entries: SequenceOperationEntry[]) => void;
-  addSequenceAction: (entry: SequenceOperationEntry) => void;
+  defineSequenceAction: (entries: SequenceOperationEntry[]) => boolean;
+  addSequenceAction: (entry: SequenceOperationEntry) => boolean;
   hasSequenceAction: (sequenceActionId: string) => boolean;
-  removeSequenceAction: (sequenceActionId: string) => void;
+  removeSequenceAction: (sequenceActionId: string) => boolean;
   modifySequenceAction: (
     sequenceActionId: string,
     keys: string[],
     timeout?: number,
-  ) => void;
+  ) => boolean;
   clearSequenceOperations: () => void;
 
   _pushOwner: (owner: LayerOwner) => void;
@@ -210,7 +210,7 @@ export interface KeyboardContextValue {
       | { before?: string }
       | { after?: string }
       | { index?: number },
-  ) => void;
+  ) => boolean;
 
   removeProcessor: (processorId: string) => boolean;
 

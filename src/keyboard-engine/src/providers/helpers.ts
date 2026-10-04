@@ -140,35 +140,34 @@ export function pushKeyEntries(
 // These three functions eliminate that duplication.
 
 /**
- * Insert a value into the map, throwing if the id already exists.
- * Used by addAction / addSequenceAction and the inner loops of
- * defineShortcutAction / defineSequenceAction.
+ * Insert a value into the map unless the id already exists.
+ * Used by addAction / addSequenceAction.
+ *
+ * @returns `true` if inserted, `false` if the id already existed.
  */
 export function setIfAbsent<T>(
   map: Map<string, T>,
   id: string,
   value: T,
-  duplicateMessage: string,
-): void {
+): boolean {
   if (map.has(id)) {
-    throw new Error(duplicateMessage);
+    return false;
   }
   map.set(id, value);
+  return true;
 }
 
 /**
- * Delete an entry from the map, throwing if the id is not registered.
+ * Delete an entry from the map.
  * Used by removeAction / removeSequenceAction.
+ *
+ * @returns `true` if the id existed and was removed, `false` otherwise.
  */
 export function deleteIfPresent(
   map: Map<string, unknown>,
   id: string,
-  notFoundMessage: string,
-): void {
-  if (!map.has(id)) {
-    throw new Error(notFoundMessage);
-  }
-  map.delete(id);
+): boolean {
+  return map.delete(id);
 }
 
 /**
@@ -183,27 +182,23 @@ export type EntryWithOptionalKeys = {
 };
 
 /**
- * Retrieve an entry and overwrite its keys, throwing when the entry or
- * its preset keys are missing.  Returns the entry so callers can apply
- * additional mutations (e.g. timeout for sequence actions).
+ * Retrieve an entry and overwrite its keys.  Returns the entry so callers
+ * can apply additional mutations (e.g. timeout for sequence actions).
  * Used by modifyAction / modifySequenceAction.
  *
  * @typeParam T - Entry type carrying optional preset keys
  *                (see {@link EntryWithOptionalKeys}).
+ * @returns The mutated entry, or `undefined` when the id is absent or was
+ *          registered without preset keys.
  */
 export function modifyEntryKeys<T extends EntryWithOptionalKeys>(
   map: Map<string, T>,
   id: string,
   keys: string[],
-  notFoundMessage: string,
-  noKeysMessage: string,
-): T {
+): T | undefined {
   const entry = map.get(id);
-  if (!entry) {
-    throw new Error(notFoundMessage);
-  }
-  if (entry.keys === undefined) {
-    throw new Error(noKeysMessage);
+  if (!entry || entry.keys === undefined) {
+    return undefined;
   }
   entry.keys = keys;
   return entry;

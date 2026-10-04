@@ -324,20 +324,21 @@ export default class OperationRegistry<TComponent = unknown> {
    * engine.globalKeys([{ key: 'ctrl+s', operate: 'save' }]);
    * ```
    *
-   * @throws If any `actionId` is duplicated.
+   * @returns `true` if every entry was registered; `false` if any `actionId`
+   *          already existed (or repeats within the batch). On `false` nothing
+   *          is registered — the batch is atomic.
    */
-  defineShortcutAction(entries: ShortcutOperationEntry[]) {
+  defineShortcutAction(entries: ShortcutOperationEntry[]): boolean {
+    const map = this.state.shortcutOperationsRef;
+    const seen = new Set<string>();
     for (const each of entries) {
-      setIfAbsent(
-        this.state.shortcutOperationsRef,
-        each.actionId,
-        {
-          action: each.action,
-          keys: each.keys,
-        },
-        `[Ink-Cartridge] Duplicate shortcut cannot be defined with ID ${each.actionId}`,
-      );
+      if (seen.has(each.actionId) || map.has(each.actionId)) return false;
+      seen.add(each.actionId);
     }
+    for (const each of entries) {
+      map.set(each.actionId, { action: each.action, keys: each.keys });
+    }
+    return true;
   }
 
   /**
@@ -358,79 +359,78 @@ export default class OperationRegistry<TComponent = unknown> {
    * engine.globalSequence([{ keys: ['ctrl+home'], operate: 'scroll-top' }]);
    * ```
    *
-   * @throws If any `sequenceActionId` is duplicated.
+   * @returns `true` if every entry was registered; `false` if any
+   *          `sequenceActionId` already existed (or repeats within the batch).
+   *          On `false` nothing is registered — the batch is atomic.
    */
-  defineSequenceAction(entries: SequenceOperationEntry[]) {
+  defineSequenceAction(entries: SequenceOperationEntry[]): boolean {
+    const map = this.state.sequenceOperationsRef;
+    const seen = new Set<string>();
     for (const each of entries) {
-      setIfAbsent(
-        this.state.sequenceOperationsRef,
-        each.sequenceActionId,
-        {
-          action: each.action,
-          keys: each.keys,
-          timeout: each.timeout,
-        },
-        `[Ink-Cartridge] Sequence Action ${each.sequenceActionId} may not be defined repeatedly`,
-      );
+      if (seen.has(each.sequenceActionId) || map.has(each.sequenceActionId)) {
+        return false;
+      }
+      seen.add(each.sequenceActionId);
     }
+    for (const each of entries) {
+      map.set(each.sequenceActionId, {
+        action: each.action,
+        keys: each.keys,
+        timeout: each.timeout,
+      });
+    }
+    return true;
   }
 
   /**
    * Change the preset keys and/or timeout of an existing sequence action.
    *
-   * @throws If the action does not exist or was registered without a
-   *         `keys` (or `timeout`, when one is passed) field.
+   * @returns `true` if modified; `false` if the action does not exist, was
+   *          registered without a `keys` field, or (when `timeout` is passed)
+   *          has no default timeout.
    */
-  modifySequenceAction(actionId: string, keys: string[], timeout?: number) {
+  modifySequenceAction(
+    actionId: string,
+    keys: string[],
+    timeout?: number,
+  ): boolean {
     const entry = modifyEntryKeys(
       this.state.sequenceOperationsRef,
       actionId,
       keys,
-      `[Ink-Cartridge] Key not registered to Sequence Action cannot be modified, target ID is ${actionId}`,
-      `[Ink-Cartridge] The target Sequence Action has no preset Keys. You cannot modify it. The ID is ${actionId}.`,
     );
+    if (!entry) return false;
     if (timeout) {
-      if (entry.timeout === undefined) {
-        throw new Error(
-          `[Ink-Cartridge] Target Sequence Action has no default Timeout, you cannot modify, ID is ${actionId}`,
-        );
-      }
+      if (entry.timeout === undefined) return false;
       entry.timeout = timeout;
     }
+    return true;
   }
 
   /**
    * Change the preset keys of an existing shortcut action.
    *
-   * @throws If the action does not exist or was registered without a
-   *         `keys` field.
+   * @returns `true` if modified; `false` if the action does not exist or was
+   *          registered without a `keys` field.
    */
-  modifyAction(actionId: string, keys: string[]) {
-    modifyEntryKeys(
-      this.state.shortcutOperationsRef,
-      actionId,
-      keys,
-      `[Ink-Cartridge] Cannot modify action "${actionId}": action not registered.`,
-      `[Ink-Cartridge] Cannot modify action "${actionId}": action was not registered with a 'keys' field.`,
+  modifyAction(actionId: string, keys: string[]): boolean {
+    return (
+      modifyEntryKeys(this.state.shortcutOperationsRef, actionId, keys) !==
+      undefined
     );
   }
 
   /**
    * Add a single sequence action.
    *
-   * @throws If the `sequenceActionId` already exists.
+   * @returns `true` if added, `false` if the `sequenceActionId` already exists.
    */
-  addSequenceAction(entry: SequenceOperationEntry) {
-    setIfAbsent(
-      this.state.sequenceOperationsRef,
-      entry.sequenceActionId,
-      {
-        action: entry.action,
-        keys: entry.keys,
-        timeout: entry.timeout,
-      },
-      `[Ink-Cartridge] Sequence Action ${entry.sequenceActionId} may not be defined repeatedly`,
-    );
+  addSequenceAction(entry: SequenceOperationEntry): boolean {
+    return setIfAbsent(this.state.sequenceOperationsRef, entry.sequenceActionId, {
+      action: entry.action,
+      keys: entry.keys,
+      timeout: entry.timeout,
+    });
   }
 
   /** Check sequence action registration without throwing. */
@@ -441,14 +441,10 @@ export default class OperationRegistry<TComponent = unknown> {
   /**
    * Remove a registered sequence action.
    *
-   * @throws If the `sequenceActionId` is not registered.
+   * @returns `true` if it existed and was removed, `false` otherwise.
    */
-  removeSequenceAction(sequenceActionId: string) {
-    deleteIfPresent(
-      this.state.sequenceOperationsRef,
-      sequenceActionId,
-      `[Ink-Cartridge] Cannot remove sequence action "${sequenceActionId}": action not registered.`,
-    );
+  removeSequenceAction(sequenceActionId: string): boolean {
+    return deleteIfPresent(this.state.sequenceOperationsRef, sequenceActionId);
   }
 
   /** Remove all registered sequence actions. */
@@ -459,18 +455,13 @@ export default class OperationRegistry<TComponent = unknown> {
   /**
    * Add a single shortcut action.
    *
-   * @throws If the `actionId` already exists.
+   * @returns `true` if added, `false` if the `actionId` already exists.
    */
-  addAction(entry: ShortcutOperationEntry) {
-    setIfAbsent(
-      this.state.shortcutOperationsRef,
-      entry.actionId,
-      {
-        action: entry.action,
-        keys: entry.keys,
-      },
-      `[Ink-Cartridge] Duplicate shortcut cannot be defined with ID ${entry.actionId}`,
-    );
+  addAction(entry: ShortcutOperationEntry): boolean {
+    return setIfAbsent(this.state.shortcutOperationsRef, entry.actionId, {
+      action: entry.action,
+      keys: entry.keys,
+    });
   }
 
   /** Check shortcut action registration without throwing. */
@@ -481,14 +472,10 @@ export default class OperationRegistry<TComponent = unknown> {
   /**
    * Remove a registered shortcut action.
    *
-   * @throws If the `actionId` is not registered.
+   * @returns `true` if it existed and was removed, `false` otherwise.
    */
-  removeAction(actionId: string) {
-    deleteIfPresent(
-      this.state.shortcutOperationsRef,
-      actionId,
-      `[Ink-Cartridge] Cannot remove action "${actionId}": action not registered.`,
-    );
+  removeAction(actionId: string): boolean {
+    return deleteIfPresent(this.state.shortcutOperationsRef, actionId);
   }
 
   /** Remove all registered shortcut actions. */

@@ -293,7 +293,7 @@ describe("BindingService penetration/stop/allowModal/sequence", () => {
     engine.sync({ pagePath: [Page], layers: [], modalLayers: [] });
     engine.boundSequence(["x", "y"], handler, { focusId: "panel-alpha" });
     expect(engine.focusCurrent().result?.id).toBe("panel-alpha");
-    expect(() => engine.focusSet("panel-alpha")).not.toThrow();
+    expect(engine.focusSet("panel-alpha")).toBe(true);
     engine.processKey("x", {});
     engine.processKey("y", {});
     expect(handler).toHaveBeenCalledTimes(1);
@@ -340,15 +340,42 @@ describe("OperationRegistry", () => {
 
   it("manages shortcut and sequence actions", () => {
     const engine = createEngine();
-    engine.defineShortcutAction([{ actionId: "s", action: () => {} }]);
+    expect(
+      engine.defineShortcutAction([{ actionId: "s", action: () => {} }]),
+    ).toBe(true);
     expect(engine.hasAction("s")).toBe(true);
-    expect(() => engine.addAction({ actionId: "s", action: () => {} })).toThrow();
-    engine.removeAction("s");
+    expect(engine.addAction({ actionId: "s", action: () => {} })).toBe(false);
+    expect(engine.removeAction("s")).toBe(true);
     expect(engine.hasAction("s")).toBe(false);
+    expect(engine.removeAction("s")).toBe(false);
 
-    engine.defineSequenceAction([{ sequenceActionId: "q", action: () => {} }]);
+    expect(
+      engine.defineSequenceAction([{ sequenceActionId: "q", action: () => {} }]),
+    ).toBe(true);
     expect(engine.hasSequenceAction("q")).toBe(true);
-    engine.removeSequenceAction("q");
+    expect(engine.removeSequenceAction("q")).toBe(true);
+    expect(engine.removeSequenceAction("q")).toBe(false);
+  });
+
+  it("registers a defineShortcutAction batch atomically", () => {
+    const engine = createEngine();
+    engine.defineShortcutAction([{ actionId: "a", action: () => {} }]);
+    // A batch containing an already-registered id registers nothing.
+    expect(
+      engine.defineShortcutAction([
+        { actionId: "b", action: () => {} },
+        { actionId: "a", action: () => {} },
+      ]),
+    ).toBe(false);
+    expect(engine.hasAction("b")).toBe(false);
+    // A batch with an internal duplicate also registers nothing.
+    expect(
+      engine.defineShortcutAction([
+        { actionId: "c", action: () => {} },
+        { actionId: "c", action: () => {} },
+      ]),
+    ).toBe(false);
+    expect(engine.hasAction("c")).toBe(false);
   });
 
   it("wildcard priority is reference counted", () => {
@@ -444,7 +471,7 @@ describe("LayerManager", () => {
     engine.focusSet("two");
     expect(engine.processKey("b", {})).toBe(false);
     expect(f2).toHaveBeenCalled();
-    engine.focusUnregister("one");
+    expect(engine.focusUnregister("one")).toBe(true);
     expect(engine.focusCurrent().result?.id).toBe("two");
   });
 
@@ -612,26 +639,26 @@ describe("OperationRegistry edge cases", () => {
   it("validates action modifications and removals", () => {
     const engine = createEngine();
     engine.defineShortcutAction([{ actionId: "s", action: () => {} }]);
-    expect(() => engine.modifyAction("s", ["x"])).toThrow();
-    expect(() => engine.modifyAction("missing", ["x"])).toThrow();
+    expect(engine.modifyAction("s", ["x"])).toBe(false);
+    expect(engine.modifyAction("missing", ["x"])).toBe(false);
     engine.defineShortcutAction([
       { actionId: "t", action: () => {}, keys: ["t"] },
     ]);
-    engine.modifyAction("t", ["u"]);
+    expect(engine.modifyAction("t", ["u"])).toBe(true);
 
     engine.defineSequenceAction([{ sequenceActionId: "q", action: () => {} }]);
-    expect(() => engine.modifySequenceAction("q", ["a", "b"])).toThrow();
+    expect(engine.modifySequenceAction("q", ["a", "b"])).toBe(false);
     engine.defineSequenceAction([
       { sequenceActionId: "r", action: () => {}, keys: ["r", "s"] },
     ]);
-    expect(() => engine.modifySequenceAction("r", ["a", "b"], 100)).toThrow();
+    expect(engine.modifySequenceAction("r", ["a", "b"], 100)).toBe(false);
     engine.defineSequenceAction([
       { sequenceActionId: "p", action: () => {}, keys: ["p", "q"], timeout: 100 },
     ]);
-    engine.modifySequenceAction("p", ["x", "y"], 200);
+    expect(engine.modifySequenceAction("p", ["x", "y"], 200)).toBe(true);
 
-    expect(() => engine.removeAction("missing")).toThrow();
-    expect(() => engine.removeSequenceAction("missing")).toThrow();
+    expect(engine.removeAction("missing")).toBe(false);
+    expect(engine.removeSequenceAction("missing")).toBe(false);
     engine.addSequenceAction({
       sequenceActionId: "z",
       action: () => {},
@@ -702,16 +729,18 @@ describe("PipelineManager insertion options", () => {
       after: "modal",
     });
     expect(ids().indexOf("after-modal")).toBe(shiftedModalIndex + 1);
-    engine.addProcessor({ id: "appended", process: () => false });
+    expect(engine.addProcessor({ id: "appended", process: () => false })).toBe(
+      true,
+    );
     expect(ids().at(-1)).toBe("appended");
-    expect(() =>
+    expect(
       engine.addProcessor({ id: "by-index", process: () => false }),
-    ).toThrow("duplicate id");
-    expect(() =>
+    ).toBe(false);
+    expect(
       engine.addProcessor({ id: "missing-target", process: () => false }, {
         before: "missing",
       }),
-    ).toThrow("not found");
+    ).toBe(false);
   });
 
   it("builds a pipeline from constructor processors", () => {

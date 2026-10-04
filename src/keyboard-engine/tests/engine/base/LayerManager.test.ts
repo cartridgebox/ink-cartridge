@@ -130,8 +130,8 @@ describe("LayerManager focus", () => {
     engine.focusSet("ga", "g");
     expect(engine.focusCurrent("g").result?.id).toBe("ga");
     expect(engine.focusCurrent("g").result?.fromGroup).toBe("g");
-    engine.focusUnregister("one");
-    engine.focusUnregister("one");
+    expect(engine.focusUnregister("one")).toBe(true);
+    expect(engine.focusUnregister("one")).toBe(false);
     expect(engine.focusCurrent().result?.id).toBe("two");
   });
 
@@ -139,11 +139,11 @@ describe("LayerManager focus", () => {
     const engine = createEngine();
     engine.sync({ pagePath: [Root], layers: [], modalLayers: [] });
     engine.boundKeyboard(["a"], () => {}, { focusId: "one" });
-    expect(() => engine.focusSet("missing")).toThrow();
+    expect(engine.focusSet("missing")).toBe(false);
     expect(engine.focusCurrent("missing-group")).toEqual({ noFound: true });
-    expect(() => engine.focusNext("missing-group")).toThrow();
-    expect(() => engine.focusPrev("missing-group")).toThrow();
-    expect(() => engine.focusUnregister("missing-group")).not.toThrow();
+    expect(engine.focusNext("missing-group")).toBe(false);
+    expect(engine.focusPrev("missing-group")).toBe(false);
+    expect(engine.focusUnregister("missing-group")).toBe(false);
   });
 
   it("supports activateFocusGroup and kickFocusGroup", () => {
@@ -297,9 +297,9 @@ describe("LayerManager group focus branches", () => {
       focusId: { group: "g", focusId: "two" },
     });
     expect(engine.focusCurrent("g").result?.id).toBe("one");
-    engine.focusNext("g");
+    expect(engine.focusNext("g")).toBe(true);
     expect(engine.focusCurrent("g").result?.id).toBe("two");
-    engine.focusPrev("g");
+    expect(engine.focusPrev("g")).toBe(true);
     expect(engine.focusCurrent("g").result?.id).toBe("one");
     engine.kickFocusGroup("g");
     engine.boundKeyboard(["c"], f3, {
@@ -308,16 +308,16 @@ describe("LayerManager group focus branches", () => {
     expect(engine.focusCurrent("g").result?.id).toBe("three");
   });
 
-  it("throws for missing groups and targets and replaces group focus", () => {
+  it("no-ops for missing groups and targets and replaces group focus", () => {
     const engine = createEngine();
-    expect(() => engine.focusSet("one")).not.toThrow();
+    expect(engine.focusSet("one")).toBe(false);
     engine.sync({ pagePath: [Root], layers: [], modalLayers: [] });
     engine.boundKeyboard(["a"], () => {}, {
       focusId: { group: "g", focusId: "one" },
     });
-    expect(() => engine.focusSet("x", "missing")).toThrow();
-    expect(() => engine.focusSet("missing", "g")).toThrow();
-    engine.focusSet("one", "g");
+    expect(engine.focusSet("x", "missing")).toBe(false);
+    expect(engine.focusSet("missing", "g")).toBe(false);
+    expect(engine.focusSet("one", "g")).toBe(true);
     expect(engine.focusCurrent("g").result?.id).toBe("one");
   });
 
@@ -330,11 +330,11 @@ describe("LayerManager group focus branches", () => {
     engine.boundKeyboard(["b"], () => {}, {
       focusId: { group: "g", focusId: "two" },
     });
-    engine.focusUnregister("one", "g");
+    expect(engine.focusUnregister("one", "g")).toBe(true);
     expect(engine.focusCurrent("g").result?.id).toBe("two");
-    engine.focusUnregister("two", "g");
+    expect(engine.focusUnregister("two", "g")).toBe(true);
     expect(engine.focusCurrent("g").noFound).toBe(true);
-    engine.focusUnregister("missing", "g");
+    expect(engine.focusUnregister("missing", "g")).toBe(false);
   });
 
   it("activates focus groups lazily and returns false when active", () => {
@@ -360,9 +360,9 @@ describe("LayerManager group focus branches", () => {
 
   it("reports no owner for focus mutation methods", () => {
     const engine = createEngine();
-    expect(() => engine.focusNext()).not.toThrow();
-    expect(() => engine.focusPrev()).not.toThrow();
-    expect(() => engine.focusUnregister("one")).not.toThrow();
+    expect(engine.focusNext()).toBe(false);
+    expect(engine.focusPrev()).toBe(false);
+    expect(engine.focusUnregister("one")).toBe(false);
     expect(engine.activateFocusGroup("one")).toBe(false);
     expect(engine.kickFocusGroup()).toBe(false);
   });
@@ -371,17 +371,17 @@ describe("LayerManager group focus branches", () => {
     const engine = createEngine();
     engine.sync({ pagePath: [Root], layers: [], modalLayers: [] });
     engine.boundKeyboard(["a"], () => {}, { focusId: "one" });
-    engine.focusUnregister("one");
+    expect(engine.focusUnregister("one")).toBe(true);
     expect(engine.focusCurrent().noFound).toBe(true);
   });
 
-  it("reports empty focus groups when missing targets", () => {
+  it("no-ops focusSet on an emptied group", () => {
     const engine = createEngine();
     engine.sync({ pagePath: [Root], layers: [], modalLayers: [] });
     engine.boundKeyboard(["a"], () => {}, {
       focusId: { group: "g", focusId: "one" },
     });
-    engine.focusUnregister("one", "g");
-    expect(() => engine.focusSet("missing", "g")).toThrow("(none)");
+    expect(engine.focusUnregister("one", "g")).toBe(true);
+    expect(engine.focusSet("missing", "g")).toBe(false);
   });
 });

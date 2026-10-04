@@ -729,14 +729,16 @@ describe("providers helpers", () => {
 
   it("setIfAbsent/deleteIfPresent/modifyEntryKeys", () => {
     const map = new Map<string, { keys?: string[] }>();
-    setIfAbsent(map, "a", { keys: ["x"] }, "dup");
-    expect(() => setIfAbsent(map, "a", {}, "dup")).toThrow("dup");
-    expect(() => deleteIfPresent(map, "missing", "nope")).toThrow("nope");
-    deleteIfPresent(map, "a", "nope");
+    expect(setIfAbsent(map, "a", { keys: ["x"] })).toBe(true);
+    expect(setIfAbsent(map, "a", {})).toBe(false);
+    expect(deleteIfPresent(map, "missing")).toBe(false);
+    expect(deleteIfPresent(map, "a")).toBe(true);
     expect(map.has("a")).toBe(false);
     map.set("b", { keys: ["y"] });
-    expect(modifyEntryKeys(map, "b", ["z"], "nf", "nk").keys).toEqual(["z"]);
-    expect(() => modifyEntryKeys(map, "missing", [], "nf", "nk")).toThrow("nf");
+    expect(modifyEntryKeys(map, "b", ["z"])?.keys).toEqual(["z"]);
+    expect(modifyEntryKeys(map, "missing", [])).toBeUndefined();
+    map.set("c", {});
+    expect(modifyEntryKeys(map, "c", ["q"])).toBeUndefined();
   });
 
   it("initializes missing rule arrays and removes absent actions", () => {

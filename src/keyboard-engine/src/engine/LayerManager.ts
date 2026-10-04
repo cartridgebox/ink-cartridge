@@ -394,12 +394,6 @@ export default class LayerManager<TComponent = unknown> {
     };
   }
 
-  private getAllFocus(order: string[]) {
-    return order.length > 0
-      ? order.map((each) => `"${each}"`).join(", ")
-      : "(none)";
-  }
-
   private resolveKeyboardLayer(
     owner: TComponent | string,
     element?: string,
@@ -446,14 +440,14 @@ export default class LayerManager<TComponent = unknown> {
    * previous active entry (if any) is replaced, and any pending sequence
    * on the layer is cleared.
    *
-   * @throws If the current owner has no layer, or the target is not
-   *         registered in the group.
+   * @returns `true` if the target was activated, `false` on any no-op path
+   *          (no owner, unresolved layer, unknown group, or target not found).
    */
-  focusSet(focusId: string, group?: string): void;
-  focusSet(focusId: string, options?: FocusSetOptions): void;
-  focusSet(focusId: string, groupOrOptions?: string | FocusSetOptions): void {
+  focusSet(focusId: string, group?: string): boolean;
+  focusSet(focusId: string, options?: FocusSetOptions): boolean;
+  focusSet(focusId: string, groupOrOptions?: string | FocusSetOptions): boolean {
     const owner = this.getCurrentOwner();
-    if (!owner) return;
+    if (!owner) return false;
 
     const group =
       typeof groupOrOptions === "string"
@@ -462,28 +456,18 @@ export default class LayerManager<TComponent = unknown> {
     const element =
       typeof groupOrOptions !== "string" ? groupOrOptions?.element : undefined;
 
-    const { layer, name: ownerName } = this.resolveKeyboardLayer(
-      owner,
-      element,
-    );
-    this.clearPendingSequence(layer);
+    let layer: PageKeyboardLayer | ElementKeyboard;
+    try {
+      layer = this.resolveKeyboardLayer(owner, element).layer;
+    } catch {
+      return false;
+    }
 
     if (group) {
       const g = layer.focusTargets.get(group);
-      if (!g) {
-        throw new Error(
-          `[keyboard-engine] focusSet("${focusId}", "${group}"): Focus group ${group} is not registered in layer ${ownerName}. Call methods such as boundKeyboard to register automatically`,
-        );
-      }
+      if (!g || !g.map.has(focusId)) return false;
 
-      if (!g.map.has(focusId)) {
-        const allFocus = this.getAllFocus(g.order);
-        throw new Error(
-          `[keyboard-engine] focusSet("${focusId}"): focus target not found on "${ownerName}". ` +
-            `Available targets: ${allFocus}`,
-        );
-      }
-
+      this.clearPendingSequence(layer);
       const has = layer.currentFocusIds.findIndex(
         (each) => each.fromGroup === group,
       );
@@ -492,27 +476,24 @@ export default class LayerManager<TComponent = unknown> {
       }
       layer.currentFocusIds.push({ id: focusId, fromGroup: group });
       this.notifyFocusChange();
-    } else {
-      if (!layer.defaultTargets.has(focusId)) {
-        const available = this.getAllFocus(layer.defaultFocusOrder);
-        throw new Error(
-          `[keyboard-engine] focusSet("${focusId}"): focus target not found on "${ownerName}". ` +
-            `Available targets: ${available}`,
-        );
-      }
-
-      const idx = layer.currentFocusIds.findIndex(
-        (each) => each.fromGroup === defaultTargetsSymbol,
-      );
-      if (idx !== -1) {
-        layer.currentFocusIds.splice(idx, 1);
-      }
-      layer.currentFocusIds.push({
-        id: focusId,
-        fromGroup: defaultTargetsSymbol,
-      });
-      this.notifyFocusChange();
+      return true;
     }
+
+    if (!layer.defaultTargets.has(focusId)) return false;
+
+    this.clearPendingSequence(layer);
+    const idx = layer.currentFocusIds.findIndex(
+      (each) => each.fromGroup === defaultTargetsSymbol,
+    );
+    if (idx !== -1) {
+      layer.currentFocusIds.splice(idx, 1);
+    }
+    layer.currentFocusIds.push({
+      id: focusId,
+      fromGroup: defaultTargetsSymbol,
+    });
+    this.notifyFocusChange();
+    return true;
   }
 
   private replaceFocusGroup(
@@ -547,12 +528,16 @@ export default class LayerManager<TComponent = unknown> {
    * Tab; otherwise developers bind Tab and call it themselves. Only
    * switches the active target — a group with no current focus is left
    * untouched.
+   *
+   * @returns `true` if the active target moved, `false` on any no-op path
+   *          (no owner, unresolved layer, unknown group, or no active target
+   *          in the group).
    */
-  focusNext(group?: string): void;
-  focusNext(options?: FocusSetOptions): void;
-  focusNext(groupOrOptions?: string | FocusSetOptions): void {
+  focusNext(group?: string): boolean;
+  focusNext(options?: FocusSetOptions): boolean;
+  focusNext(groupOrOptions?: string | FocusSetOptions): boolean {
     const owner = this.getCurrentOwner();
-    if (!owner) return;
+    if (!owner) return false;
 
     const group =
       typeof groupOrOptions === "string"
@@ -561,64 +546,69 @@ export default class LayerManager<TComponent = unknown> {
     const element =
       typeof groupOrOptions !== "string" ? groupOrOptions?.element : undefined;
 
-    const { layer } = this.resolveKeyboardLayer(owner, element);
-    this.clearPendingSequence(layer);
+    let layer: PageKeyboardLayer | ElementKeyboard;
+    try {
+      layer = this.resolveKeyboardLayer(owner, element).layer;
+    } catch {
+      return false;
+    }
 
     if (group) {
       const g = layer.focusTargets.get(group);
-      if (!g) {
-        throw new Error(
-          `[keyboard-engine] focusNext("${group}"): Focus group ${group} is not registered. Call methods such as boundKeyboard to register automatically`,
-        );
-      }
+      if (!g) return false;
 
       const idx = layer.currentFocusIds.findIndex(
         (each) => each.fromGroup === group,
       );
+      if (idx === -1) return false;
 
-      if (idx !== -1) {
-        const inCurrentGroup = layer.currentFocusIds[idx];
-        this.replaceFocusGroup(
-          inCurrentGroup.id,
-          g.order,
-          layer.currentFocusIds,
-          idx,
-          group,
-          true,
-        );
-        this.notifyFocusChange();
-      }
-    } else {
-      const currents = layer.currentFocusIds;
-      const index = currents.findIndex(
-        (each) => each.fromGroup === defaultTargetsSymbol,
+      const inCurrentGroup = layer.currentFocusIds[idx];
+      this.clearPendingSequence(layer);
+      this.replaceFocusGroup(
+        inCurrentGroup.id,
+        g.order,
+        layer.currentFocusIds,
+        idx,
+        group,
+        true,
       );
-
-      if (index !== -1) {
-        const inCurrentGroup = currents[index];
-        this.replaceFocusGroup(
-          inCurrentGroup.id,
-          layer.defaultFocusOrder,
-          layer.currentFocusIds,
-          index,
-          null,
-          true,
-        );
-        this.notifyFocusChange();
-      }
+      this.notifyFocusChange();
+      return true;
     }
+
+    const currents = layer.currentFocusIds;
+    const index = currents.findIndex(
+      (each) => each.fromGroup === defaultTargetsSymbol,
+    );
+    if (index === -1) return false;
+
+    const inCurrentGroup = currents[index];
+    this.clearPendingSequence(layer);
+    this.replaceFocusGroup(
+      inCurrentGroup.id,
+      layer.defaultFocusOrder,
+      layer.currentFocusIds,
+      index,
+      null,
+      true,
+    );
+    this.notifyFocusChange();
+    return true;
   }
 
   /**
    * Cycle to the previous focus target in the group's registration order,
    * wrapping around at the end (Shift+Tab semantics). See
    * {@link focusNext} for the group parameter behavior.
+   *
+   * @returns `true` if the active target moved, `false` on any no-op path
+   *          (see {@link focusNext}).
    */
-  focusPrev(group?: string): void;
-  focusPrev(options?: FocusSetOptions): void;
-  focusPrev(groupOrOptions?: string | FocusSetOptions): void {
+  focusPrev(group?: string): boolean;
+  focusPrev(options?: FocusSetOptions): boolean;
+  focusPrev(groupOrOptions?: string | FocusSetOptions): boolean {
     const owner = this.getCurrentOwner();
-    if (!owner) return;
+    if (!owner) return false;
 
     const group =
       typeof groupOrOptions === "string"
@@ -627,52 +617,54 @@ export default class LayerManager<TComponent = unknown> {
     const element =
       typeof groupOrOptions !== "string" ? groupOrOptions?.element : undefined;
 
-    const { layer } = this.resolveKeyboardLayer(owner, element);
-    this.clearPendingSequence(layer);
+    let layer: PageKeyboardLayer | ElementKeyboard;
+    try {
+      layer = this.resolveKeyboardLayer(owner, element).layer;
+    } catch {
+      return false;
+    }
 
     if (group) {
       const g = layer.focusTargets.get(group);
-      if (!g) {
-        throw new Error(
-          `[keyboard-engine] focusPrev("${group}"): Focus group ${group} is not registered. Call methods such as boundKeyboard to register automatically`,
-        );
-      }
+      if (!g) return false;
 
       const idx = layer.currentFocusIds.findIndex(
         (each) => each.fromGroup === group,
       );
+      if (idx === -1) return false;
 
-      if (idx !== -1) {
-        const inCurrentGroup = layer.currentFocusIds[idx];
-        this.replaceFocusGroup(
-          inCurrentGroup.id,
-          g.order,
-          layer.currentFocusIds,
-          idx,
-          group,
-          false,
-        );
-        this.notifyFocusChange();
-      }
-    } else {
-      const currents = layer.currentFocusIds;
-      const index = currents.findIndex(
-        (each) => each.fromGroup === defaultTargetsSymbol,
+      const inCurrentGroup = layer.currentFocusIds[idx];
+      this.clearPendingSequence(layer);
+      this.replaceFocusGroup(
+        inCurrentGroup.id,
+        g.order,
+        layer.currentFocusIds,
+        idx,
+        group,
+        false,
       );
-
-      if (index !== -1) {
-        const inCurrentGroup = currents[index];
-        this.replaceFocusGroup(
-          inCurrentGroup.id,
-          layer.defaultFocusOrder,
-          layer.currentFocusIds,
-          index,
-          null,
-          false,
-        );
-        this.notifyFocusChange();
-      }
+      this.notifyFocusChange();
+      return true;
     }
+
+    const currents = layer.currentFocusIds;
+    const index = currents.findIndex(
+      (each) => each.fromGroup === defaultTargetsSymbol,
+    );
+    if (index === -1) return false;
+
+    const inCurrentGroup = currents[index];
+    this.clearPendingSequence(layer);
+    this.replaceFocusGroup(
+      inCurrentGroup.id,
+      layer.defaultFocusOrder,
+      layer.currentFocusIds,
+      index,
+      null,
+      false,
+    );
+    this.notifyFocusChange();
+    return true;
   }
 
   /**
@@ -738,15 +730,18 @@ export default class LayerManager<TComponent = unknown> {
    * remaining target (in registration order) is auto-activated; when no
    * targets remain, the group's focus slot is cleared. Silently no-ops
    * when the target, group, or layer is absent.
+   *
+   * @returns `true` if a focus target was removed, `false` on any no-op
+   *          path (no owner, unresolved layer, unknown group or target).
    */
-  focusUnregister(focusId: string, group?: string): void;
-  focusUnregister(focusId: string, options?: FocusSetOptions): void;
+  focusUnregister(focusId: string, group?: string): boolean;
+  focusUnregister(focusId: string, options?: FocusSetOptions): boolean;
   focusUnregister(
     focusId: string,
     groupOrOptions?: string | FocusSetOptions,
-  ): void {
+  ): boolean {
     const owner = this.getCurrentOwner();
-    if (!owner) return;
+    if (!owner) return false;
 
     const group =
       typeof groupOrOptions === "string"
@@ -759,15 +754,15 @@ export default class LayerManager<TComponent = unknown> {
     try {
       layer = this.resolveKeyboardLayer(owner, element).layer;
     } catch {
-      return;
+      return false;
     }
 
     if (group) {
       const g = layer.focusTargets.get(group);
-      if (!g) return;
+      if (!g) return false;
 
       const target = g.map.get(focusId);
-      if (!target) return;
+      if (!target) return false;
 
       const index = layer.currentFocusIds.findIndex(
         (each) => each.fromGroup === group && each.id === focusId,
@@ -790,7 +785,7 @@ export default class LayerManager<TComponent = unknown> {
       }
     } else {
       const target = layer.defaultTargets.get(focusId);
-      if (!target) return;
+      if (!target) return false;
 
       const index = layer.currentFocusIds.findIndex(
         (each) =>
@@ -818,6 +813,8 @@ export default class LayerManager<TComponent = unknown> {
         this.notifyFocusChange();
       }
     }
+
+    return true;
   }
 
   /**
