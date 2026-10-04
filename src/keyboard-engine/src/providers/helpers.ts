@@ -136,8 +136,8 @@ export function pushKeyEntries(
 // Pure helpers for shortcut / sequence action CRUD
 // Both shortcutOperationsRef and sequenceOperationsRef share the same
 // Map<string, { action, keys?, timeout? }> shape.  The CRUD callbacks
-// below differ only in which ref they target and the error-message label.
-// These three functions eliminate that duplication.
+// below differ only in which ref they target; these three functions
+// eliminate that duplication.
 
 /**
  * Insert a value into the map unless the id already exists.

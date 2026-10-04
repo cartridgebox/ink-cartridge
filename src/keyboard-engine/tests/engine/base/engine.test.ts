@@ -652,6 +652,11 @@ describe("OperationRegistry edge cases", () => {
       { sequenceActionId: "r", action: () => {}, keys: ["r", "s"] },
     ]);
     expect(engine.modifySequenceAction("r", ["a", "b"], 100)).toBe(false);
+    // A false return must leave the entry untouched.
+    expect(engine["state"].sequenceOperationsRef.get("r")?.keys).toEqual([
+      "r",
+      "s",
+    ]);
     engine.defineSequenceAction([
       { sequenceActionId: "p", action: () => {}, keys: ["p", "q"], timeout: 100 },
     ]);

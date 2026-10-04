@@ -387,23 +387,20 @@ export default class OperationRegistry<TComponent = unknown> {
    *
    * @returns `true` if modified; `false` if the action does not exist, was
    *          registered without a `keys` field, or (when `timeout` is passed)
-   *          has no default timeout.
+   *          has no default timeout. On `false` nothing is modified.
    */
   modifySequenceAction(
     actionId: string,
     keys: string[],
     timeout?: number,
   ): boolean {
-    const entry = modifyEntryKeys(
-      this.state.sequenceOperationsRef,
-      actionId,
-      keys,
-    );
-    if (!entry) return false;
+    const entry = this.state.sequenceOperationsRef.get(actionId);
+    if (!entry || entry.keys === undefined) return false;
     if (timeout) {
       if (entry.timeout === undefined) return false;
       entry.timeout = timeout;
     }
+    entry.keys = keys;
     return true;
   }
 
