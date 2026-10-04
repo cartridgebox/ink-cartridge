@@ -1,6 +1,6 @@
 {
     "name": "ink-cartridge",
-    "version": "5.5.1",
+    "version": "6.0.0",
     "description": "Enhances Ink without replacing it — foundational screen management and layered keyboard engine for building interaction-dense terminal UIs.",
     "type": "module",
     "main": "./dist/index.js",
