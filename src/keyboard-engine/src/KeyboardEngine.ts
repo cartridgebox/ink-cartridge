@@ -585,15 +585,16 @@ export default class KeyboardEngine<TComponent = unknown> {
    *
    * @param focusId The focus target id to activate.
    * @param groupOrOptions   Optional focus group name (or {@link FocusSetOptions}).
-   * @throws If the current owner has no layer, the group is not registered,
-   *         or the focus target is not found within the group.
+   * @returns `true` if the target was activated, `false` on any no-op path.
    */
-  focusSet(focusId: string, groupOrOptions?: string | FocusSetOptions) {
+  focusSet(
+    focusId: string,
+    groupOrOptions?: string | FocusSetOptions,
+  ): boolean {
     if (typeof groupOrOptions === "string" || groupOrOptions === undefined) {
-      this.layers.focusSet(focusId, groupOrOptions);
-    } else {
-      this.layers.focusSet(focusId, groupOrOptions);
+      return this.layers.focusSet(focusId, groupOrOptions);
     }
+    return this.layers.focusSet(focusId, groupOrOptions);
   }
   /**
    * Cycle to the next focus target within a group (Tab semantics).
@@ -602,25 +603,27 @@ export default class KeyboardEngine<TComponent = unknown> {
    * `defaultFocusOrder`; otherwise cycles the named
    * group's registration order. Only switches the active target — does not
    * activate a group that has no current focus.
+   *
+   * @returns `true` if the active target moved, `false` on any no-op path.
    */
-  focusNext(groupOrOptions?: string | FocusSetOptions) {
+  focusNext(groupOrOptions?: string | FocusSetOptions): boolean {
     if (typeof groupOrOptions === "string" || groupOrOptions === undefined) {
-      this.layers.focusNext(groupOrOptions);
-    } else {
-      this.layers.focusNext(groupOrOptions);
+      return this.layers.focusNext(groupOrOptions);
     }
+    return this.layers.focusNext(groupOrOptions);
   }
   /**
    * Cycle to the previous focus target within a group (Shift+Tab semantics).
    *
    * Wraps around. See {@link focusNext} for the `group` parameter behavior.
+   *
+   * @returns `true` if the active target moved, `false` on any no-op path.
    */
-  focusPrev(groupOrOptions?: string | FocusSetOptions) {
+  focusPrev(groupOrOptions?: string | FocusSetOptions): boolean {
     if (typeof groupOrOptions === "string" || groupOrOptions === undefined) {
-      this.layers.focusPrev(groupOrOptions);
-    } else {
-      this.layers.focusPrev(groupOrOptions);
+      return this.layers.focusPrev(groupOrOptions);
     }
+    return this.layers.focusPrev(groupOrOptions);
   }
   /**
    * Query the currently active focus target for a group.
@@ -652,13 +655,16 @@ export default class KeyboardEngine<TComponent = unknown> {
    *
    * @param focusId The focus target id to remove.
    * @param groupOrOptions   Optional focus group name (or {@link FocusSetOptions}).
+   * @returns `true` if a focus target was removed, `false` on any no-op path.
    */
-  focusUnregister(focusId: string, groupOrOptions?: string | FocusSetOptions) {
+  focusUnregister(
+    focusId: string,
+    groupOrOptions?: string | FocusSetOptions,
+  ): boolean {
     if (typeof groupOrOptions === "string" || groupOrOptions === undefined) {
-      this.layers.focusUnregister(focusId, groupOrOptions);
-    } else {
-      this.layers.focusUnregister(focusId, groupOrOptions);
+      return this.layers.focusUnregister(focusId, groupOrOptions);
     }
+    return this.layers.focusUnregister(focusId, groupOrOptions);
   }
 
   /**
@@ -914,60 +920,89 @@ export default class KeyboardEngine<TComponent = unknown> {
    * Register named shortcut actions that can be referenced by key bindings
    * via string identifier instead of inline callbacks.
    *
-   * @throws If any `actionId` is duplicated.
+   * @returns `true` if every entry was registered; `false` if any `actionId`
+   *          already existed (batch is atomic — nothing is registered).
    */
-  defineShortcutAction(entries: ShortcutOperationEntry[]) {
-    this.registry.defineShortcutAction(entries);
+  defineShortcutAction(entries: ShortcutOperationEntry[]): boolean {
+    return this.registry.defineShortcutAction(entries);
   }
-  /** Register named sequence actions. @throws If any id is duplicated. */
-  defineSequenceAction(entries: SequenceOperationEntry[]) {
-    this.registry.defineSequenceAction(entries);
+  /**
+   * Register named sequence actions.
+   *
+   * @returns `true` if every entry was registered; `false` if any id already
+   *          existed (batch is atomic — nothing is registered).
+   */
+  defineSequenceAction(entries: SequenceOperationEntry[]): boolean {
+    return this.registry.defineSequenceAction(entries);
   }
 
   /**
    * Modify the keys (and optionally timeout) of an existing sequence action.
    *
-   * @throws If the action does not exist or has no preset keys/timeout.
+   * @returns `true` if modified; `false` if the action does not exist or has
+   *          no preset keys/timeout.
    */
-  modifySequenceAction(actionId: string, keys: string[], timeout?: number) {
-    this.registry.modifySequenceAction(actionId, keys, timeout);
+  modifySequenceAction(
+    actionId: string,
+    keys: string[],
+    timeout?: number,
+  ): boolean {
+    return this.registry.modifySequenceAction(actionId, keys, timeout);
   }
   /**
    * Modify the default keys of an existing shortcut action.
-   * @throws If the action does not exist or was not registered with a `keys` field.
+   *
+   * @returns `true` if modified; `false` if the action does not exist or was
+   *          not registered with a `keys` field.
    */
-  modifyAction(actionId: string, keys: string[]) {
-    this.registry.modifyAction(actionId, keys);
+  modifyAction(actionId: string, keys: string[]): boolean {
+    return this.registry.modifyAction(actionId, keys);
   }
 
-  /** Add a single sequence action. @throws If the id already exists. */
-  addSequenceAction(entry: SequenceOperationEntry) {
-    this.registry.addSequenceAction(entry);
+  /**
+   * Add a single sequence action.
+   *
+   * @returns `true` if added, `false` if the id already exists.
+   */
+  addSequenceAction(entry: SequenceOperationEntry): boolean {
+    return this.registry.addSequenceAction(entry);
   }
   /** @returns `true` if the sequence action is registered. */
   hasSequenceAction(sequenceActionId: string): boolean {
     return this.registry.hasSequenceAction(sequenceActionId);
   }
-  /** Remove a registered sequence action. @throws If not registered. */
-  removeSequenceAction(sequenceActionId: string) {
-    this.registry.removeSequenceAction(sequenceActionId);
+  /**
+   * Remove a registered sequence action.
+   *
+   * @returns `true` if it existed and was removed, `false` otherwise.
+   */
+  removeSequenceAction(sequenceActionId: string): boolean {
+    return this.registry.removeSequenceAction(sequenceActionId);
   }
   /** Clear all registered sequence operations. */
   clearSequenceOperations() {
     this.registry.clearSequenceOperations();
   }
 
-  /** Add a single shortcut action. @throws If the actionId already exists. */
-  addAction(entry: ShortcutOperationEntry) {
-    this.registry.addAction(entry);
+  /**
+   * Add a single shortcut action.
+   *
+   * @returns `true` if added, `false` if the actionId already exists.
+   */
+  addAction(entry: ShortcutOperationEntry): boolean {
+    return this.registry.addAction(entry);
   }
   /** @returns `true` if the shortcut action is registered. */
   hasAction(actionId: string): boolean {
     return this.registry.hasAction(actionId);
   }
-  /** Remove a registered shortcut action. @throws If not registered. */
-  removeAction(actionId: string) {
-    this.registry.removeAction(actionId);
+  /**
+   * Remove a registered shortcut action.
+   *
+   * @returns `true` if it existed and was removed, `false` otherwise.
+   */
+  removeAction(actionId: string): boolean {
+    return this.registry.removeAction(actionId);
   }
   /** Clear all registered shortcut operations. */
   clearShortcutOperations() {
@@ -1052,8 +1087,9 @@ export default class KeyboardEngine<TComponent = unknown> {
    *   before/after the stage holding the named processor
    * - omitted — weight `0`, i.e. after all built-in stages
    *
-   * @throws If the processor id duplicates an existing one, the target is not
-   *         found, or the index is out of range.
+   * @returns `true` if registered; `false` if the id duplicates an existing
+   *          one or the `before`/`after` target is not found.
+   * @throws If `index` is out of range — a caller bug, not a duplicate race.
    */
   addProcessor(
     processor: ProcessorInput<TComponent>,
@@ -1062,8 +1098,8 @@ export default class KeyboardEngine<TComponent = unknown> {
       | { before?: string }
       | { after?: string }
       | { index?: number },
-  ): void {
-    this.pipeline.addProcessor(processor, options);
+  ): boolean {
+    return this.pipeline.addProcessor(processor, options);
   }
   /**
    * Remove a processor from this instance's pipeline by its id.

@@ -168,9 +168,12 @@ export default class PipelineManager<TComponent> {
    * engine.addProcessor(myAuditProcessor, { after: 'layer' });
    * ```
    *
-   * @throws If `processor.id` duplicates an existing processor id, the
-   *         `before`/`after` target is not found in the pipeline, or `index`
-   *         is not an integer within the valid stage range.
+   * @returns `true` if the processor was registered; `false` if
+   *          `processor.id` duplicates an existing id or the `before`/`after`
+   *          target is not found.
+   * @throws If `index` is not an integer within the valid stage range — an
+   *         out-of-range index is a caller bug, not a duplicate-id race, so it
+   *         still throws.
    */
   addProcessor(
     processor: ProcessorInput<TComponent>,
@@ -179,11 +182,9 @@ export default class PipelineManager<TComponent> {
       | { before?: string }
       | { after?: string }
       | { index?: number },
-  ): void {
+  ): boolean {
     if (this.processorIndex.has(processor.id)) {
-      throw new Error(
-        `[ink-cartridge] Cannot add processor "${processor.id}": duplicate id`,
-      );
+      return false;
     }
 
     const opts = options ?? {};
@@ -221,9 +222,7 @@ export default class PipelineManager<TComponent> {
           : -1;
 
         if (stageIndex === -1) {
-          throw new Error(
-            `[ink-cartridge] Cannot insert ${kind} "${target}": processor not found`,
-          );
+          return false;
         }
         targetIndex = kind === "before" ? stageIndex : stageIndex + 1;
       }
@@ -267,6 +266,7 @@ export default class PipelineManager<TComponent> {
       stage: targetStage,
     });
     this.flatSnapshot = null;
+    return true;
   }
 
   /**
