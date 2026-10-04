@@ -340,9 +340,7 @@ describe("OperationRegistry", () => {
 
   it("manages shortcut and sequence actions", () => {
     const engine = createEngine();
-    expect(
-      engine.defineShortcutAction([{ actionId: "s", action: () => {} }]),
-    ).toBe(true);
+    expect(engine.addAction({ actionId: "s", action: () => {} })).toBe(true);
     expect(engine.hasAction("s")).toBe(true);
     expect(engine.addAction({ actionId: "s", action: () => {} })).toBe(false);
     expect(engine.removeAction("s")).toBe(true);
@@ -350,9 +348,12 @@ describe("OperationRegistry", () => {
     expect(engine.removeAction("s")).toBe(false);
 
     expect(
-      engine.defineSequenceAction([{ sequenceActionId: "q", action: () => {} }]),
+      engine.addSequenceAction({ sequenceActionId: "q", action: () => {} }),
     ).toBe(true);
     expect(engine.hasSequenceAction("q")).toBe(true);
+    expect(
+      engine.addSequenceAction({ sequenceActionId: "q", action: () => {} }),
+    ).toBe(false);
     expect(engine.removeSequenceAction("q")).toBe(true);
     expect(engine.removeSequenceAction("q")).toBe(false);
   });
@@ -652,11 +653,6 @@ describe("OperationRegistry edge cases", () => {
       { sequenceActionId: "r", action: () => {}, keys: ["r", "s"] },
     ]);
     expect(engine.modifySequenceAction("r", ["a", "b"], 100)).toBe(false);
-    // A false return must leave the entry untouched.
-    expect(engine["state"].sequenceOperationsRef.get("r")?.keys).toEqual([
-      "r",
-      "s",
-    ]);
     engine.defineSequenceAction([
       { sequenceActionId: "p", action: () => {}, keys: ["p", "q"], timeout: 100 },
     ]);
@@ -672,6 +668,24 @@ describe("OperationRegistry edge cases", () => {
     expect(engine.hasSequenceAction("z")).toBe(true);
     engine.clearSequenceOperations();
     engine.clearShortcutOperations();
+  });
+
+  it("leaves preset keys intact when modifySequenceAction fails on timeout", () => {
+    const engine = createEngine();
+    const handler = vi.fn();
+    engine.defineSequenceAction([
+      { sequenceActionId: "r", action: handler, keys: ["r", "s"] },
+    ]);
+    // No default timeout → passing one fails without touching the preset keys.
+    expect(engine.modifySequenceAction("r", ["a", "b"], 100)).toBe(false);
+
+    engine.sync({ pagePath: [Page], layers: [], modalLayers: [] });
+    // boundSequence resolves the action's preset keys: intact ["r","s"] fire,
+    // a buggy ["a","b"] would not.
+    engine.boundSequence("r");
+    engine.processKey("r", {});
+    engine.processKey("s", {});
+    expect(handler).toHaveBeenCalledTimes(1);
   });
 
   it("reports waiting state and syncs pending listeners", () => {
