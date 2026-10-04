@@ -12,6 +12,7 @@ None
 - `focusSet`, `focusNext`, and `focusPrev` now return `boolean` — `true` when the active focus changed, `false` on any no-op path (no owner, unresolved layer, unknown group, target not found, the target is already active, or the group holds fewer than two targets) — instead of throwing. The focus-mutator family is now consistent with `activateFocusGroup` / `kickFocusGroup`.
 - `addAction` and `addSequenceAction` return `boolean` (false on a duplicate id); `removeAction` and `removeSequenceAction` return `boolean` (false when not registered); `modifyAction` and `modifySequenceAction` return `boolean` (false when the action is missing, has no preset keys, or has no default timeout). This matches `addCondition` / `removeCondition` / `removeProcessor`.
 - `addProcessor` returns `false` on a duplicate id or a missing `before`/`after` target; an out-of-range `index` still throws.
+- `modifySequenceAction` now treats `timeout: 0` as a passed timeout (the guard is `timeout !== undefined` instead of a truthy check), so `0` overwrites a default timeout rather than being ignored.
 - `defineShortcutAction` and `defineSequenceAction` are now atomic and return `boolean`: if any id already exists, or repeats within the batch, nothing is registered and `false` is returned instead of throwing part-way and leaving partial state.
 
 ### Fixed
@@ -22,6 +23,7 @@ None
 - `addProcessor` no longer throws on a duplicate id or a missing `before`/`after` target; it returns `false`. An out-of-range `index` still throws.
 - `defineShortcutAction` / `defineSequenceAction` no longer throw on a duplicate id; they return `false` and register nothing (previously they threw part-way, leaving earlier entries registered).
 - The exported helpers `setIfAbsent`, `deleteIfPresent`, and `modifyEntryKeys` no longer throw and dropped their trailing error-message parameters: `setIfAbsent` / `deleteIfPresent` now return `boolean`, `modifyEntryKeys` returns `T | undefined`.
+- `modifySequenceAction(actionId, keys, 0)`: `0` is now treated as a passed timeout — it overwrites an existing default timeout, and returns `false` (leaving the preset keys untouched) for an action without one. Previously a falsy `0` was ignored.
 
 ### Tests
 - Added `true`/`false` assertions for `focusUnregister` on default and grouped targets and its no-op paths.

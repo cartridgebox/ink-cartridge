@@ -386,8 +386,9 @@ export default class OperationRegistry<TComponent = unknown> {
    * Change the preset keys and/or timeout of an existing sequence action.
    *
    * @returns `true` if modified; `false` if the action does not exist, was
-   *          registered without a `keys` field, or (when `timeout` is passed)
-   *          has no default timeout. On `false` nothing is modified.
+   *          registered without a `keys` field, or (when `timeout` is passed,
+   *          including `0`) has no default timeout. On `false` nothing is
+   *          modified.
    */
   modifySequenceAction(
     actionId: string,
