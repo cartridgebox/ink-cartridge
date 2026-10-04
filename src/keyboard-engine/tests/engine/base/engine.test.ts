@@ -380,6 +380,29 @@ describe("OperationRegistry", () => {
     expect(engine.hasAction("c")).toBe(false);
   });
 
+  it("registers a defineSequenceAction batch atomically", () => {
+    const engine = createEngine();
+    engine.defineSequenceAction([
+      { sequenceActionId: "a", action: () => {} },
+    ]);
+    // A batch containing an already-registered id registers nothing.
+    expect(
+      engine.defineSequenceAction([
+        { sequenceActionId: "b", action: () => {} },
+        { sequenceActionId: "a", action: () => {} },
+      ]),
+    ).toBe(false);
+    expect(engine.hasSequenceAction("b")).toBe(false);
+    // A batch with an internal duplicate also registers nothing.
+    expect(
+      engine.defineSequenceAction([
+        { sequenceActionId: "c", action: () => {} },
+        { sequenceActionId: "c", action: () => {} },
+      ]),
+    ).toBe(false);
+    expect(engine.hasSequenceAction("c")).toBe(false);
+  });
+
   it("wildcard priority is reference counted", () => {
     const engine = createEngine();
     const exact = vi.fn();
