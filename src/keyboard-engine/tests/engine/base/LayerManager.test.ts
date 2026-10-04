@@ -317,8 +317,30 @@ describe("LayerManager group focus branches", () => {
     });
     expect(engine.focusSet("x", "missing")).toBe(false);
     expect(engine.focusSet("missing", "g")).toBe(false);
-    expect(engine.focusSet("one", "g")).toBe(true);
-    expect(engine.focusCurrent("g").result?.id).toBe("one");
+    // "one" is already the active member of g — setting it again is a no-op.
+    expect(engine.focusSet("one", "g")).toBe(false);
+    engine.boundKeyboard(["b"], () => {}, {
+      focusId: { group: "g", focusId: "two" },
+    });
+    // Moving to a different member of g actually changes focus.
+    expect(engine.focusSet("two", "g")).toBe(true);
+    expect(engine.focusCurrent("g").result?.id).toBe("two");
+  });
+
+  it("does not report a move when a group holds a single target", () => {
+    const engine = createEngine();
+    engine.sync({ pagePath: [Root], layers: [], modalLayers: [] });
+    engine.boundKeyboard(["a"], () => {}, {
+      focusId: { group: "g", focusId: "one" },
+    });
+    // Cycling wraps back to the same target — focus did not move.
+    expect(engine.focusNext("g")).toBe(false);
+    expect(engine.focusPrev("g")).toBe(false);
+    engine.boundKeyboard(["b"], () => {}, { focusId: "solo" });
+    expect(engine.focusSet("solo")).toBe(true); // activate the default group
+    expect(engine.focusNext()).toBe(false);
+    expect(engine.focusPrev()).toBe(false);
+    expect(engine.focusCurrent().result?.id).toBe("solo");
   });
 
   it("unregisters group focus targets and auto-activates the next", () => {

@@ -293,7 +293,8 @@ describe("BindingService penetration/stop/allowModal/sequence", () => {
     engine.sync({ pagePath: [Page], layers: [], modalLayers: [] });
     engine.boundSequence(["x", "y"], handler, { focusId: "panel-alpha" });
     expect(engine.focusCurrent().result?.id).toBe("panel-alpha");
-    expect(engine.focusSet("panel-alpha")).toBe(true);
+    // Already the active target → setting it again is a no-op.
+    expect(engine.focusSet("panel-alpha")).toBe(false);
     engine.processKey("x", {});
     engine.processKey("y", {});
     expect(handler).toHaveBeenCalledTimes(1);

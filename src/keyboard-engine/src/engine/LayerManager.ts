@@ -440,8 +440,8 @@ export default class LayerManager<TComponent = unknown> {
    * previous active entry (if any) is replaced, and any pending sequence
    * on the layer is cleared.
    *
-   * @returns `true` if the target was activated, `false` on any no-op path
-   *          (no owner, unresolved layer, unknown group, or target not found).
+   * @returns `true` if the active focus changed to the target; `false` when the
+   *          target was already active or the layer/group/target is unavailable.
    */
   focusSet(focusId: string, group?: string): boolean;
   focusSet(focusId: string, options?: FocusSetOptions): boolean;
@@ -472,6 +472,7 @@ export default class LayerManager<TComponent = unknown> {
         (each) => each.fromGroup === group,
       );
       if (has !== -1) {
+        if (layer.currentFocusIds[has].id === focusId) return false;
         layer.currentFocusIds.splice(has, 1);
       }
       layer.currentFocusIds.push({ id: focusId, fromGroup: group });
@@ -485,6 +486,7 @@ export default class LayerManager<TComponent = unknown> {
       (each) => each.fromGroup === defaultTargetsSymbol,
     );
     if (idx !== -1) {
+      if (layer.currentFocusIds[idx].id === focusId) return false;
       layer.currentFocusIds.splice(idx, 1);
     }
     layer.currentFocusIds.push({
@@ -529,8 +531,8 @@ export default class LayerManager<TComponent = unknown> {
    * untouched.
    *
    * @returns `true` if the active target moved, `false` on any no-op path
-   *          (no owner, unresolved layer, unknown group, or no active target
-   *          in the group).
+   *          (no owner, unresolved layer, unknown group, no active target in
+   *          the group, or the group holds fewer than two targets).
    */
   focusNext(group?: string): boolean;
   focusNext(options?: FocusSetOptions): boolean;
@@ -561,6 +563,7 @@ export default class LayerManager<TComponent = unknown> {
         (each) => each.fromGroup === group,
       );
       if (idx === -1) return false;
+      if (g.order.length < 2) return false;
 
       const inCurrentGroup = layer.currentFocusIds[idx];
       this.replaceFocusGroup(
@@ -580,6 +583,7 @@ export default class LayerManager<TComponent = unknown> {
       (each) => each.fromGroup === defaultTargetsSymbol,
     );
     if (index === -1) return false;
+    if (layer.defaultFocusOrder.length < 2) return false;
 
     const inCurrentGroup = currents[index];
     this.replaceFocusGroup(
@@ -631,6 +635,7 @@ export default class LayerManager<TComponent = unknown> {
         (each) => each.fromGroup === group,
       );
       if (idx === -1) return false;
+      if (g.order.length < 2) return false;
 
       const inCurrentGroup = layer.currentFocusIds[idx];
       this.replaceFocusGroup(
@@ -650,6 +655,7 @@ export default class LayerManager<TComponent = unknown> {
       (each) => each.fromGroup === defaultTargetsSymbol,
     );
     if (index === -1) return false;
+    if (layer.defaultFocusOrder.length < 2) return false;
 
     const inCurrentGroup = currents[index];
     this.replaceFocusGroup(
