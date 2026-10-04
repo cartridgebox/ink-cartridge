@@ -343,6 +343,19 @@ describe("LayerManager group focus branches", () => {
     expect(engine.focusCurrent().result?.id).toBe("solo");
   });
 
+  it("reports a move when cycling the default focus group", () => {
+    const engine = createEngine();
+    engine.sync({ pagePath: [Root], layers: [], modalLayers: [] });
+    engine.boundKeyboard(["a"], () => {}, { focusId: "one" });
+    engine.boundKeyboard(["b"], () => {}, { focusId: "two" });
+    expect(engine.focusNext()).toBe(true);
+    expect(engine.focusCurrent().result?.id).toBe("two");
+    expect(engine.focusPrev()).toBe(true);
+    expect(engine.focusCurrent().result?.id).toBe("one");
+    expect(engine.focusSet("two")).toBe(true);
+    expect(engine.focusCurrent().result?.id).toBe("two");
+  });
+
   it("unregisters group focus targets and auto-activates the next", () => {
     const engine = createEngine();
     engine.sync({ pagePath: [Root], layers: [], modalLayers: [] });

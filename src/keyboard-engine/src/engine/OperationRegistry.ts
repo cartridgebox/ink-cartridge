@@ -396,7 +396,7 @@ export default class OperationRegistry<TComponent = unknown> {
   ): boolean {
     const entry = this.state.sequenceOperationsRef.get(actionId);
     if (!entry || entry.keys === undefined) return false;
-    if (timeout) {
+    if (timeout !== undefined) {
       if (entry.timeout === undefined) return false;
       entry.timeout = timeout;
     }

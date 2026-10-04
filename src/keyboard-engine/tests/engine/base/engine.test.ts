@@ -677,6 +677,8 @@ describe("OperationRegistry edge cases", () => {
       { sequenceActionId: "r", action: () => {}, keys: ["r", "s"] },
     ]);
     expect(engine.modifySequenceAction("r", ["a", "b"], 100)).toBe(false);
+    // A passed timeout of 0 still counts as "passed".
+    expect(engine.modifySequenceAction("r", ["a", "b"], 0)).toBe(false);
     engine.defineSequenceAction([
       { sequenceActionId: "p", action: () => {}, keys: ["p", "q"], timeout: 100 },
     ]);
