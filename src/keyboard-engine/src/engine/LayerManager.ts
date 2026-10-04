@@ -462,12 +462,12 @@ export default class LayerManager<TComponent = unknown> {
     } catch {
       return false;
     }
+    this.clearPendingSequence(layer);
 
     if (group) {
       const g = layer.focusTargets.get(group);
       if (!g || !g.map.has(focusId)) return false;
 
-      this.clearPendingSequence(layer);
       const has = layer.currentFocusIds.findIndex(
         (each) => each.fromGroup === group,
       );
@@ -481,7 +481,6 @@ export default class LayerManager<TComponent = unknown> {
 
     if (!layer.defaultTargets.has(focusId)) return false;
 
-    this.clearPendingSequence(layer);
     const idx = layer.currentFocusIds.findIndex(
       (each) => each.fromGroup === defaultTargetsSymbol,
     );
@@ -552,6 +551,7 @@ export default class LayerManager<TComponent = unknown> {
     } catch {
       return false;
     }
+    this.clearPendingSequence(layer);
 
     if (group) {
       const g = layer.focusTargets.get(group);
@@ -563,7 +563,6 @@ export default class LayerManager<TComponent = unknown> {
       if (idx === -1) return false;
 
       const inCurrentGroup = layer.currentFocusIds[idx];
-      this.clearPendingSequence(layer);
       this.replaceFocusGroup(
         inCurrentGroup.id,
         g.order,
@@ -583,7 +582,6 @@ export default class LayerManager<TComponent = unknown> {
     if (index === -1) return false;
 
     const inCurrentGroup = currents[index];
-    this.clearPendingSequence(layer);
     this.replaceFocusGroup(
       inCurrentGroup.id,
       layer.defaultFocusOrder,
@@ -623,6 +621,7 @@ export default class LayerManager<TComponent = unknown> {
     } catch {
       return false;
     }
+    this.clearPendingSequence(layer);
 
     if (group) {
       const g = layer.focusTargets.get(group);
@@ -634,7 +633,6 @@ export default class LayerManager<TComponent = unknown> {
       if (idx === -1) return false;
 
       const inCurrentGroup = layer.currentFocusIds[idx];
-      this.clearPendingSequence(layer);
       this.replaceFocusGroup(
         inCurrentGroup.id,
         g.order,
@@ -654,7 +652,6 @@ export default class LayerManager<TComponent = unknown> {
     if (index === -1) return false;
 
     const inCurrentGroup = currents[index];
-    this.clearPendingSequence(layer);
     this.replaceFocusGroup(
       inCurrentGroup.id,
       layer.defaultFocusOrder,
