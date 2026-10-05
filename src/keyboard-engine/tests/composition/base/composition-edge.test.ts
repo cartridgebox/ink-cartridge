@@ -495,6 +495,31 @@ describe("composition lifecycle", () => {
     expect(engine.processKey("w", {})).toBe(false);
     expect(engine.hasPendingComposition()).toBe(false);
     expect(engine.bufferedCompositionCount()).toBe(1);
+    expect(engine.getLastCompositionEvent()?.type).toBe("completed");
+  });
+
+  it("emits completed when execute returns null", () => {
+    const engine = syncEngine();
+    head(engine);
+    chain(engine, "w", { execute: () => null });
+    engine.processKey("3", {});
+    engine.processKey("w", {});
+    expect(engine.bufferedCompositionCount()).toBe(1);
+    expect(engine.getLastCompositionEvent()?.type).toBe("completed");
+  });
+
+  it("emits broken when a value guard rejects the chained key", () => {
+    const engine = syncEngine();
+    head(engine);
+    chain(engine, "w");
+    // The head passes ("times" is unguarded); `w` produces lastFlag "action",
+    // which the schema rejects — a non-terminal drop, not an undoable chain.
+    engine.setValueSchema({ action: () => false });
+    engine.processKey("3", {});
+    expect(engine.getLastCompositionEvent()?.type).toBe("started");
+    engine.processKey("w", {});
+    expect(engine.getLastCompositionEvent()?.type).toBe("broken");
+    expect(engine.bufferedCompositionCount()).toBe(0);
   });
 
   it("chooses the flag transition declared by the key", () => {

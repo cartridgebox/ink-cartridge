@@ -2034,10 +2034,20 @@ export default class CompositionEngine<TComponent = unknown> {
 				// recording it. Only chains that reach a terminal state
 				// (timeout, end key, `execute` returning null, or an explicit
 				// abort) are undoable.
-				if (outcome.reason === "terminate" || outcome.reason === "endkey") {
+				const terminal =
+					outcome.reason === "terminate" || outcome.reason === "endkey";
+				if (terminal) {
 					this.recordHistory();
 				}
 				this.clearPending();
+				// Subscribers must hear the chain end either way: a terminal
+				// state emits `completed`, a gate rejection emits `broken` —
+				// the same event a no-match break emits below.
+				this.notify(
+					terminal
+						? { type: "completed" }
+						: { type: "broken", key: this.currentKey[0] ?? result.key },
+				);
 				return outcome.release;
 			}
 
