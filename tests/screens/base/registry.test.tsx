@@ -175,6 +175,25 @@ describe('component tree', () => {
     }).toThrow(/parent component.*is not registered/);
   });
 
+  it('leaves no registration behind when the parent is missing', () => {
+    function Child() {
+      return React.createElement('div', null);
+    }
+    function UnregisteredParent() {
+      return React.createElement('div', null);
+    }
+
+    expect(() => {
+      registerComponent(Child, {}, { parent: UnregisteredParent });
+    }).toThrow(/parent component.*is not registered/);
+
+    // The failed call must not register the child: a residual half-registered
+    // child (parent pointing at an unregistered node) could never be repaired
+    // by a later registration.
+    expect(hasComponent(Child)).toBe(false);
+    expect(getParent(Child)).toBeUndefined();
+  });
+
   it('returns an empty children list for an unregistered component', () => {
     function Ghost() {
       return <div />;

@@ -39,15 +39,13 @@ export function registerComponent<C extends React.ComponentType<any>>(
     );
   }
 
-  registry.set(component, {
-    template: template as Record<string, unknown>,
-    parent: options?.parent ?? null,
-    children: new Set(),
-  });
-
-  // When a parent is declared, register ourselves in the parent's children.
+  // Resolve the parent before mutating the registry: a throw must leave the
+  // registry untouched. Otherwise the caller's catch() still leaves a
+  // half-registered component — parent pointing at an unregistered node, so it
+  // is neither a root nor reachable — that no later registration can repair.
+  let parentEntry: RegistryEntry | undefined;
   if (options?.parent) {
-    const parentEntry = registry.get(options.parent);
+    parentEntry = registry.get(options.parent);
     if (!parentEntry) {
       const compName = component.displayName || component.name || "anonymous";
       const parentName =
@@ -59,6 +57,16 @@ export function registerComponent<C extends React.ComponentType<any>>(
         `Register the parent first with registerComponent(${parentName}, template).`,
       );
     }
+  }
+
+  registry.set(component, {
+    template: template as Record<string, unknown>,
+    parent: options?.parent ?? null,
+    children: new Set(),
+  });
+
+  // When a parent is declared, register ourselves in the parent's children.
+  if (parentEntry) {
     parentEntry.children.add(component);
   }
 }
