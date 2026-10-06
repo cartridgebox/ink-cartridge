@@ -11,8 +11,10 @@ import { CurrentScreen } from "../../src/screen/current-screen.js";
 import { KeyboardProvider } from "../../src/keyboard/provider.js";
 import {
   getEngine,
+  registerEngine,
   withOwner,
 } from "../../src/keyboard/provider/KeyboardProvider.js";
+import { KeyboardEngine } from "@cartridge-engine/keyboard-engine";
 import {
   abortComposition,
   activeProcessor,
@@ -140,6 +142,24 @@ describe("module-level keyboard API", () => {
   });
 
   it("throws when no provider is mounted", () => {
+    expect(() => getEngine()).toThrow(/No KeyboardEngine is mounted/);
+  });
+
+  it("keeps a shared engine registered until its last provider unmounts", () => {
+    const engine = new KeyboardEngine({
+      normalizeKeyNames: (input: string) => (input ? [input] : []),
+      isNormalChar: () => false,
+    });
+    // Two providers sharing one engine — distinct tokens, same engine.
+    const unregisterA = registerEngine(engine);
+    const unregisterB = registerEngine(engine);
+    try {
+      unregisterA();
+      // B is still mounted, so the shared engine must remain resolvable.
+      expect(getEngine()).toBe(engine);
+    } finally {
+      unregisterB();
+    }
     expect(() => getEngine()).toThrow(/No KeyboardEngine is mounted/);
   });
 

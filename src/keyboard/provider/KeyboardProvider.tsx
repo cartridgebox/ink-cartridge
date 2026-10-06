@@ -26,20 +26,37 @@ import type { Layer, ModalLayer } from "../../screen/types/layer.js";
 import { getPath } from "../../screen/provider.js";
 
 /**
- * Live engines, one per mounted {@link KeyboardProvider}. Module-level calls
- * resolve against the last registered engine, mirroring the screen system's
- * `_dispatchers`.
+ * Live engines, keyed by engine, each tracking the provider instances (tokens)
+ * currently using it. A shared engine stays resolvable until its LAST provider
+ * unmounts — a bare Set of engines would drop it when any one provider
+ * unmounts. Module-level calls resolve against the last registered engine,
+ * mirroring the screen system's `_dispatchers`.
  */
-const _engine = new Set<KeyboardEngine<ComponentType<any>>>();
+const _engines = new Map<KeyboardEngine<ComponentType<any>>, Set<object>>();
 
 /**
- * Register an engine for module-level access. Called by
- * {@link KeyboardProvider}; returns an unregister function for effect cleanup.
+ * Register an engine for module-level access. {@link KeyboardProvider} passes a
+ * stable per-instance `token` so its render-time and effect-time registrations
+ * count once; returns an unregister function for effect cleanup.
  */
-export function registerEngine(engine: KeyboardEngine<ComponentType<any>>) {
-	_engine.add(engine);
+export function registerEngine(
+	engine: KeyboardEngine<ComponentType<any>>,
+	token: object = {}
+) {
+	let tokens = _engines.get(engine);
+	if (!tokens) {
+		tokens = new Set();
+		_engines.set(engine, tokens);
+	}
+	tokens.add(token);
+
 	return () => {
-		_engine.delete(engine);
+		const current = _engines.get(engine);
+		if (!current) return;
+		current.delete(token);
+		if (current.size === 0) {
+			_engines.delete(engine);
+		}
 	};
 }
 
@@ -50,13 +67,13 @@ export function registerEngine(engine: KeyboardEngine<ComponentType<any>>) {
  * @throws If no {@link KeyboardProvider} is mounted.
  */
 export function getEngine(): KeyboardEngine<ComponentType<any>> {
-	if (_engine.size === 0) {
+	if (_engines.size === 0) {
 		throw new Error(
 			`[ink-cartridge] No KeyboardEngine is mounted. Render a <KeyboardProvider> before calling getEngine().`
 		);
 	}
 
-	return [..._engine][_engine.size - 1];
+	return [..._engines.keys()][_engines.size - 1];
 }
 
 /**
@@ -290,10 +307,17 @@ export function KeyboardProvider({
 
 	// Register during render — not only in an effect — so a child effect that
 	// calls the module-level API resolves the engine: React runs child effects
-	// before the parent's. `registerEngine` is idempotent (Set), and the
-	// effect still unregisters the engine on unmount.
-	registerEngine(engine);
-	useEffect(() => registerEngine(engine), [engine]);
+	// before the parent's. Both calls share this provider's token, so they
+	// count as one registration and a shared engine survives until this
+	// provider — not merely any provider — unmounts.
+	const engineTokenRef = useRef<object | null>(null);
+	if (engineTokenRef.current === null) engineTokenRef.current = {};
+	const engineToken = engineTokenRef.current;
+	registerEngine(engine, engineToken);
+	useEffect(
+		() => registerEngine(engine, engineToken),
+		[engine, engineToken]
+	);
 
 	engine.sync({
 		pagePath: getPath(currentPath),
