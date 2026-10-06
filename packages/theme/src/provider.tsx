@@ -22,7 +22,7 @@ function extractKeys(themes: ThemeDefinition[]): string[] {
       if (missing.length > 0) details.push(`missing from "${themes[i].id}": ${missing.join(', ')}`);
       if (extra.length > 0) details.push(`extra in "${themes[i].id}": ${extra.join(', ')}`);
       throw new Error(
-        `[Ink-Cartridge] Theme key mismatch in "${themes[i].id}". ` +
+        `[ink-cartridge] Theme key mismatch in "${themes[i].id}". ` +
         `All themes must have identical keys (excluding 'id'). ${details.join('; ')}`,
       );
     }
@@ -39,7 +39,7 @@ function loadFromPath(dirPath: string): ThemeDefinition[] {
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     throw new Error(
-      `[Ink-Cartridge] ThemeProvider failed to read directory "${dirPath}": ${msg}`,
+      `[ink-cartridge] ThemeProvider failed to read directory "${dirPath}": ${msg}`,
     );
   }
   for (const file of files) {
@@ -51,14 +51,14 @@ function loadFromPath(dirPath: string): ThemeDefinition[] {
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
         throw new Error(
-          `[Ink-Cartridge] ThemeProvider failed to read "${fullPath}": ${msg}`,
+          `[ink-cartridge] ThemeProvider failed to read "${fullPath}": ${msg}`,
         );
       }
       try {
         const parsed = JSON.parse(raw) as Record<string, unknown>;
         if (typeof parsed.id !== 'string') {
           throw new Error(
-            `[Ink-Cartridge] Theme file "${file}" is missing a required "id" field (string).`,
+            `[ink-cartridge] Theme file "${file}" is missing a required "id" field (string).`,
           );
         }
         // Build a ThemeDefinition: strip the id field from the flat map
@@ -73,7 +73,7 @@ function loadFromPath(dirPath: string): ThemeDefinition[] {
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
         throw new Error(
-          `[Ink-Cartridge] ThemeProvider failed to parse "${file}": ${msg}`,
+          `[ink-cartridge] ThemeProvider failed to parse "${file}": ${msg}`,
         );
       }
     }
@@ -100,7 +100,7 @@ function loadFromPaths(paths: string[]): ThemeDefinition[] {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       throw new Error(
-        `[Ink-Cartridge] ThemeProvider failed to read directory "${dirPath}": ${msg}`,
+        `[ink-cartridge] ThemeProvider failed to read directory "${dirPath}": ${msg}`,
       );
     }
 
@@ -114,7 +114,7 @@ function loadFromPaths(paths: string[]): ThemeDefinition[] {
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
         throw new Error(
-          `[Ink-Cartridge] ThemeProvider failed to read "${fullPath}": ${msg}`,
+          `[ink-cartridge] ThemeProvider failed to read "${fullPath}": ${msg}`,
         );
       }
 
@@ -124,13 +124,13 @@ function loadFromPaths(paths: string[]): ThemeDefinition[] {
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
         throw new Error(
-          `[Ink-Cartridge] ThemeProvider failed to parse "${file}": ${msg}`,
+          `[ink-cartridge] ThemeProvider failed to parse "${file}": ${msg}`,
         );
       }
 
       if (typeof parsed.id !== 'string') {
         throw new Error(
-          `[Ink-Cartridge] Theme file "${file}" is missing a required "id" field (string).`,
+          `[ink-cartridge] Theme file "${file}" is missing a required "id" field (string).`,
         );
       }
 
@@ -215,7 +215,7 @@ export function ThemeProvider({
       if (!effectiveThemes.find((t) => t.id === id)) {
         const available = themeIds.join(', ');
         throw new Error(
-          `[Ink-Cartridge] Theme "${id}" is not available. ` +
+          `[ink-cartridge] Theme "${id}" is not available. ` +
           `Available themes: ${available}`,
         );
       }
@@ -305,7 +305,7 @@ export function ThemeProvider({
       for (const [id, filenames] of idSourceFiles) {
         if (filenames.length > 1) {
           throw new Error(
-            `[Ink-Cartridge] addThemes detected duplicate theme id "${id}" ` +
+            `[ink-cartridge] addThemes detected duplicate theme id "${id}" ` +
             `in files: ${filenames.join(', ')}. Theme ids must be unique.`,
           );
         }
@@ -322,7 +322,7 @@ export function ThemeProvider({
         // Id conflict with base → error
         if (existingIds.has(theme.id)) {
           throw new Error(
-            `[Ink-Cartridge] addThemes cannot add theme "${theme.id}" ` +
+            `[ink-cartridge] addThemes cannot add theme "${theme.id}" ` +
             `because a theme with this id already exists. ` +
             `Use mergeTheme() to update existing themes.`,
           );
@@ -340,7 +340,7 @@ export function ThemeProvider({
 
           if (details.length > 0) {
             throw new Error(
-              `[Ink-Cartridge] addThemes theme "${theme.id}" has mismatched keys. ` +
+              `[ink-cartridge] addThemes theme "${theme.id}" has mismatched keys. ` +
               `All themes must have identical keys (excluding 'id'). ${details.join('; ')}`,
             );
           }

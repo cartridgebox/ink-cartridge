@@ -23,7 +23,7 @@ export function useI18n(): I18nContextValue {
   const ctx = useContext(LanguageContext);
   if (!ctx) {
     throw new Error(
-      '[Ink-Cartridge] useI18n() must be called inside a <LanguageProvider>.',
+      '[ink-cartridge] useI18n() must be called inside a <LanguageProvider>.',
     );
   }
   return ctx;
