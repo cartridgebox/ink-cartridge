@@ -22,6 +22,14 @@ function tryStartGlobalSequence<TComponent>(
   affectOverlay: boolean,
   ctx: PipelineContext<TComponent>,
 ): boolean {
+  // First arm wins: while any global sequence is pending — in either
+  // affectLayer phase — no new one may start over it. Starting one anyway
+  // would overwrite the single `pendingSeqRef` slot, silently dropping the
+  // armed sequence and leaving its timer to fire into nothing. The armed
+  // sequence ends by completing, timing out, or being cancelled by the
+  // usual mismatched-key rule.
+  if (ctx.pendingSeqRef.current !== null) return false;
+
   // Collect all entries that pass every filter AND whose first key
   // matches the current event. When multiple entries share the same
   // first key, they are stored as candidates on the pending sequence

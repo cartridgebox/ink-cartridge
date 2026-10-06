@@ -37,6 +37,23 @@ describe("EngineState", () => {
     expect(engine.getCurrentMode()).toBeNull();
   });
 
+  it("enters the last mode on prevMode from no-mode state", () => {
+    const engine = createEngine({ modes: ["a", "b", "c"] });
+    expect(engine.getCurrentMode()).toBeNull();
+    engine.prevMode();
+    expect(engine.getCurrentMode()).toBe("c");
+
+    // Two modes: the wrap must land on the last, not the first.
+    const pair = createEngine({ modes: ["a", "b"] });
+    pair.prevMode();
+    expect(pair.getCurrentMode()).toBe("b");
+
+    // Symmetric entry point for nextMode.
+    const forward = createEngine({ modes: ["a", "b", "c"] });
+    forward.nextMode();
+    expect(forward.getCurrentMode()).toBe("a");
+  });
+
   it("adds, updates and removes named conditions", () => {
     const engine = createEngine();
     expect(engine.addCondition("editing", false)).toBe(true);
@@ -367,6 +384,37 @@ describe("OperationRegistry", () => {
     expect(engine.thereGlobalQueueWaiting()).toBe(false);
   });
 
+  it("does not start a global sequence over a pending one from the other phase", () => {
+    const engine = createEngine();
+    const screenSeq = vi.fn();
+    const overlaySeq = vi.fn();
+    engine.sync({
+      pagePath: [Page],
+      layers: [makeSyncLayer("L", ["el"])],
+      modalLayers: [],
+    });
+    engine.globalSequence([
+      { keys: ["a", "a"], operate: screenSeq },
+      { keys: ["b", "b"], affectLayer: true, operate: overlaySeq },
+    ]);
+
+    engine.processKey("a", {});
+    expect(engine.getGlobalPendingSequence()?.sequences).toEqual(["a", "a"]);
+
+    // The overlay phase's first key must not claim the pending slot: the
+    // armed screen sequence is cancelled by the usual mismatched-key rule
+    // instead of being silently replaced.
+    engine.processKey("b", {});
+    expect(engine.getGlobalPendingSequence()).toBeNull();
+    expect(overlaySeq).not.toHaveBeenCalled();
+
+    // With the slot free, the overlay sequence arms and completes normally.
+    engine.processKey("b", {});
+    expect(engine.getGlobalPendingSequence()?.sequences).toEqual(["b", "b"]);
+    engine.processKey("b", {});
+    expect(overlaySeq).toHaveBeenCalledTimes(1);
+  });
+
   it("manages shortcut and sequence actions", () => {
     const engine = createEngine();
     expect(engine.addAction({ actionId: "s", action: () => {} })).toBe(true);
@@ -668,6 +716,19 @@ describe("OperationRegistry edge cases", () => {
       { mode: "add" },
     );
     expect(engine.getGlobalSequences()).toHaveLength(2);
+  });
+
+  it("returns copies from the global key and sequence getters", () => {
+    const engine = createEngine();
+    engine.globalKeys([{ key: "a", operate: () => {} }]);
+    engine.globalSequence([{ keys: ["x", "y"], operate: () => {} }]);
+
+    // A caller mutating the returned arrays must not reach engine state.
+    engine.getGlobalKeys().push({ key: "b", operate: () => {} });
+    engine.getGlobalSequences().push({ keys: ["z", "z"], operate: () => {} });
+
+    expect(engine.getGlobalKeys()).toHaveLength(1);
+    expect(engine.getGlobalSequences()).toHaveLength(1);
   });
 
   it("validates and replaces global sequences", () => {

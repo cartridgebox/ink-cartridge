@@ -263,14 +263,28 @@ describe('Coverage-specific tests', () => {
     expect(events[0]?.action).toBe('press'); // unknown buttons default to press
   });
 
-  test('should handle unknown ESC wheel codes', () => {
-    // Test ESC wheel codes that are not in expected range (64-67)
-    // Need to construct ESC sequence with code that has bit 64 set but not 64-67
-    // ESC format: \x1b[M<cb><cx><cy> where cb = button code + 32
-    // For wheel code 68: cb = 68 + 32 = 100, char 'd'
-    const events = [...parseMouseEvents('\x1b[MdSJ')]; // 'd'.charCodeAt(0) - 32 = 68 (unknown wheel)
-    expect(events[0]?.button).toBe('unknown');
-    expect(events[0]?.action).toBe('press'); // unknown buttons default to press, not wheel
+  test('keeps the ESC wheel button when modifier bits are set', () => {
+    // ESC[MCbCxCy, each byte = value + 32. Shift/Alt/Ctrl are bits 4/8/16
+    // above the wheel range; they must be masked off before matching, or a
+    // modified wheel decodes as an `unknown` press.
+    const wheel = (cb: number) =>
+      '\x1b[M' +
+      String.fromCharCode(cb + 32) +
+      String.fromCharCode(10 + 32) +
+      String.fromCharCode(20 + 32);
+
+    const shift = [...parseMouseEvents(wheel(64 | 4))][0]; // code 68, previously `unknown`
+    expect(shift?.button).toBe('wheel-up');
+    expect(shift?.action).toBe('wheel');
+    expect(shift?.shift).toBe(true);
+
+    const ctrl = [...parseMouseEvents(wheel(64 | 16))][0];
+    expect(ctrl?.button).toBe('wheel-up');
+    expect(ctrl?.ctrl).toBe(true);
+
+    const alt = [...parseMouseEvents(wheel(65 | 8))][0];
+    expect(alt?.button).toBe('wheel-down');
+    expect(alt?.alt).toBe(true);
   });
 
   test('should handle NaN values in SGR coordinates', () => {

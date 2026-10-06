@@ -104,7 +104,7 @@ export class EventStreamFactory {
           latest = null;
           yield ev;
         } else {
-          // biome-ignore lint/performance/noAwaitInLoops: This is an async generator, await in loop is necessary
+          // This is an async generator, await in loop is necessary
           yield await new Promise<MouseEvent>((resolve, reject) => {
             resolveNext = resolve;
             rejectNext = reject;
@@ -200,7 +200,7 @@ export class EventStreamFactory {
           latestEvent = null;
           yield ev;
         } else {
-          // biome-ignore lint/performance/noAwaitInLoops: This is an async generator, await in loop is necessary
+          // This is an async generator, await in loop is necessary
           yield await new Promise<MouseEvent>((resolve, reject) => {
             resolveNext = resolve;
             rejectNext = reject;
@@ -310,7 +310,7 @@ export class EventStreamFactory {
           latest = null;
           yield ev;
         } else {
-          // biome-ignore lint/performance/noAwaitInLoops: This is an async generator, await in loop is necessary
+          // This is an async generator, await in loop is necessary
           yield await new Promise<{ type: MouseEventAction; event: MouseEvent }>((resolve, reject) => {
             resolveNext = resolve;
             rejectNext = reject;

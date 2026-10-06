@@ -20,7 +20,6 @@ const ttyCleanupRegistry: FinalizationRegistry<{
   handleEvent: (data: Buffer) => void;
   outputStream: NodeJS.WriteStream;
   previousRawMode: boolean | null;
-  isRaw: boolean | null;
   setRawModeFn?: (mode: boolean) => void;
 }> = new FinalizationRegistry(
   (heldValue: {
@@ -28,7 +27,6 @@ const ttyCleanupRegistry: FinalizationRegistry<{
     handleEvent: (data: Buffer) => void;
     outputStream: NodeJS.WriteStream;
     previousRawMode: boolean | null;
-    isRaw: boolean | null;
     setRawModeFn?: (mode: boolean) => void;
   }) => {
     try {
@@ -38,11 +36,14 @@ const ttyCleanupRegistry: FinalizationRegistry<{
     }
 
     try {
-      if (heldValue.isRaw) {
+      // Restore the mode from BEFORE enabling — not "off". A terminal that was
+      // already raw must stay raw, and with a custom `setRawModeFn` the
+      // stream's own `isRaw` never reflects the change anyway.
+      if (heldValue.previousRawMode !== null) {
         if (heldValue.setRawModeFn) {
-          heldValue.setRawModeFn(false);
+          heldValue.setRawModeFn(heldValue.previousRawMode);
         } else {
-          heldValue.inputStream.setRawMode(false);
+          heldValue.inputStream.setRawMode(heldValue.previousRawMode);
         }
       }
       heldValue.inputStream.pause();
@@ -92,12 +93,12 @@ export class TTYController {
     private setRawModeFn?: (mode: boolean) => void,
   ) {
     validateReadableStream(inputStream, 'inputStream');
-    // biome-ignore lint/security/noSecrets: stream name
+    
     validateWritableStream(outputStream, 'outputStream');
     validateFunction(handleEvent, 'handleEvent');
 
     if (setRawModeFn !== undefined) {
-      // biome-ignore lint/security/noSecrets: function name
+      
       validateFunction(setRawModeFn, 'setRawModeFn');
     }
   }
@@ -156,13 +157,19 @@ export class TTYController {
           handleEvent: this.handleEvent,
           outputStream: this.outputStream,
           previousRawMode: this.previousRawMode,
-          isRaw: this.inputStream.isRaw ?? false,
           setRawModeFn: this.setRawModeFn,
         },
         this.cleanupToken,
       );
     } catch (err) {
-      this.enabled = false;
+      // Roll back what already took effect: the mouse-on codes are written and
+      // raw mode may be on. `enabled` is still true here, so disable() runs the
+      // full cleanup — its own failure must not mask the original error.
+      try {
+        this.disable();
+      } catch {
+        // Keep the original failure; disable()'s finally already reset the flags.
+      }
       throw new MouseError(
         `Failed to enable mouse: ${err instanceof Error ? err.message : String(err)}`,
         err instanceof Error ? err : undefined,
@@ -181,11 +188,11 @@ export class TTYController {
     }
 
     try {
-      // Unregister from FinalizationRegistry before cleanup
-      if (this.cleanupToken) {
-        ttyCleanupRegistry.unregister(this.cleanupToken);
-        this.cleanupToken = null;
-      }
+      // The off codes are what actually un-stick the terminal, so emit them
+      // first — a throwing pause()/setRawMode() must not skip them.
+      this.outputStream.write(
+        ANSI_CODES.mouseSGR.off + ANSI_CODES.mouseMotion.off + ANSI_CODES.mouseDrag.off + ANSI_CODES.mouseButton.off,
+      );
 
       this.inputStream.off('data', this.handleEvent);
       this.inputStream.pause();
@@ -199,9 +206,12 @@ export class TTYController {
         this.inputStream.setEncoding(this.previousEncoding);
       }
 
-      this.outputStream.write(
-        ANSI_CODES.mouseSGR.off + ANSI_CODES.mouseMotion.off + ANSI_CODES.mouseDrag.off + ANSI_CODES.mouseButton.off,
-      );
+      // Unregister only after a fully successful cleanup: on a partial failure
+      // the registry stays as the last-resort GC fallback.
+      if (this.cleanupToken) {
+        ttyCleanupRegistry.unregister(this.cleanupToken);
+        this.cleanupToken = null;
+      }
     } catch (err) {
       throw new MouseError(
         `Failed to disable mouse: ${err instanceof Error ? err.message : String(err)}`,
@@ -273,10 +283,5 @@ export class TTYController {
    */
   public destroy(): void {
     this.disable();
-
-    if (this.cleanupToken) {
-      ttyCleanupRegistry.unregister(this.cleanupToken);
-      this.cleanupToken = null;
-    }
   }
 }

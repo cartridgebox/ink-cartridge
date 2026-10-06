@@ -70,11 +70,15 @@ function decodeSGRButton(code: number): { button: ButtonType; action: MouseEvent
  */
 function decodeESCButton(code: number): { button: ButtonType; action: MouseEventAction } {
   const motion = !!(code & 32);
+  // Shift/Alt/Ctrl (and motion) bits sit above the wheel range, so mask them
+  // off before matching — otherwise a modified wheel falls through to
+  // `unknown`. Mirrors decodeSGRButton.
+  const buttonCode = code & ~(4 | 8 | 16 | 32);
 
   let button: ButtonType = 'unknown'; // Initialize with fallback value
   if (code & 64) {
     // Wheel event
-    switch (code) {
+    switch (buttonCode) {
       case 64:
         button = 'wheel-up';
         break;
@@ -237,7 +241,11 @@ function* parseMouseEvents(data: string): Generator<SGRMouseEvent | ESCMouseEven
     }
 
     if (event) {
-      // Implement run-length deduplication
+      // Collapse a run of byte-identical reports. The controller enables the
+      // 1000/1002/1003 tracking modes together, and some terminals then report
+      // one physical event two or three times back-to-back. The cost, accepted
+      // here: two genuine identical reports in one chunk — a fast wheel, a
+      // same-cell double press — collapse into one as well.
       if (event.data !== lastEventData) {
         yield event;
         lastEventData = event.data;

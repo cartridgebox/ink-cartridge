@@ -30,7 +30,7 @@ export function validateStream(
 ): asserts obj is Record<string, unknown> {
   if (typeof obj !== 'object' || obj === null) {
     throw new TypeError(
-      `[xterm-mouse] ${objName} must be an object, got ${typeof obj === 'object' ? 'null' : typeof obj}`,
+      `[ink-cartridge] ${objName} must be an object, got ${typeof obj === 'object' ? 'null' : typeof obj}`,
     );
   }
 
@@ -39,7 +39,7 @@ export function validateStream(
 
     if (typeof value !== 'function') {
       throw new TypeError(
-        `[xterm-mouse] ${objName} must have method ${method}(), but ${typeof value === 'undefined' ? 'it is missing' : `it has type ${typeof value}`}`,
+        `[ink-cartridge] ${objName} must have method ${method}(), but ${typeof value === 'undefined' ? 'it is missing' : `it has type ${typeof value}`}`,
       );
     }
   }
@@ -60,7 +60,7 @@ export function validateStream(
  */
 export function validateFunction(fn: unknown, fnName: string): asserts fn is (...args: unknown[]) => unknown {
   if (typeof fn !== 'function') {
-    throw new TypeError(`[xterm-mouse] ${fnName} must be a function, got ${typeof fn}`);
+    throw new TypeError(`[ink-cartridge] ${fnName} must be a function, got ${typeof fn}`);
   }
 }
 

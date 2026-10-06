@@ -374,17 +374,11 @@ export function handleLayer<TC>(
 			// Check each available key name (not just the first) to handle
 			// modifier combinations like 'ctrl+w' which appear after 'w'.
 			for (const keyName of available) {
-				// When ctrl/meta modifier is held (but not shift), a bare key name
-				// (without '+') does not represent the keystroke the user intended.
-				// normalizeKeyNames expands ctrl+d into ['d', 'ctrl+d']; matching 'd'
-				// here would incorrectly start a ['d', 'v'] sequence instead of
-				// letting boundKeyboard(['ctrl+d'], ...) consume the event.
-				// Shift is exempt because it changes the character (d → D), so the
-				// bare key name 'D' faithfully represents shift+d.
-				//
-				// Detect modifiers from normalized event names rather than reading
-				// (key as any).ctrl / (key as any).meta. This keeps the engine
-				// framework-agnostic.
+				// A bare key name (no '+') must not match while ctrl/meta is held:
+				// an adapter emitting both 'd' and 'ctrl+d' for one stroke would
+				// otherwise start a ['d','v'] sequence. Shift is exempt (it changes
+				// the character). Inert for the shipped Ink adapter, which emits
+				// only 'ctrl+d'; modifiers come from eventNames, not the raw key.
 				const hasCtrlOrMeta = ctx.eventNames.some(
 					(n) => n.startsWith("ctrl+") || n.startsWith("meta+"),
 				);

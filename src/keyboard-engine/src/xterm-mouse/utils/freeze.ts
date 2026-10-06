@@ -15,7 +15,7 @@ type Primitive = string | number | boolean | bigint | symbol | null | undefined;
 /**
  * Built-in objects that have their own freezing semantics
  */
-// biome-ignore lint/complexity/noBannedTypes: Function type is appropriate for generic built-in check
+// Function type is appropriate for generic built-in check
 // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
 type Builtin = Primitive | Function | Date | RegExp | Error | File | Blob | URL;
 
@@ -68,6 +68,9 @@ export type DeepReadonly<T> = T extends Builtin
  * Handles built-in objects (Date, RegExp, Error, etc.) specially.
  * Prevents infinite loops with circular references using WeakSet.
  *
+ * `Object.freeze` cannot seal a Set's or Map's internal slots, so `add`/`set`
+ * keep working even on a frozen collection — only its entries are frozen.
+ *
  * @param obj - The object to freeze
  * @param seen - Internal WeakSet to track already-seen objects (prevent infinite loops)
  * @returns The same object with all nested properties frozen
@@ -84,9 +87,9 @@ export type DeepReadonly<T> = T extends Builtin
  * const frozen = deepFreeze(config);
  *
  * frozen.user.name = "Bob";                 // ❌ Runtime error: Cannot assign to read only property
- * frozen.tags.push("go");                   // ❌ Runtime error: Cannot assign to read only property
- * frozen.flags.add("c");                    // ❌ Runtime error: Cannot add property to frozen Set
- * frozen.map.get("feature")!.enabled = false; // ❌ Runtime error: Cannot assign to read only property
+ * frozen.tags.push("go");                   // ❌ Runtime error: Cannot add property to frozen array
+ * frozen.map.get("feature")!.enabled = false; // ❌ Runtime error: entries are frozen too
+ * frozen.flags.add("c");                    // ⚠️ Succeeds: freeze does not seal a Set
  * ```
  */
 export function deepFreeze<T>(obj: T, seen: WeakSet<object> = new WeakSet<object>()): DeepReadonly<T> {
@@ -106,18 +109,18 @@ export function deepFreeze<T>(obj: T, seen: WeakSet<object> = new WeakSet<object
   }
 
   if (obj instanceof Map) {
+    // Entries are `unknown` here — recursive freeze must walk arbitrary
+    // keys/values, so the assertions are intentional.
     for (const [k, v] of obj.entries()) {
-      // biome-ignore lint/suspicious/noExplicitAny: Recursive freeze needs to handle arbitrary keys/values
       deepFreeze(k as any, seen);
-      // biome-ignore lint/suspicious/noExplicitAny: Recursive freeze needs to handle arbitrary keys/values
       deepFreeze(v as any, seen);
     }
     return Object.freeze(obj) as DeepReadonly<T>;
   }
 
   if (obj instanceof Set) {
+    // Same as Map: entries are arbitrary values.
     for (const v of obj.values()) {
-      // biome-ignore lint/suspicious/noExplicitAny: Recursive freeze needs to handle arbitrary values
       deepFreeze(v as any, seen);
     }
     return Object.freeze(obj) as DeepReadonly<T>;
@@ -130,7 +133,7 @@ export function deepFreeze<T>(obj: T, seen: WeakSet<object> = new WeakSet<object
 
   const propNames = Object.getOwnPropertyNames(obj);
   for (const name of propNames) {
-    // biome-ignore lint/suspicious/noExplicitAny: Need to access arbitrary properties for recursion
+    // Arbitrary property access for the recursive walk.
     const value = (obj as any)[name];
     deepFreeze(value, seen);
   }
@@ -166,26 +169,24 @@ export function freezeIfDev<T>(obj: T): T {
 }
 
 /**
- * Freezes an object in strict TypeScript mode only
+ * Freeze an object at runtime, matching the value-level immutability that
+ * `strict` TypeScript mode is meant to guarantee.
  *
- * When 'strict' is enabled in tsconfig, freezes the object.
- * Otherwise returns it unchanged.
+ * The freeze is unconditional — a tsconfig setting cannot be read at runtime
+ * — and the return type stays `T`, so this adds no compile-time protection;
+ * use {@link deepFreeze} when the `DeepReadonly` type is wanted as well.
  *
- * @param obj - The object to conditionally freeze
- * @returns The frozen object (strict mode) or original object
+ * @param obj - The object to freeze
+ * @returns The same object with its nested properties frozen
  *
  * @example
  * ```ts
- * // tsconfig.json: { "strict": true }
  * const config = { user: { name: "Max" } };
  * const frozen = freezeInStrictMode(config);
- * frozen.user.name = "Bob"; // ❌ TypeScript + runtime error
+ * frozen.user.name = "Bob"; // ❌ Runtime error (the type still allows it)
  * ```
  */
 export function freezeInStrictMode<T>(obj: T): T {
-  // Note: This is a compile-time check. At runtime, we always freeze
-  // because we can't detect the tsconfig setting at runtime.
-  // The type system will enforce readonly if strict mode is on.
   return deepFreeze(obj) as T;
 }
 
@@ -198,10 +199,10 @@ export function freezeInStrictMode<T>(obj: T): T {
  * @example
  * ```ts
  * const obj = { data: [1, 2, 3] };
- * const frozen = deepFreeze(obj);
+ * const frozen = deepFreeze(obj); // returns the same reference
  *
- * isFrozen(obj);    // false (outer object is frozen, but this checks if we passed it)
- * isFrozen(frozen); // true
+ * isFrozen(obj); // true — deepFreeze froze this very object
+ * isFrozen({});  // false
  * ```
  */
 export function isFrozen(obj: unknown): boolean {

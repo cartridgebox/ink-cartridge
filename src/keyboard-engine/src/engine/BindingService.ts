@@ -1,5 +1,6 @@
 import {
   KeyRuleContainer,
+  componentName,
   finalizeBoundKeyboard,
   pushKeyEntries,
 } from "../providers/helpers.js";
@@ -154,8 +155,7 @@ export default class BindingService<TComponent = unknown> {
         } else {
           if (affectOverlay) continue;
           if (!cover) {
-            const ownerName =
-              (owner as any).displayName || (owner as any).name || "anonymous";
+            const ownerName = componentName(owner);
             throw new Error(
               `[keyboard-engine] Component "${ownerName}" ` +
                 `attempted to bind "${matchingKeys[0]}" via ${bindingContext}, ` +
@@ -317,10 +317,7 @@ export default class BindingService<TComponent = unknown> {
           ).actionKeysMap
         : layer.actionKeysMap;
       const merged: string[] = [];
-      const ownerName =
-        typeof owner === "string"
-          ? owner
-          : (owner as any).displayName || (owner as any).name || "Unknown";
+      const ownerName = componentName(owner);
       for (const actionId of keys) {
         const boundKeys = map.get(actionId);
         if (!boundKeys) {
@@ -468,9 +465,7 @@ export default class BindingService<TComponent = unknown> {
           if (Array.isArray(cat) && !cat.includes(owner)) continue;
         }
       }
-      const ownerName = isOverlayOwner
-        ? owner
-        : (owner as any).displayName || (owner as any).name || "anonymous";
+      const ownerName = componentName(owner);
       throw new Error(
         `[keyboard-engine] ${isOverlayOwner ? `Overlay "${ownerName}"` : `Component "${ownerName}"`} ` +
           `attempted to bind sequence [${keys.join(", ")}] via boundSequence, ` +
