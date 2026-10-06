@@ -1170,8 +1170,12 @@ export default class CompositionEngine<TComponent = unknown> {
 			}
 		}
 
-		// collected is already in reverse chronological order (most recent first)
+		// `collected` is in reverse chronological order (most recent first), so
+		// the successfully-undone entries are always a prefix of it. Counting
+		// them lets us drop exactly what was undone and leave a refused key —
+		// and everything older — buffered for a later undo.
 		let currentCtx: CompositionContext | null = null;
+		let undoneEntries = 0;
 
 		if (isolated) {
 			// Group entries by sequence, process each sequence independently
@@ -1199,48 +1203,42 @@ export default class CompositionEngine<TComponent = unknown> {
 						break;
 					}
 					seqCtx = nextCtx;
+					undoneEntries++;
 				}
 
 				if (stopped) break;
 				currentCtx = seqCtx;
 			}
 		} else {
-			// Flat mode: process all collected entries in order (already reversed)
+			// Flat mode: process all collected entries in order (already reversed).
+			// An empty selection (e.g. `steps: 0`) is a no-op, not a crash.
+			if (collected.length === 0) return null;
 			currentCtx = collected[0].entry.ctx;
 
 			for (const { entry } of collected) {
 				const nextCtx = this.processUndoEntry(entry, currentCtx);
 				if (nextCtx === null) break;
 				currentCtx = nextCtx;
+				undoneEntries++;
 			}
 		}
 
-		if (currentCtx === null) return null;
+		// Remove exactly what was undone, mirroring the sequence-counting path.
+		// Dropping every collected entry here lost a key whose `undoAction`
+		// refused — its undo never ran, yet it was no longer buffered.
+		this.removeLastBufferedEntries(undoneEntries);
 
-		// Remove the undone entries from their sequences, tracking how many
-		// were consumed per sequence.
-		const removals: Map<number, number> = new Map();
-		for (const c of collected) {
-			removals.set(c.seqIndex, (removals.get(c.seqIndex) ?? 0) + 1);
-		}
-
-		for (let si = this.buffers.length - 1; si >= 0; si--) {
-			const count = removals.get(si);
-			if (count === undefined) continue;
-
-			const seq = this.buffers[si];
-			if (count >= seq.length) {
-				// Entire sequence consumed
-				this.buffers.splice(si, 1);
-			} else {
-				// Partial sequence: remove the last N entries
-				seq.splice(seq.length - count, count);
+		if (currentCtx === null) {
+			if (undoneEntries > 0) {
+				this.notify({ type: "undone", steps: undoneEntries });
 			}
+			return null;
 		}
 
 		this.context = currentCtx;
 		this.state.compositionEngineHandle = false;
-		this.notify({ type: "undone", steps });
+		// Report the individual keys actually undone, not what was requested.
+		this.notify({ type: "undone", steps: undoneEntries });
 		return currentCtx;
 	}
 

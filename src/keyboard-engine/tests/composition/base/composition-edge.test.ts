@@ -612,6 +612,30 @@ describe("composition undo", () => {
     expect(engine.bufferedCompositionCount()).toBe(0);
   });
 
+  it("keeps the buffer intact when a by-key undo is refused", () => {
+    const engine = syncEngine();
+    head(engine);
+    chain(engine, "w", { undoAction: () => null });
+    engine.processKey("3", {});
+    engine.processKey("w", {});
+    engine.abortComposition();
+    expect(engine.bufferedCompositionCount()).toBe(1);
+    engine.undoComposition(2, { byKey: true });
+    // Nothing was undone: the refused key must stay buffered rather than be
+    // silently dropped together with the older key it stopped the walk at.
+    expect(engine.bufferedCompositionCount()).toBe(1);
+  });
+
+  it("treats a by-key undo of zero keys as a no-op", () => {
+    const engine = syncEngine();
+    head(engine);
+    engine.processKey("3", {});
+    engine.abortComposition();
+    expect(engine.bufferedCompositionCount()).toBe(1);
+    expect(engine.undoComposition(0, { byKey: true })).toBeNull();
+    expect(engine.bufferedCompositionCount()).toBe(1);
+  });
+
   it("runs custom undo actions and stops when they return null", () => {
     const engine = syncEngine();
     const undoAction = vi.fn(() => ({
