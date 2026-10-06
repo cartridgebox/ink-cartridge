@@ -15,7 +15,7 @@
 import { type DeepReadonly, deepFreeze } from '../utils/freeze.js';
 
 type MaxEventLengths = {
-  sgr: 21;
+  sgr: 17;
   esc: 6;
 };
 
@@ -24,7 +24,7 @@ const MAX_EVENT_LENGTHS: DeepReadonly<MaxEventLengths> = deepFreeze({
    * SGR format with bounded quantifiers
    * ESC[< + 3 digits + ; + 4 digits + ; + 4 digits + M/m = 17 chars
    */
-  sgr: 21,
+  sgr: 17,
 
   /**
    * ESC format: ESC[M + 3 chars = 6 chars
