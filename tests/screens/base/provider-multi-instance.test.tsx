@@ -75,7 +75,7 @@ describe('module-level dispatch multi-instance isolation', () => {
     r.unmount();
 
     expect(() => skip(ScreenB, {})).toThrow(
-      '[Ink-Cartridge] Navigation function called before Provider is mounted.',
+      '[ink-cartridge] Navigation function called before Provider is mounted.',
     );
   });
 
@@ -107,9 +107,10 @@ describe('navigation error branches', () => {
     );
   });
 
-  it('back throws when levels < 1', () => {
+  it('back throws when levels is not a positive integer', () => {
     renderProvider();
-    expect(() => back(0)).toThrow(/levels must be >= 1/);
+    expect(() => back(0)).toThrow(/levels must be an integer >= 1/);
+    expect(() => back(NaN)).toThrow(/levels must be an integer >= 1/);
   });
 
   it('gotoScreen throws when component is not registered', () => {

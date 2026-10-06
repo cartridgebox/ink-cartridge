@@ -203,7 +203,7 @@ describe('language switching', () => {
       </LanguageProvider>,
     );
     await new Promise((r) => setTimeout(r, 10));
-    expect(stripAnsi(lastFrame())).toContain('[Ink-Cartridge]');
+    expect(stripAnsi(lastFrame())).toContain('[ink-cartridge]');
     expect(stripAnsi(lastFrame())).toContain('en-US');
   });
 });
@@ -261,7 +261,7 @@ describe('path mode', () => {
         </LanguageProvider>
       </ErrorCatcher>,
     );
-    expect(stripAnsi(lastFrame())).toContain('[Ink-Cartridge]');
+    expect(stripAnsi(lastFrame())).toContain('[ink-cartridge]');
   });
 });
 
@@ -448,7 +448,7 @@ describe('useI18n outside Provider', () => {
         <Bad />
       </ErrorCatcher>,
     );
-    expect(stripAnsi(lastFrame())).toContain('[Ink-Cartridge]');
+    expect(stripAnsi(lastFrame())).toContain('[ink-cartridge]');
   });
 });
 

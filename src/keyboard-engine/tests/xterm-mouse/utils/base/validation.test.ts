@@ -39,7 +39,7 @@ describe('Validation Utilities - Security Tests', () => {
       }).toThrow(TypeError);
       expect(() => {
         validateStream(nullInput, ['on'], 'testObject');
-      }).toThrow('[xterm-mouse] testObject must be an object, got null');
+      }).toThrow('[ink-cartridge] testObject must be an object, got null');
     });
 
     test('throws on primitive input (string)', () => {
@@ -52,7 +52,7 @@ describe('Validation Utilities - Security Tests', () => {
       }).toThrow(TypeError);
       expect(() => {
         validateStream(stringInput, ['on'], 'testObject');
-      }).toThrow('[xterm-mouse] testObject must be an object, got string');
+      }).toThrow('[ink-cartridge] testObject must be an object, got string');
     });
 
     test('throws on primitive input (number)', () => {
@@ -65,7 +65,7 @@ describe('Validation Utilities - Security Tests', () => {
       }).toThrow(TypeError);
       expect(() => {
         validateStream(numberInput, ['on'], 'testObject');
-      }).toThrow('[xterm-mouse] testObject must be an object, got number');
+      }).toThrow('[ink-cartridge] testObject must be an object, got number');
     });
 
     test('throws on undefined input', () => {
@@ -78,7 +78,7 @@ describe('Validation Utilities - Security Tests', () => {
       }).toThrow(TypeError);
       expect(() => {
         validateStream(undefinedInput, ['on'], 'testObject');
-      }).toThrow('[xterm-mouse] testObject must be an object, got undefined');
+      }).toThrow('[ink-cartridge] testObject must be an object, got undefined');
     });
 
     test('throws when missing required method', () => {
@@ -95,7 +95,7 @@ describe('Validation Utilities - Security Tests', () => {
       }).toThrow(TypeError);
       expect(() => {
         validateStream(incompleteObject, ['on', 'off', 'pause', 'resume'], 'testObject');
-      }).toThrow('[xterm-mouse] testObject must have method pause(), but it is missing');
+      }).toThrow('[ink-cartridge] testObject must have method pause(), but it is missing');
     });
 
     test('throws when method has wrong type (string instead of function)', () => {
@@ -113,7 +113,7 @@ describe('Validation Utilities - Security Tests', () => {
       }).toThrow(TypeError);
       expect(() => {
         validateStream(maliciousObject, ['on', 'off', 'pause', 'resume'], 'testObject');
-      }).toThrow('[xterm-mouse] testObject must have method on(), but it has type string');
+      }).toThrow('[ink-cartridge] testObject must have method on(), but it has type string');
     });
 
     test('throws when method has wrong type (object instead of function)', () => {
@@ -131,7 +131,7 @@ describe('Validation Utilities - Security Tests', () => {
       }).toThrow(TypeError);
       expect(() => {
         validateStream(maliciousObject, ['on', 'off', 'pause', 'resume'], 'testObject');
-      }).toThrow('[xterm-mouse] testObject must have method on(), but it has type object');
+      }).toThrow('[ink-cartridge] testObject must have method on(), but it has type object');
     });
 
     test('throws when method is null', () => {
@@ -149,7 +149,7 @@ describe('Validation Utilities - Security Tests', () => {
       }).toThrow(TypeError);
       expect(() => {
         validateStream(objectWithNullMethod, ['on', 'off', 'pause', 'resume'], 'testObject');
-      }).toThrow('[xterm-mouse] testObject must have method on(), but it has type object');
+      }).toThrow('[ink-cartridge] testObject must have method on(), but it has type object');
     });
 
     test('checks all required methods', () => {
@@ -162,7 +162,7 @@ describe('Validation Utilities - Security Tests', () => {
       // Act & Assert - should throw on first missing method
       expect(() => {
         validateStream(objectWithMultipleMissing, ['on', 'off', 'pause', 'resume'], 'testObject');
-      }).toThrow('[xterm-mouse] testObject must have method off(), but it is missing');
+      }).toThrow('[ink-cartridge] testObject must have method off(), but it is missing');
     });
 
     test('accepts object with extra properties (not strict)', () => {
@@ -184,7 +184,7 @@ describe('Validation Utilities - Security Tests', () => {
 
     test('prevents prototype pollution attack', () => {
       // Arrange - Simulate prototype pollution
-      /* biome-ignore lint/performance/noDelete: Intentional for security test */ (
+      (
         Object.prototype as Record<string, unknown>
       ).on = 'polluted';
 
@@ -194,7 +194,7 @@ describe('Validation Utilities - Security Tests', () => {
         // Act & Assert - should still validate, not pick up polluted prototype
         expect(() => {
           validateStream(emptyObject, ['on'], 'testObject');
-        }).toThrow('[xterm-mouse] testObject must have method on(), but it has type string');
+        }).toThrow('[ink-cartridge] testObject must have method on(), but it has type string');
       } finally {
         // Cleanup - remove polluted property
         delete (Object.prototype as Record<string, unknown>).on;
@@ -233,7 +233,7 @@ describe('Validation Utilities - Security Tests', () => {
       }).toThrow(TypeError);
       expect(() => {
         validateFunction(notAFunction, 'testFunction');
-      }).toThrow('[xterm-mouse] testFunction must be a function, got string');
+      }).toThrow('[ink-cartridge] testFunction must be a function, got string');
     });
 
     test('throws on non-function input (object)', () => {
@@ -246,7 +246,7 @@ describe('Validation Utilities - Security Tests', () => {
       }).toThrow(TypeError);
       expect(() => {
         validateFunction(notAFunction, 'testFunction');
-      }).toThrow('[xterm-mouse] testFunction must be a function, got object');
+      }).toThrow('[ink-cartridge] testFunction must be a function, got object');
     });
 
     test('throws on null input', () => {
@@ -259,7 +259,7 @@ describe('Validation Utilities - Security Tests', () => {
       }).toThrow(TypeError);
       expect(() => {
         validateFunction(nullInput, 'testFunction');
-      }).toThrow('[xterm-mouse] testFunction must be a function, got object');
+      }).toThrow('[ink-cartridge] testFunction must be a function, got object');
     });
 
     test('throws on undefined input', () => {
@@ -272,7 +272,7 @@ describe('Validation Utilities - Security Tests', () => {
       }).toThrow(TypeError);
       expect(() => {
         validateFunction(undefinedInput, 'testFunction');
-      }).toThrow('[xterm-mouse] testFunction must be a function, got undefined');
+      }).toThrow('[ink-cartridge] testFunction must be a function, got undefined');
     });
   });
 
@@ -299,7 +299,7 @@ describe('Validation Utilities - Security Tests', () => {
       }).toThrow(TypeError);
       expect(() => {
         validateWritableStream(invalidStream, 'outputStream');
-      }).toThrow('[xterm-mouse] outputStream must have method write(), but it is missing');
+      }).toThrow('[ink-cartridge] outputStream must have method write(), but it is missing');
     });
 
     test('throws when write is not a function', () => {
@@ -314,7 +314,7 @@ describe('Validation Utilities - Security Tests', () => {
       }).toThrow(TypeError);
       expect(() => {
         validateWritableStream(maliciousStream, 'outputStream');
-      }).toThrow('[xterm-mouse] outputStream must have method write(), but it has type string');
+      }).toThrow('[ink-cartridge] outputStream must have method write(), but it has type string');
     });
   });
 
@@ -325,7 +325,7 @@ describe('Validation Utilities - Security Tests', () => {
 
       const fakeStream = {
         isTTY: true, // Lies about being a TTY
-        // biome-ignore lint/complexity/noBannedTypes: Testing generic function type
+        // Testing generic function type
         // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
         on: (event: string, handler: Function) => {
           // Attempt to exfiltrate data
@@ -355,7 +355,7 @@ describe('Validation Utilities - Security Tests', () => {
       // Act & Assert
       expect(() => {
         validateStream(pollutedStream, ['on', 'off', 'pause', 'resume'], 'inputStream');
-      }).toThrow('[xterm-mouse] inputStream must have method on(), but it is missing');
+      }).toThrow('[ink-cartridge] inputStream must have method on(), but it is missing');
     });
 
     test('rejects non-object that pretends to be stream', () => {
@@ -365,7 +365,7 @@ describe('Validation Utilities - Security Tests', () => {
       // Act & Assert
       expect(() => {
         validateStream(fakeStream, ['on'], 'inputStream');
-      }).toThrow('[xterm-mouse] inputStream must be an object, got string');
+      }).toThrow('[ink-cartridge] inputStream must be an object, got string');
     });
 
     test('rejects Proxy that interferes with method access', () => {
@@ -389,7 +389,7 @@ describe('Validation Utilities - Security Tests', () => {
       // Act & Assert
       expect(() => {
         validateStream(maliciousProxy, ['on', 'off', 'pause', 'resume'], 'inputStream');
-      }).toThrow('[xterm-mouse] inputStream must have method on(), but it has type string');
+      }).toThrow('[ink-cartridge] inputStream must have method on(), but it has type string');
     });
   });
 });

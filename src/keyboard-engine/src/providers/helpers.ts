@@ -12,6 +12,32 @@ import type {
 type KeyboardLayerWithBindings = PageKeyboardLayer | ElementKeyboard;
 
 /**
+ * Best-effort display name for a component or overlay owner. Owners arrive as
+ * `TComponent | string`, and `TComponent` is unconstrained for non-React
+ * hosts, so the name is read structurally instead of casting.
+ */
+export function componentName(owner: unknown): string {
+  if (typeof owner === 'string') return owner;
+
+  const isNamed =
+    typeof owner === 'function' ||
+    (typeof owner === 'object' && owner !== null);
+  if (!isNamed) return 'anonymous';
+
+  if (
+    'displayName' in owner &&
+    typeof owner.displayName === 'string' &&
+    owner.displayName
+  ) {
+    return owner.displayName;
+  }
+  if ('name' in owner && typeof owner.name === 'string' && owner.name) {
+    return owner.name;
+  }
+  return 'anonymous';
+}
+
+/**
  * Remove keys from `ScreenKeyboardLayer.globalKeyOverrides` when no
  * bindings (screen-level or focus-target) still reference them.
  * Keeps the override set consistent after unbind operations.

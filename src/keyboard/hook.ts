@@ -43,11 +43,12 @@ import {
   type ScreenSystemContextValue,
 } from "../screen/context.js";
 
-/** Per-map reference counts, so a ref shared by several bindings is only
- *  removed when the last binding releases it. */
-const regionFocusRefCounts = new WeakMap<
+/** Per-map registration stacks, so a ref shared by several bindings keeps the
+ *  most recently registered LIVE entry and is only dropped when the last
+ *  registration is released. */
+const regionFocusEntries = new WeakMap<
   RegionFocusMap,
-  Map<RefObject<DOMElement | null>, number>
+  Map<RefObject<DOMElement | null>, RegionFocusEntry[]>
 >();
 
 /**
@@ -71,12 +72,12 @@ function resolveRegionFocusMap(
  * current scope. Priority mirrors keyboard ownership: a layer element beats
  * a modal element, which beats the current page root.
  *
- * A missing ref or focusId is a no-op. Re-registering the same ref overwrites
- * its entry — the entry holds no transient mouse state, so a re-bound
- * element needs no state to preserve.
+ * A missing ref or focusId is a no-op. When several bindings share one ref,
+ * the map holds the most recently registered LIVE entry — the one a click
+ * forwards to.
  *
- * @returns A release function that decrements the ref's registration count
- *          and removes the entry once the last registration is released.
+ * @returns A release function that pops this registration; the map then falls
+ *          back to the previous live entry, or loses the ref when none remain.
  *          Returns `undefined` when nothing was registered.
  */
 function registerRegionFocus(
@@ -90,23 +91,33 @@ function registerRegionFocus(
   const map = resolveRegionFocusMap(layerCtx, modalCtx, screenCtx);
   if (!map) return undefined;
 
-  map.set(ref, { focusId });
-
-  let counts = regionFocusRefCounts.get(map);
-  if (!counts) {
-    counts = new Map();
-    regionFocusRefCounts.set(map, counts);
+  let stacks = regionFocusEntries.get(map);
+  if (!stacks) {
+    stacks = new Map();
+    regionFocusEntries.set(map, stacks);
   }
-  counts.set(ref, (counts.get(ref) ?? 0) + 1);
+  let stack = stacks.get(ref);
+  if (!stack) {
+    stack = [];
+    stacks.set(ref, stack);
+  }
+
+  const entry: RegionFocusEntry = { focusId };
+  stack.push(entry);
+  map.set(ref, entry);
 
   return () => {
-    const count = counts.get(ref) ?? 0;
-    if (count <= 1) {
-      map.delete(ref);
-      counts.delete(ref);
-      if (counts.size === 0) regionFocusRefCounts.delete(map);
+    const index = stack.indexOf(entry);
+    if (index === -1) return; // already released
+    stack.splice(index, 1);
+
+    const top = stack[stack.length - 1];
+    if (top) {
+      map.set(ref, top);
     } else {
-      counts.set(ref, count - 1);
+      map.delete(ref);
+      stacks.delete(ref);
+      if (stacks.size === 0) regionFocusEntries.delete(map);
     }
   };
 }
@@ -209,7 +220,7 @@ export function useKeyboard(): KeyboardContextValue {
   const modalCtx = useContext(ModalLayerElementContext);
   if (!ctx) {
     throw new Error(
-      "[Ink-Cartridge] useKeyboard() must be called inside a <KeyboardProvider>.",
+      "[ink-cartridge] useKeyboard() must be called inside a <KeyboardProvider>.",
     );
   }
 
@@ -735,7 +746,11 @@ export function useMouseRegion(
   callbacks: MouseRegionCallbacks,
   options?: MouseRegionOptions,
 ): RefObject<DOMElement | null> {
-  const ctx = useContext(KeyboardContext);
+  // Use the owner-scoped wrappers from useKeyboard, not the raw context: the
+  // click/hover focus calls below must re-push this element's owner, otherwise
+  // focusSet resolves against whatever sibling element is on top of the owner
+  // stack and silently no-ops.
+  const ctx = useKeyboard();
   const layerCtx = useContext(LayerElementContext);
   const modalCtx = useContext(ModalLayerElementContext);
   const screenCtx = useContext(ScreenSystemContext);

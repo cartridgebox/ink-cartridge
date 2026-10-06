@@ -45,16 +45,11 @@ export function checkGlobalKey(
 
   const topLayer = layersRef.get(topComponent);
 
-  // Global Key rules (affectLayer + cover):
-  //
-  // Layer phase (affectLayer = true):
-  // - [true,  true] : Affects layers, can be overridden only by layer elements
-  // - [true,  false]: Affects layers, cannot be overridden by anyone
-  // - [false, true] : Does NOT affect layers; works on the page stack, can be overridden by the page
-  // - [false, false]: Does NOT affect layers; works on the page stack, cannot be overridden by the page
-  //
-  // Option executeWhenNoOverlay (only for affectLayer = true):
-  // Keeps the key active even when no layer is open, while preserving the original cover rule.
+  // affectLayer × cover: [true,true] layer-scoped, overridable by layer
+  // elements; [true,false] layer-scoped, not overridable; [false,true]
+  // page-scoped, overridable by the page; [false,false] page-scoped, not
+  // overridable. Only the page-stack case is checked here; the layer-phase
+  // quadrants are enforced earlier by the global-key processor.
   if (topLayer && !entry.affectLayer && (entry.cover ?? true)) {
     if (keyNames.some((k) => topLayer.globalKeyOverrides.has(k))) return false;
   }

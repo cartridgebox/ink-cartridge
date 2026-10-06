@@ -495,6 +495,35 @@ describe("composition lifecycle", () => {
     expect(engine.processKey("w", {})).toBe(false);
     expect(engine.hasPendingComposition()).toBe(false);
     expect(engine.bufferedCompositionCount()).toBe(1);
+    expect(engine.getLastCompositionEvent()?.type).toBe("completed");
+  });
+
+  it("emits completed when execute returns null", () => {
+    const engine = syncEngine();
+    head(engine);
+    chain(engine, "w", { execute: () => null });
+    engine.processKey("3", {});
+    engine.processKey("w", {});
+    expect(engine.bufferedCompositionCount()).toBe(1);
+    expect(engine.getLastCompositionEvent()?.type).toBe("completed");
+  });
+
+  it("emits broken when a value guard rejects the chained key", () => {
+    const engine = syncEngine();
+    head(engine);
+    chain(engine, "w");
+    // The head passes ("times" is unguarded); `w` produces lastFlag "action",
+    // which the schema rejects — a non-terminal drop, not an undoable chain.
+    engine.setValueSchema({ action: () => false });
+    engine.processKey("3", {});
+    expect(engine.getLastCompositionEvent()?.type).toBe("started");
+    engine.processKey("w", {});
+    // The breaking key is reported too, not just the event type.
+    expect(engine.getLastCompositionEvent()).toEqual({
+      type: "broken",
+      key: "w",
+    });
+    expect(engine.bufferedCompositionCount()).toBe(0);
   });
 
   it("chooses the flag transition declared by the key", () => {
@@ -585,6 +614,30 @@ describe("composition undo", () => {
     expect(engine.bufferedCompositionCount()).toBe(1);
     expect(engine.undoComposition(1, { byKey: true })).not.toBeNull();
     expect(engine.bufferedCompositionCount()).toBe(0);
+  });
+
+  it("keeps the buffer intact when a by-key undo is refused", () => {
+    const engine = syncEngine();
+    head(engine);
+    chain(engine, "w", { undoAction: () => null });
+    engine.processKey("3", {});
+    engine.processKey("w", {});
+    engine.abortComposition();
+    expect(engine.bufferedCompositionCount()).toBe(1);
+    engine.undoComposition(2, { byKey: true });
+    // Nothing was undone: the refused key must stay buffered rather than be
+    // silently dropped together with the older key it stopped the walk at.
+    expect(engine.bufferedCompositionCount()).toBe(1);
+  });
+
+  it("treats a by-key undo of zero keys as a no-op", () => {
+    const engine = syncEngine();
+    head(engine);
+    engine.processKey("3", {});
+    engine.abortComposition();
+    expect(engine.bufferedCompositionCount()).toBe(1);
+    expect(engine.undoComposition(0, { byKey: true })).toBeNull();
+    expect(engine.bufferedCompositionCount()).toBe(1);
   });
 
   it("runs custom undo actions and stops when they return null", () => {

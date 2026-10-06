@@ -12,7 +12,7 @@ function loadFromPath(dirPath: string): Record<string, Record<string, string>> {
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     throw new Error(
-      `[Ink-Cartridge] LanguageProvider failed to read directory "${dirPath}": ${msg}`,
+      `[ink-cartridge] LanguageProvider failed to read directory "${dirPath}": ${msg}`,
     );
   }
   for (const file of files) {
@@ -25,7 +25,7 @@ function loadFromPath(dirPath: string): Record<string, Record<string, string>> {
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
         throw new Error(
-          `[Ink-Cartridge] LanguageProvider failed to read "${fullPath}": ${msg}`,
+          `[ink-cartridge] LanguageProvider failed to read "${fullPath}": ${msg}`,
         );
       }
       try {
@@ -33,7 +33,7 @@ function loadFromPath(dirPath: string): Record<string, Record<string, string>> {
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
         throw new Error(
-          `[Ink-Cartridge] LanguageProvider failed to parse "${file}" as JSON: ${msg}`,
+          `[ink-cartridge] LanguageProvider failed to parse "${file}" as JSON: ${msg}`,
         );
       }
     }
@@ -164,7 +164,7 @@ export function LanguageProvider({
         setLang(newLang);
       } else {
         throw new Error(
-          `[Ink-Cartridge] Language "${newLang}" is not available. ` +
+          `[ink-cartridge] Language "${newLang}" is not available. ` +
           `Available languages: ${languages.join(', ')}`,
         );
       }

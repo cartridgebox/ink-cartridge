@@ -10,6 +10,7 @@ import {
   LayerKeyboardLayer,
   PageKeyboardLayer,
 } from "../types/page-layer.js";
+import { componentName } from "../providers/helpers.js";
 import EngineState from "./EngineState.js";
 
 /**
@@ -31,12 +32,12 @@ export default class LayerManager<TComponent = unknown> {
     const prev = this.prevPath;
     for (const comp of prev) {
       if (!this.state.synchronizedData.pagePath.includes(comp)) {
-        const layer = this.state.pageLayerEelementsKeyboards.get(comp);
+        const layer = this.state.pageLayerKeyboards.get(comp);
         if (layer?.pendingSequence) {
           clearTimeout(layer.pendingSequence.timer);
           layer.pendingSequence = null;
         }
-        this.state.pageLayerEelementsKeyboards.delete(comp);
+        this.state.pageLayerKeyboards.delete(comp);
       }
     }
     this.prevPath = [...this.state.synchronizedData.pagePath];
@@ -144,10 +145,10 @@ export default class LayerManager<TComponent = unknown> {
     elementId?: string,
   ): PageKeyboardLayer | ElementKeyboard {
     if (typeof ownerOrLayer !== "string") {
-      let layer = this.state.pageLayerEelementsKeyboards.get(ownerOrLayer);
+      let layer = this.state.pageLayerKeyboards.get(ownerOrLayer);
       if (!layer) {
         layer = this.createKeyboardLayer();
-        this.state.pageLayerEelementsKeyboards.set(ownerOrLayer, layer);
+        this.state.pageLayerKeyboards.set(ownerOrLayer, layer);
       }
       return layer;
     }
@@ -369,7 +370,7 @@ export default class LayerManager<TComponent = unknown> {
     elementId?: string,
   ): PageKeyboardLayer | LayerKeyboardLayer | ElementKeyboard | undefined {
     if (typeof ownerOrLayer !== "string") {
-      return this.state.pageLayerEelementsKeyboards.get(ownerOrLayer);
+      return this.state.pageLayerKeyboards.get(ownerOrLayer);
     }
     if (elementId) {
       return this.state.layersKeyboardMap
@@ -399,9 +400,8 @@ export default class LayerManager<TComponent = unknown> {
     element?: string,
   ): { layer: PageKeyboardLayer | ElementKeyboard; name: string } {
     if (typeof owner !== "string") {
-      const layer = this.state.pageLayerEelementsKeyboards.get(owner);
-      const name =
-        (owner as any).displayName || (owner as any).name || "Unknown";
+      const layer = this.state.pageLayerKeyboards.get(owner);
+      const name = componentName(owner);
       if (!layer) {
         throw new Error(
           `[keyboard-engine] no keyboard layer found for "${name}". ` +

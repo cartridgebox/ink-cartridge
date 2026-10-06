@@ -35,8 +35,26 @@ export function registerComponent<C extends React.ComponentType<any>>(
 ): void {
   if (registry.has(component)) {
     throw new Error(
-      `[Ink-Cartridge] Component "${component.displayName || component.name || "anonymous"}" is already registered. Duplicate registration is not allowed.`,
+      `[ink-cartridge] Component "${component.displayName || component.name || "anonymous"}" is already registered. Duplicate registration is not allowed.`,
     );
+  }
+
+  // Resolve the parent before mutating the registry: a throw must leave the
+  // registry untouched. Otherwise the caller's catch() still leaves a
+  // half-registered component — parent pointing at an unregistered node, so it
+  // is neither a root nor reachable — that no later registration can repair.
+  let parentEntry: RegistryEntry | undefined;
+  if (options?.parent) {
+    parentEntry = registry.get(options.parent);
+    if (!parentEntry) {
+      const compName = component.displayName || component.name || "anonymous";
+      const parentName =
+        options.parent.displayName || options.parent.name || "anonymous";
+      throw new Error(
+        `[ink-cartridge] registerComponent("${compName}"): parent component "${parentName}" is not registered. ` +
+        `Register the parent first with registerComponent(${parentName}, template).`,
+      );
+    }
   }
 
   registry.set(component, {
@@ -46,19 +64,7 @@ export function registerComponent<C extends React.ComponentType<any>>(
   });
 
   // When a parent is declared, register ourselves in the parent's children.
-  if (options?.parent) {
-    const parentEntry = registry.get(options.parent);
-    if (!parentEntry) {
-      const compName = component.displayName || component.name || "anonymous";
-      const parentName =
-        (options.parent as any).displayName ||
-        (options.parent as any).name ||
-        "anonymous";
-      throw new Error(
-        `[Ink-Cartridge] registerComponent("${compName}"): parent component "${parentName}" is not registered. ` +
-        `Register the parent first with registerComponent(${parentName}, template).`,
-      );
-    }
+  if (parentEntry) {
     parentEntry.children.add(component);
   }
 }

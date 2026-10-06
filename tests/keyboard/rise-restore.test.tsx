@@ -18,7 +18,7 @@ import {
   ScenarioManagementProvider,
 } from '../../src/screen/provider.js';
 import { CurrentScreen } from '../../src/screen/current-screen.js';
-import { KeyboardProvider, clearShortcutOperations } from '../../src/keyboard/provider.js';
+import { KeyboardProvider } from '../../src/keyboard/provider.js';
 import { useKeyboard } from '../../src/keyboard/hook.js';
 import { useScreenSystem } from '../../src/screen/hook.js';
 
@@ -155,7 +155,6 @@ function renderApp() {
 beforeEach(() => {
   clearRegistry();
   clearDispatchers();
-  clearShortcutOperations();
   lowKey.mockClear();
   highKey.mockClear();
   thirdKey.mockClear();

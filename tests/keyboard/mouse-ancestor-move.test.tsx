@@ -5,7 +5,7 @@ import { Box, Text, render as inkRender } from "ink";
 import { registerComponent, clearRegistry } from "../../src/screen/registry.js";
 import { clearDispatchers, ScenarioManagementProvider } from "../../src/screen/provider.js";
 import { CurrentScreen } from "../../src/screen/current-screen.js";
-import { clearShortcutOperations, KeyboardProvider } from "../../src/keyboard/provider.js";
+import { KeyboardProvider } from "../../src/keyboard/provider.js";
 import { useMouseRegion } from "../../src/keyboard/hook.js";
 import type { ReadableStreamWithEncoding } from "@cartridge-engine/keyboard-engine";
 
@@ -108,7 +108,6 @@ describe("mouse region sync when an ancestor moves", () => {
 	beforeEach(() => {
 		clearRegistry();
 		clearDispatchers();
-		clearShortcutOperations();
 		registerComponent(MovingFrameApp, {});
 		(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 		Object.defineProperty(process.stdin, "isTTY", { value: true, configurable: true });

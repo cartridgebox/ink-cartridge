@@ -145,6 +145,29 @@ describe('TTYController', () => {
       expect(() => controller.enable()).toThrow();
       expect(controller.isEnabled()).toBe(false); // Should rollback
     });
+
+    test('rolls back terminal state when enable fails after the on codes', () => {
+      // setRawModeFn rejects switching raw mode ON, which happens after the
+      // mouse-on codes have already been written.
+      const failing = new TTYController(
+        new MockReadableStream() as unknown as import('../../../../src/xterm-mouse/types/index.js').ReadableStreamWithEncoding,
+        mockOutputStream as unknown as NodeJS.WriteStream,
+        vi.fn(),
+        (mode) => {
+          if (mode) throw new Error('raw mode unsupported');
+        },
+      );
+
+      expect(() => failing.enable()).toThrow(/Failed to enable mouse/);
+
+      const written = mockOutputStream
+        .getWrittenData()
+        .map((chunk) => chunk.toString());
+      expect(written.some((w) => w.includes('\x1b[?1000h'))).toBe(true);
+      // ...and the failure must send the off codes back out.
+      expect(written.some((w) => w.includes('\x1b[?1000l'))).toBe(true);
+      expect(failing.isEnabled()).toBe(false);
+    });
   });
 
   describe('disable', () => {
@@ -360,10 +383,31 @@ describe('TTYController', () => {
       mockOutputStream.write = vi.fn(() => {
         throw new Error('Write failed');
       });
+      const pauseSpy = vi.spyOn(mockInputStream, 'pause');
 
       // Act & Assert
-      expect(() => controller.disable()).toThrow();
+      expect(() => controller.disable()).toThrow(/Failed to disable mouse/);
       expect(controller.isEnabled()).toBe(false); // Should still set enabled to false
+      // A failed off-code write must not skip the rest of the cleanup.
+      expect(pauseSpy).toHaveBeenCalled();
+      expect(mockInputStream.isRaw).toBe(false); // raw mode restored
+    });
+
+    test('still writes the off codes when cleanup throws mid-way', () => {
+      controller.enable();
+      mockOutputStream.clearWrittenData();
+      vi.spyOn(mockInputStream, 'pause').mockImplementation(() => {
+        throw new Error('pause boom');
+      });
+
+      expect(() => controller.disable()).toThrow(/Failed to disable mouse/);
+
+      // The terminal must be un-stuck even though pause() failed.
+      const written = mockOutputStream
+        .getWrittenData()
+        .map((chunk) => chunk.toString());
+      expect(written.some((w) => w.includes('\x1b[?1000l'))).toBe(true);
+      expect(controller.isEnabled()).toBe(false);
     });
   });
 

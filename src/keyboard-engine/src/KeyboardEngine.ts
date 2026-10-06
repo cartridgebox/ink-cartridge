@@ -1385,11 +1385,6 @@ export default class KeyboardEngine<TComponent = unknown> {
    *
    * Called by {@link processKey} once per key event. All values are read
    * synchronously to produce a consistent frozen-in-time view.
-   *
-   * The returned object is cast to `PipelineContext` because the engine's
-   * generic `TComponent` may not match the legacy `React.ComponentType` in
-   * the typed interface — this is a bridge point that will be resolved when
-   * the pipeline types are fully generic.
    */
   buildPipelineContext(
     input: string,
@@ -1402,7 +1397,7 @@ export default class KeyboardEngine<TComponent = unknown> {
             this.state.synchronizedData.pagePath.length - 1
           ]
         : null;
-    const compositionEngineHandler = this.state.compositionEngineHandle;
+    const compositionEngineHandler = this.state.compositionEngineHandler;
     const state = this.state;
 
     return {
@@ -1411,7 +1406,7 @@ export default class KeyboardEngine<TComponent = unknown> {
       pagePath: this.state.synchronizedData.pagePath,
       allLayers: this.state.synchronizedData.layers,
       allModalLayers: this.state.synchronizedData.modalLayers,
-      layersRef: this.state.pageLayerEelementsKeyboards,
+      layersRef: this.state.pageLayerKeyboards,
       layerKeyboardRefs: this.state.layersKeyboardMap,
       pendingSeqRef: {
         get current(): GlobalPendingSequence | null {

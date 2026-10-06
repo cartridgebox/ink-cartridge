@@ -5,7 +5,7 @@
  * SGR format: ESC[<Cb;Cx;Cy(M|m) where:
  * - Cb is 1-3 digits (button code: 0-255)
  * - Cx, Cy are 1-4 digits (coordinates: 0-9999)
- * - Maximum: ESC[<255;9999;9999M = 21 chars
+ * - Maximum: ESC[<255;9999;9999M = 17 chars
  *
  * ESC format: ESC[MCbCxCy where:
  * - Cb, Cx, Cy are single characters (6 chars total)
@@ -15,16 +15,16 @@
 import { type DeepReadonly, deepFreeze } from '../utils/freeze.js';
 
 type MaxEventLengths = {
-  sgr: 21;
+  sgr: 17;
   esc: 6;
 };
 
 const MAX_EVENT_LENGTHS: DeepReadonly<MaxEventLengths> = deepFreeze({
   /**
    * SGR format with bounded quantifiers
-   * ESC[< + 3 digits + ; + 4 digits + ; + 4 digits + M/m = 21 chars
+   * ESC[< + 3 digits + ; + 4 digits + ; + 4 digits + M/m = 17 chars
    */
-  sgr: 21,
+  sgr: 17,
 
   /**
    * ESC format: ESC[M + 3 chars = 6 chars
@@ -94,7 +94,7 @@ const ANSI_RESPONSE_PATTERNS = {
    * - Bounded quantifiers {1,3} and {1,4} prevent unbounded backtracking
    * - ^ anchor ensures match only at start
    */
-  // biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI escape sequences require control characters
+  // ANSI escape sequences require control characters
   // eslint-disable-next-line no-control-regex
   sgrPattern: /^\x1b\[<(\d{1,3});(\d{1,4});(\d{1,4})([Mm])/,
 
@@ -104,7 +104,7 @@ const ANSI_RESPONSE_PATTERNS = {
    * - Character classes match single characters (no quantifiers)
    * - No possibility of backtracking or ambiguous matches
    */
-  // biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI escape sequences require control characters
+  // ANSI escape sequences require control characters
   // eslint-disable-next-line no-control-regex
   escPattern: /^\x1b\[M([\x20-\x7f])([\x20-\x7f])([\x20-\x7f])/,
 };

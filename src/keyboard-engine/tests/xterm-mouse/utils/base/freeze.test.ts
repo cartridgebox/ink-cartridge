@@ -43,7 +43,7 @@ describe('Deep Freeze Utilities', () => {
 
       // Assert - cannot modify (cast to any for runtime testing)
       expect(() => {
-        // biome-ignore lint/suspicious/noExplicitAny: Type system prevents modification, need to test runtime
+        // Type system prevents modification, need to test runtime
         (frozen as any).user.name = 'Bob';
       }).toThrow();
     });
@@ -65,7 +65,7 @@ describe('Deep Freeze Utilities', () => {
 
       // Cast to any for runtime testing (type system already prevents this at compile time)
       expect(() => {
-        // biome-ignore lint/suspicious/noExplicitAny: Type system prevents modification, need to test runtime
+        // Type system prevents modification, need to test runtime
         (frozen as any)[0].id = 99;
       }).toThrow();
     });
@@ -87,7 +87,7 @@ describe('Deep Freeze Utilities', () => {
       expect(() => {
         const value = frozen.get('key1');
         if (value)
-          /* biome-ignore lint/suspicious/noExplicitAny: Type system prevents modification, need to test runtime */ (
+          (
             value as any
           ).value = 99;
       }).toThrow();
@@ -295,7 +295,7 @@ describe('Deep Freeze Utilities', () => {
       const frozen = deepFreeze(obj);
 
       expect(() => {
-        /* biome-ignore lint/suspicious/noExplicitAny: Type system prevents modification, need to test runtime */ (
+        (
           frozen as any
         ).user.name = 'Bob';
       }).toThrow();
@@ -307,7 +307,7 @@ describe('Deep Freeze Utilities', () => {
       const frozen = deepFreeze(arr);
 
       expect(() => {
-        /* biome-ignore lint/suspicious/noExplicitAny: Type system prevents modification, need to test runtime */ (
+        (
           frozen as any
         ).push(4);
       }).toThrow();

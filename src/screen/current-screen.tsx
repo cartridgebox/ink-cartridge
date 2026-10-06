@@ -8,13 +8,13 @@ import { LayerElementContext } from "./LayerElementContext.js";
  * Render the current screen, overlays, and modals.
  *
  * Multiple overlays are rendered in zIndex order (ascending) so higher
- * zIndex overlays appear on top. Each overlay is wrapped in an
- * OverlayContext.Provider so the keyboard system can isolate per-overlay
- * keyboard layers by overlay ID.
+ * zIndex overlays appear on top. Each overlay is wrapped in a
+ * LayerElementContext.Provider so the keyboard system can isolate
+ * per-overlay keyboard layers by overlay ID.
  *
  * Modals are rendered after overlays so they always appear visually on top.
- * Each modal is wrapped in a ModalContext.Provider so the keyboard system
- * can isolate per-modal keyboard layers by modal ID.
+ * Each modal is wrapped in a ModalLayerElementContext.Provider so the keyboard
+ * system can isolate per-modal keyboard layers by modal ID.
  *
  * Architecturally symmetric between overlays and modals.
  *

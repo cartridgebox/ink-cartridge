@@ -35,7 +35,7 @@ function makeFakeTTYStream(): ReadableStreamWithEncoding {
   const originalOn = fake.on.bind(fake);
   const originalOff = fake.off.bind(fake);
 
-  // biome-ignore lint/suspicious/noExplicitAny: original EventEmitter methods
+  // original EventEmitter methods
   fake.on = (event: string, listener: (...args: any[]) => void): ReadableStreamWithEncoding => {
     originalOn(event, listener);
     return fake;

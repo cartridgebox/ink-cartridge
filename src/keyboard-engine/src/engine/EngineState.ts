@@ -89,7 +89,7 @@ export default class EngineState<TComponent> {
   > = new Map();
 
   /** Keyboard data per page screen component. */
-  pageLayerEelementsKeyboards: Map<TComponent, PageKeyboardLayer> = new Map();
+  pageLayerKeyboards: Map<TComponent, PageKeyboardLayer> = new Map();
 
   /**
    * Keyboard data per overlay/modal layer id. The nested map's keys are
@@ -117,7 +117,7 @@ export default class EngineState<TComponent> {
    * `true` while a composition chain is pending, so processors know the
    * composition engine is waiting for the next key.
    */
-  compositionEngineHandle: boolean = false;
+  compositionEngineHandler: boolean = false;
 
   /** Whether the engine auto-handles Tab/Shift+Tab for focus rotation. */
   autoTab: boolean;

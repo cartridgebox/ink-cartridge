@@ -81,13 +81,19 @@ export default class OperationRegistry<TComponent = unknown> {
 
   /**
    * Cycle to the previous mode in registration order, wrapping around at
-   * the end.
+   * the end. In no-mode state, enters the last registered mode — mirroring
+   * {@link nextMode}, which enters the first.
    */
   prevMode() {
     const modes = Array.from(this.state.modesRef);
     if (modes.length === 0) return;
     const currentIndex = modes.indexOf(this.state.currentModeRef ?? "");
-    const prevIndex = (currentIndex - 1 + modes.length) % modes.length;
+    // `indexOf` is -1 in no-mode state, which the modulo would turn into
+    // `length - 2` instead of the last mode.
+    const prevIndex =
+      currentIndex === -1
+        ? modes.length - 1
+        : (currentIndex - 1 + modes.length) % modes.length;
     this.state.currentModeRef = modes[prevIndex];
   }
 
@@ -182,13 +188,13 @@ export default class OperationRegistry<TComponent = unknown> {
     const processed = entries.map((each) => {
       if (each.times !== undefined && each.times < 1) {
         throw new Error(
-          "[Ink-Cartridge] globalKeys() times option must be >= 1.",
+          "[ink-cartridge] globalKeys() times option must be >= 1.",
         );
       }
 
       if (each.times === undefined && each.observer) {
         throw new Error(
-          "[Ink-Cartridge] globalKeys() observer option requires times option to be set.",
+          "[ink-cartridge] globalKeys() observer option requires times option to be set.",
         );
       }
 
@@ -196,7 +202,7 @@ export default class OperationRegistry<TComponent = unknown> {
         const entry = this.state.shortcutOperationsRef.get(each.operate);
         if (!entry) {
           throw new Error(
-            `[Ink-Cartridge]You want to call the shortcut ${each.operate} in the global key, but it is not registered`,
+            `[ink-cartridge] You want to call the shortcut ${each.operate} in the global key, but it is not registered`,
           );
         }
 
@@ -237,7 +243,9 @@ export default class OperationRegistry<TComponent = unknown> {
   }
 
   getGlobalKeys(): ResolvedGlobalKeyEntry[] {
-    return this.state.globalKeysRef;
+    // A copy, like getGlobalSequences: the caller must not be able to mutate
+    // engine state through the returned array.
+    return [...this.state.globalKeysRef];
   }
 
   getGlobalSequences(): ResolvedGlobalSequenceEntry[] {
@@ -270,7 +278,7 @@ export default class OperationRegistry<TComponent = unknown> {
         const actionEntry = this.state.sequenceOperationsRef.get(entry.operate);
         if (!actionEntry) {
           throw new Error(
-            `[Ink-Cartridge] You want to call the sequence action "${entry.operate}" in globalSequence, but it is not registered.`,
+            `[ink-cartridge] You want to call the sequence action "${entry.operate}" in globalSequence, but it is not registered.`,
           );
         }
         return { ...entry, operate: actionEntry.action };
@@ -281,7 +289,7 @@ export default class OperationRegistry<TComponent = unknown> {
     for (const entry of resolved) {
       if (entry.keys.length < 2) {
         throw new Error(
-          "[Ink-Cartridge] globalSequence() requires at least 2 keys per sequence.",
+          "[ink-cartridge] globalSequence() requires at least 2 keys per sequence.",
         );
       }
     }
@@ -521,7 +529,7 @@ export default class OperationRegistry<TComponent = unknown> {
 
     if (!owner) {
       throw new Error(
-        "[Ink-Cartridge] currentScreenHasSequenceWaiting() must be called inside a screen component or overlay. There is currently no active screen.",
+        "[ink-cartridge] currentScreenHasSequenceWaiting() must be called inside a screen component or overlay. There is currently no active screen.",
       );
     }
 

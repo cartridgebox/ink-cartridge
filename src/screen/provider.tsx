@@ -49,6 +49,24 @@ function warnInDev(message: string): void {
 }
 
 /**
+ * Widen screen props into the untyped action payload. The caller already
+ * type-checked them against the component (see `skip`), so the assertion only
+ * bridges the generic props type to the reducer's `Record<string, unknown>`.
+ */
+function toActionParams<C extends React.ComponentType<any>>(
+	params: React.ComponentProps<C>
+): Record<string, unknown> {
+	return params as Record<string, unknown>;
+}
+
+/**
+ * A layer element of any component type, as stored on the context value. The
+ * map is heterogeneous, so a single concrete component type cannot describe
+ * it — `any` is the deliberate escape hatch.
+ */
+type AnyLayerElementInput = LayerElementInput<any>;
+
+/**
  * Clear all registered provider dispatchers.
  * Intended for test cleanup — prevents stale dispatch references
  * from leaking between test runs when providers are not properly
@@ -61,7 +79,7 @@ export function clearDispatchers(): void {
 function getDispatch(): React.Dispatch<ScreenAction> {
 	if (_dispatchers.size === 0) {
 		throw new Error(
-			"[Ink-Cartridge] Navigation function called before Provider is mounted. Please ensure <ScenarioManagementProvider> is mounted in the component tree."
+			"[ink-cartridge] Navigation function called before Provider is mounted. Please ensure <ScenarioManagementProvider> is mounted in the component tree."
 		);
 	}
 	return [..._dispatchers][_dispatchers.size - 1];
@@ -101,7 +119,7 @@ export function skip<C extends React.ComponentType<any>>(
 ): void {
 	if (!hasComponent(component)) {
 		throw new Error(
-			`[Ink-Cartridge] Component "${
+			`[ink-cartridge] Component "${
 				component.displayName || component.name || "anonymous"
 			}" is not registered. Please call registerComponent() first.`
 		);
@@ -110,7 +128,7 @@ export function skip<C extends React.ComponentType<any>>(
 	getDispatch()({
 		type: "skip",
 		component,
-		params: params as Record<string, unknown>,
+		params: toActionParams(params),
 		onlyAttribute: options?.onlyAttribute ?? false,
 	});
 }
@@ -119,8 +137,11 @@ export function skip<C extends React.ComponentType<any>>(
  * Navigate up the tree to the parent of the current screen.
  */
 export function back(levels: number = 1): void {
-	if (levels < 1) {
-		throw new Error("[Ink-Cartridge] back() levels must be >= 1.");
+	// `Number.isInteger` also rejects NaN and fractions: `NaN < 1` is false, and
+	// a fraction would slip past the guard only for the reducer's
+	// `slice(0, -levels)` to truncate it — both corrupt the path.
+	if (!Number.isInteger(levels) || levels < 1) {
+		throw new Error("[ink-cartridge] back() levels must be an integer >= 1.");
 	}
 	getDispatch()({ type: "back", levels });
 }
@@ -134,7 +155,7 @@ export function gotoScreen<C extends React.ComponentType<any>>(
 ): void {
 	if (!hasComponent(component)) {
 		throw new Error(
-			`[Ink-Cartridge] Component "${
+			`[ink-cartridge] Component "${
 				component.displayName || component.name || "anonymous"
 			}" is not registered. Please call registerComponent() first.`
 		);
@@ -143,7 +164,7 @@ export function gotoScreen<C extends React.ComponentType<any>>(
 	getDispatch()({
 		type: "gotoScreen",
 		component,
-		params: params as Record<string, unknown>,
+		params: toActionParams(params),
 	});
 }
 
@@ -186,7 +207,8 @@ export function openLayer(
  * `props` is type-checked against the element component's own prop type —
  * the same type-safety pattern `skip()` uses for `params`.
  *
- * @throws If the target layer has not been opened first.
+ * When the target layer has not been opened, the action is ignored (with a
+ * development warning) and the previous state is kept.
  *
  * @example
  * ```tsx
@@ -349,7 +371,8 @@ export function openModalLayer(
  * `props` is type-checked against the element component's own prop type —
  * the same type-safety pattern `skip()` uses for `params`.
  *
- * @throws If the target modal layer has not been opened first.
+ * When the target modal layer has not been opened, the action is ignored
+ * (with a development warning) and the previous state is kept.
  *
  * @example
  * ```tsx
@@ -505,8 +528,8 @@ function findCommonAncestor(
 		}
 	}
 
-	throw new Error(
-		`[Ink-Cartridge] Cannot find common ancestor. The target component may not be in the same tree.`
+	throw new ScreenValidationError(
+		`[ink-cartridge] Cannot find common ancestor. The target component may not be in the same tree.`
 	);
 }
 
@@ -524,8 +547,8 @@ function buildPathFrom(
 		node = getParent(node);
 	}
 	if (!node) {
-		throw new Error(
-			`[Ink-Cartridge] Target component is not a descendant of the ancestor.`
+		throw new ScreenValidationError(
+			`[ink-cartridge] Target component is not a descendant of the ancestor.`
 		);
 	}
 	path.reverse();
@@ -537,6 +560,17 @@ export function getPath(pages: Page[]) {
 }
 
 /**
+ * A reducer validation failure: the action cannot be applied to the current
+ * state (unknown layer/element, out-of-range navigation, an ID conflict).
+ * {@link screenReducer} turns these into a development warning plus a no-op;
+ * any other error from the reducer is a genuine bug and keeps propagating.
+ *
+ * The reducer works on copies, so returning the previous state after such a
+ * failure commits none of the partial work.
+ */
+class ScreenValidationError extends Error {}
+
+/**
  * Pure reducer for {@link ScreenState}.
  *
  * Handles all navigation actions: skip (down), back (up), gotoScreen
@@ -546,8 +580,23 @@ export function getPath(pages: Page[]) {
  *
  * Navigation actions filter out non-persistent layers and modal layers
  * (crossPage: false) and recalculate active state for persistent entries.
+ *
+ * Validation failures do NOT escape as exceptions: a throw inside `useReducer`
+ * is not catchable at the dispatch call site and unmounts the app. They warn
+ * in development and leave the previous state unchanged; every other error is
+ * re-thrown so real bugs stay visible.
  */
 function screenReducer(state: ScreenState, action: ScreenAction): ScreenState {
+	try {
+		return reduceScreenAction(state, action);
+	} catch (err) {
+		if (!(err instanceof ScreenValidationError)) throw err;
+		warnInDev(`${err.message} — action ignored.`);
+		return state;
+	}
+}
+
+function reduceScreenAction(state: ScreenState, action: ScreenAction): ScreenState {
 	switch (action.type) {
 		case "skip": {
 			const current = state.path[state.path.length - 1];
@@ -556,8 +605,8 @@ function screenReducer(state: ScreenState, action: ScreenAction): ScreenState {
 			// target must be a direct child.
 			const isSelf = action.component === current.component;
 			if (!isSelf && !isChildOf(action.component, current.component)) {
-				throw new Error(
-					`[Ink-Cartridge] "${
+				throw new ScreenValidationError(
+					`[ink-cartridge] "${
 						action.component.displayName || action.component.name || "anonymous"
 					}" is not a child of "${
 						current.component.displayName ||
@@ -618,10 +667,10 @@ function screenReducer(state: ScreenState, action: ScreenAction): ScreenState {
 			const levels = action.levels ?? 1;
 
 			if (state.path.length <= levels) {
-				throw new Error(
+				throw new ScreenValidationError(
 					levels === 1
-						? "[Ink-Cartridge] back() failed: already at the root node, cannot go back."
-						: `[Ink-Cartridge] back(${levels}) failed: current depth is ${state.path.length}, cannot go back ${levels} levels.`
+						? "[ink-cartridge] back() failed: already at the root node, cannot go back."
+						: `[ink-cartridge] back(${levels}) failed: current depth is ${state.path.length}, cannot go back ${levels} levels.`
 				);
 			}
 
@@ -654,8 +703,8 @@ function screenReducer(state: ScreenState, action: ScreenAction): ScreenState {
 				.indexOf(commonAncestor);
 
 			if (ancestorIndex === -1) {
-				throw new Error(
-					`[Ink-Cartridge] gotoScreen failed: cannot locate common ancestor.`
+				throw new ScreenValidationError(
+					`[ink-cartridge] gotoScreen failed: cannot locate common ancestor.`
 				);
 			}
 
@@ -711,7 +760,7 @@ function screenReducer(state: ScreenState, action: ScreenAction): ScreenState {
 			if (
 				state.allModalLayers.some((each) => each.layerId === action.layerId)
 			) {
-				throw new Error(
+				throw new ScreenValidationError(
 					`
           [ink-cartridge] Layer ID "${action.layerId}" is already used by a modal layer. Modal layers and normal layers share the ID namespace in the keyboard engine, so reuse across the two is not allowed.
           `
@@ -747,7 +796,7 @@ function screenReducer(state: ScreenState, action: ScreenAction): ScreenState {
 			);
 
 			if (targetLayerIndex === -1) {
-				throw new Error(
+				throw new ScreenValidationError(
 					`
           [ink-cartridge] The target ${action.targetLayerId} you entered has not been registered.
 
@@ -816,7 +865,7 @@ function screenReducer(state: ScreenState, action: ScreenAction): ScreenState {
 			);
 
 			if (targetLayerIndex === -1) {
-				throw new Error(
+				throw new ScreenValidationError(
 					`
           [ink-cartridge] The layer ${action.targetLayerId} you want to delete is not registered; you might have made a typo, or it was never registered at all.
           `
@@ -944,14 +993,14 @@ function screenReducer(state: ScreenState, action: ScreenAction): ScreenState {
 				(each) => each.layerId === action.targetLayerId
 			);
 			if (targetLayerIndex === -1) {
-				throw new Error(
+				throw new ScreenValidationError(
 					`[ink-cartridge] activateElement: layer "${action.targetLayerId}" is not registered.`
 				);
 			}
 			const targetLayer = state.allLayers[targetLayerIndex];
 			const targetElement = targetLayer.elements.get(action.targetElementId);
 			if (!targetElement) {
-				throw new Error(
+				throw new ScreenValidationError(
 					`[ink-cartridge] activateElement: element "${action.targetElementId}" does not exist on layer "${action.targetLayerId}".`
 				);
 			}
@@ -975,14 +1024,14 @@ function screenReducer(state: ScreenState, action: ScreenAction): ScreenState {
 				(each) => each.layerId === action.targetLayerId
 			);
 			if (targetLayerIndex === -1) {
-				throw new Error(
+				throw new ScreenValidationError(
 					`[ink-cartridge] deactivateElement: layer "${action.targetLayerId}" is not registered.`
 				);
 			}
 			const targetLayer = state.allLayers[targetLayerIndex];
 			const targetElement = targetLayer.elements.get(action.targetElementId);
 			if (!targetElement) {
-				throw new Error(
+				throw new ScreenValidationError(
 					`[ink-cartridge] deactivateElement: element "${action.targetElementId}" does not exist on layer "${action.targetLayerId}".`
 				);
 			}
@@ -1013,7 +1062,7 @@ function screenReducer(state: ScreenState, action: ScreenAction): ScreenState {
 				return state;
 			}
 			if (state.allLayers.some((each) => each.layerId === action.layerId)) {
-				throw new Error(
+				throw new ScreenValidationError(
 					`
           [ink-cartridge] Modal layer ID "${action.layerId}" is already used by a normal layer. Modal layers and normal layers share the ID namespace in the keyboard engine, so reuse across the two is not allowed.
           `
@@ -1052,7 +1101,7 @@ function screenReducer(state: ScreenState, action: ScreenAction): ScreenState {
 			);
 
 			if (targetModalLayerIndex === -1) {
-				throw new Error(
+				throw new ScreenValidationError(
 					`
           [ink-cartridge] The target modal layer ${action.targetModalLayerId} you entered has not been registered.
 
@@ -1123,7 +1172,7 @@ function screenReducer(state: ScreenState, action: ScreenAction): ScreenState {
 			);
 
 			if (targetModalLayerIndex === -1) {
-				throw new Error(
+				throw new ScreenValidationError(
 					`
           [ink-cartridge] The modal layer ${action.targetModalLayerId} you want to delete elements from is not registered; you might have made a typo, or it was never registered at all.
           `
@@ -1167,7 +1216,7 @@ function screenReducer(state: ScreenState, action: ScreenAction): ScreenState {
 				(each) => each.layerId === action.targetModalLayerId
 			);
 			if (targetModalLayerIndex === -1) {
-				throw new Error(
+				throw new ScreenValidationError(
 					`[ink-cartridge] activateElementInModalLayer: modal layer "${action.targetModalLayerId}" is not registered.`
 				);
 			}
@@ -1176,7 +1225,7 @@ function screenReducer(state: ScreenState, action: ScreenAction): ScreenState {
 				action.targetElementId
 			);
 			if (!targetElement) {
-				throw new Error(
+				throw new ScreenValidationError(
 					`[ink-cartridge] activateElementInModalLayer: element "${action.targetElementId}" does not exist on modal layer "${action.targetModalLayerId}".`
 				);
 			}
@@ -1200,7 +1249,7 @@ function screenReducer(state: ScreenState, action: ScreenAction): ScreenState {
 				(each) => each.layerId === action.targetModalLayerId
 			);
 			if (targetModalLayerIndex === -1) {
-				throw new Error(
+				throw new ScreenValidationError(
 					`[ink-cartridge] deactivateElementInModalLayer: modal layer "${action.targetModalLayerId}" is not registered.`
 				);
 			}
@@ -1209,7 +1258,7 @@ function screenReducer(state: ScreenState, action: ScreenAction): ScreenState {
 				action.targetElementId
 			);
 			if (!targetElement) {
-				throw new Error(
+				throw new ScreenValidationError(
 					`[ink-cartridge] deactivateElementInModalLayer: element "${action.targetElementId}" does not exist on modal layer "${action.targetModalLayerId}".`
 				);
 			}
@@ -1262,7 +1311,7 @@ export function ScenarioManagementProvider({
 }: ScenarioManagementProviderProps) {
 	if (!hasComponent(defaultScreen)) {
 		throw new Error(
-			`[Ink-Cartridge] defaultScreen "${
+			`[ink-cartridge] defaultScreen "${
 				defaultScreen.displayName || defaultScreen.name || "anonymous"
 			}" is not registered. Please call registerComponent() first.`
 		);
@@ -1305,7 +1354,7 @@ export function ScenarioManagementProvider({
 		() => (component, ...args) => {
 			if (!hasComponent(component)) {
 				throw new Error(
-					`[Ink-Cartridge] Component "${
+					`[ink-cartridge] Component "${
 						component.displayName || component.name || "anonymous"
 					}" is not registered.`
 				);
@@ -1314,7 +1363,7 @@ export function ScenarioManagementProvider({
 			dispatch({
 				type: "skip",
 				component,
-				params: params as Record<string, unknown>,
+				params: toActionParams(params),
 				onlyAttribute: options?.onlyAttribute ?? false,
 			});
 		},
@@ -1324,8 +1373,8 @@ export function ScenarioManagementProvider({
 	const backInContext: BackFn = useMemo(
 		() =>
 			(levels: number = 1) => {
-				if (levels < 1) {
-					throw new Error("[Ink-Cartridge] back() levels must be >= 1.");
+				if (!Number.isInteger(levels) || levels < 1) {
+					throw new Error("[ink-cartridge] back() levels must be an integer >= 1.");
 				}
 				dispatch({ type: "back", levels });
 			},
@@ -1336,7 +1385,7 @@ export function ScenarioManagementProvider({
 		() => (component, ...args) => {
 			if (!hasComponent(component)) {
 				throw new Error(
-					`[Ink-Cartridge] Component "${
+					`[ink-cartridge] Component "${
 						component.displayName || component.name || "anonymous"
 					}" is not registered.`
 				);
@@ -1345,7 +1394,7 @@ export function ScenarioManagementProvider({
 			dispatch({
 				type: "gotoScreen",
 				component,
-				params: params as Record<string, unknown>,
+				params: toActionParams(params),
 			});
 		},
 		[]
@@ -1364,7 +1413,7 @@ export function ScenarioManagementProvider({
 	);
 
 	const applyElementInContext: ApplyElementFn = useMemo(
-		() => (targetLayerId: string, layerElement: LayerElementInput<any>) => {
+		() => (targetLayerId: string, layerElement: AnyLayerElementInput) => {
 			dispatch({
 				type: "applyElement",
 				targetLayerId,
@@ -1439,7 +1488,7 @@ export function ScenarioManagementProvider({
 		() =>
 			(
 				targetModalLayerId: string,
-				modalLayerElement: LayerElementInput<any>
+				modalLayerElement: AnyLayerElementInput
 			) => {
 				dispatch({
 					type: "applyElementToModalLayer",

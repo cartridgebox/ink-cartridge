@@ -1,5 +1,6 @@
 import {
   KeyRuleContainer,
+  componentName,
   finalizeBoundKeyboard,
   pushKeyEntries,
 } from "../providers/helpers.js";
@@ -110,12 +111,17 @@ export default class BindingService<TComponent = unknown> {
       return { keys, handler };
     };
 
-    const applyGlobalKeyOverrides = (
+    // Validate the binding against registered global keys and return the key
+    // names it overrides. Pure: the overrides are applied by the caller only
+    // once the entry is built, so a throw (unknown actionId, or a cover: false
+    // conflict) can no longer leave a stray override that suppresses the
+    // global key for good.
+    const collectGlobalKeyOverrides = (
       keys: string[],
       owner: TComponent | string,
-      layer: PageKeyboardLayer | ElementKeyboard,
       bindingContext: string,
-    ): void => {
+    ): string[] => {
+      const overrides: string[] = [];
       for (const gk of this.state.globalKeysRef) {
         const gkKeys = Array.isArray(gk.key) ? gk.key : [gk.key];
         const matchingKeys = gkKeys.filter((k) => keys.includes(k));
@@ -149,8 +155,7 @@ export default class BindingService<TComponent = unknown> {
         } else {
           if (affectOverlay) continue;
           if (!cover) {
-            const ownerName =
-              (owner as any).displayName || (owner as any).name || "anonymous";
+            const ownerName = componentName(owner);
             throw new Error(
               `[keyboard-engine] Component "${ownerName}" ` +
                 `attempted to bind "${matchingKeys[0]}" via ${bindingContext}, ` +
@@ -159,10 +164,9 @@ export default class BindingService<TComponent = unknown> {
           }
         }
 
-        for (const k of matchingKeys) {
-          layer.globalKeyOverrides.add(k);
-        }
+        overrides.push(...matchingKeys);
       }
+      return overrides;
     };
 
     if (
@@ -219,13 +223,14 @@ export default class BindingService<TComponent = unknown> {
           ? this.layers.getOrCreateFocusTarget(layer, fid)
           : this.layers.getOrCreateFocusTarget(layer, fid.focusId, fid.group);
 
-      applyGlobalKeyOverrides(keys, owner, layer, `focusId="${fid}"`);
+      const overrides = collectGlobalKeyOverrides(keys, owner, `focusId="${fid}"`);
 
       const entry = createBoundKeyEntry(keys, handler);
       entry.when = options?.when;
       entry.mode = options?.mode;
 
       target.bindings.push(entry);
+      for (const k of overrides) layer.globalKeyOverrides.add(k);
 
       return finalizeBoundKeyboard(
         target.bindings,
@@ -238,7 +243,7 @@ export default class BindingService<TComponent = unknown> {
       );
     }
 
-    applyGlobalKeyOverrides(keys, owner, layer, "boundKeyboard");
+    const overrides = collectGlobalKeyOverrides(keys, owner, "boundKeyboard");
 
     const entry = createBoundKeyEntry(keys, handler);
     entry.when = options?.when;
@@ -251,6 +256,7 @@ export default class BindingService<TComponent = unknown> {
         options?.stopsWorkingAfterLayerAppearing;
       layer.bindings.push(entry);
     }
+    for (const k of overrides) layer.globalKeyOverrides.add(k);
 
     return finalizeBoundKeyboard(
       layer.bindings,
@@ -311,10 +317,7 @@ export default class BindingService<TComponent = unknown> {
           ).actionKeysMap
         : layer.actionKeysMap;
       const merged: string[] = [];
-      const ownerName =
-        typeof owner === "string"
-          ? owner
-          : (owner as any).displayName || (owner as any).name || "Unknown";
+      const ownerName = componentName(owner);
       for (const actionId of keys) {
         const boundKeys = map.get(actionId);
         if (!boundKeys) {
@@ -462,9 +465,7 @@ export default class BindingService<TComponent = unknown> {
           if (Array.isArray(cat) && !cat.includes(owner)) continue;
         }
       }
-      const ownerName = isOverlayOwner
-        ? owner
-        : (owner as any).displayName || (owner as any).name || "anonymous";
+      const ownerName = componentName(owner);
       throw new Error(
         `[keyboard-engine] ${isOverlayOwner ? `Overlay "${ownerName}"` : `Component "${ownerName}"`} ` +
           `attempted to bind sequence [${keys.join(", ")}] via boundSequence, ` +

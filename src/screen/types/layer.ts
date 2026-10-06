@@ -466,7 +466,7 @@ export type ApplyElementToModalLayerAction = {
   modalLayerElement: LayerElement;
 };
 
-/** Applies an element to a registered layer. */
+/** Applies an element to a registered modal layer. */
 export type ApplyElementToModalLayerFn = <C extends ComponentType<any>>(
   targetModalLayerId: string,
   modalLayerElement: LayerElementInput<C>,
@@ -483,7 +483,7 @@ export type CloseModalLayerAction = {
    */
   targetModalLayerId: string;
 };
-/** Closes a registered layer by ID. */
+/** Closes a registered modal layer by ID. */
 export type CloseModalLayerFn = (targetModalLayerId: string) => void;
 
 /**
@@ -503,9 +503,9 @@ export type EraseElementInModalLayerAction = {
   targetElementId: string;
 };
 
-/** Removes an element from a registered layer. */
+/** Removes an element from a registered modal layer. */
 export type EraseElementInModalLayerFn = (
-  targetLayerId: string,
+  targetModalLayerId: string,
   targetElementId: string,
 ) => void;
 

@@ -9,7 +9,6 @@ import {
 } from "../../src/screen/provider.js";
 import { CurrentScreen } from "../../src/screen/current-screen.js";
 import {
-  clearShortcutOperations,
   KeyboardProvider,
 } from "../../src/keyboard/provider.js";
 import { useKeyboard } from "../../src/keyboard/hook.js";
@@ -88,7 +87,6 @@ describe("useKeyboard() boundKeyboard calling forms", () => {
     unmount?.();
     unmount = null;
     clearDispatchers();
-    clearShortcutOperations();
     vi.clearAllMocks();
   });
 

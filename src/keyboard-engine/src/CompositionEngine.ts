@@ -968,7 +968,7 @@ export default class CompositionEngine<TComponent = unknown> {
 	 *
 	 * Clears the pending timer (no stale timeout callback will fire),
 	 * resets the context to `{ value: undefined, lastFlag: null, steps: [] }`,
-	 * and sets the engine's `compositionEngineHandle` flag to `false` so
+	 * and sets the engine's `compositionEngineHandler` flag to `false` so
 	 * pipeline processors stop treating the chain as pending. A pending
 	 * mapping sequence is cancelled too — callers reach for `abort()` to
 	 * drop the user's unfinished input, and a half-typed mapping prefix is
@@ -1102,7 +1102,7 @@ export default class CompositionEngine<TComponent = unknown> {
 		}
 
 		this.context = currentCtx;
-		this.state.compositionEngineHandle = false;
+		this.state.compositionEngineHandler = false;
 		// Report what was actually undone, not what was requested — a walk
 		// stopped by an `undoAction` returning `null` leaves the remaining
 		// sequences buffered.
@@ -1170,8 +1170,12 @@ export default class CompositionEngine<TComponent = unknown> {
 			}
 		}
 
-		// collected is already in reverse chronological order (most recent first)
+		// `collected` is in reverse chronological order (most recent first), so
+		// the successfully-undone entries are always a prefix of it. Counting
+		// them lets us drop exactly what was undone and leave a refused key —
+		// and everything older — buffered for a later undo.
 		let currentCtx: CompositionContext | null = null;
+		let undoneEntries = 0;
 
 		if (isolated) {
 			// Group entries by sequence, process each sequence independently
@@ -1199,48 +1203,42 @@ export default class CompositionEngine<TComponent = unknown> {
 						break;
 					}
 					seqCtx = nextCtx;
+					undoneEntries++;
 				}
 
 				if (stopped) break;
 				currentCtx = seqCtx;
 			}
 		} else {
-			// Flat mode: process all collected entries in order (already reversed)
+			// Flat mode: process all collected entries in order (already reversed).
+			// An empty selection (e.g. `steps: 0`) is a no-op, not a crash.
+			if (collected.length === 0) return null;
 			currentCtx = collected[0].entry.ctx;
 
 			for (const { entry } of collected) {
 				const nextCtx = this.processUndoEntry(entry, currentCtx);
 				if (nextCtx === null) break;
 				currentCtx = nextCtx;
+				undoneEntries++;
 			}
 		}
 
-		if (currentCtx === null) return null;
+		// Remove exactly what was undone, mirroring the sequence-counting path.
+		// Dropping every collected entry here lost a key whose `undoAction`
+		// refused — its undo never ran, yet it was no longer buffered.
+		this.removeLastBufferedEntries(undoneEntries);
 
-		// Remove the undone entries from their sequences, tracking how many
-		// were consumed per sequence.
-		const removals: Map<number, number> = new Map();
-		for (const c of collected) {
-			removals.set(c.seqIndex, (removals.get(c.seqIndex) ?? 0) + 1);
-		}
-
-		for (let si = this.buffers.length - 1; si >= 0; si--) {
-			const count = removals.get(si);
-			if (count === undefined) continue;
-
-			const seq = this.buffers[si];
-			if (count >= seq.length) {
-				// Entire sequence consumed
-				this.buffers.splice(si, 1);
-			} else {
-				// Partial sequence: remove the last N entries
-				seq.splice(seq.length - count, count);
+		if (currentCtx === null) {
+			if (undoneEntries > 0) {
+				this.notify({ type: "undone", steps: undoneEntries });
 			}
+			return null;
 		}
 
 		this.context = currentCtx;
-		this.state.compositionEngineHandle = false;
-		this.notify({ type: "undone", steps });
+		this.state.compositionEngineHandler = false;
+		// Report the individual keys actually undone, not what was requested.
+		this.notify({ type: "undone", steps: undoneEntries });
 		return currentCtx;
 	}
 
@@ -1394,7 +1392,7 @@ export default class CompositionEngine<TComponent = unknown> {
 		}
 
 		this.context = { value: undefined, lastFlag: null, steps: [] };
-		this.state.compositionEngineHandle = false;
+		this.state.compositionEngineHandler = false;
 	}
 
 	private resetPendingTimer(timeout: number): void {
@@ -1417,7 +1415,7 @@ export default class CompositionEngine<TComponent = unknown> {
 			clearTimeout(this.mappingPendingEntry.timer);
 			this.mappingPendingEntry = null;
 		}
-		this.state.compositionEngineHandle = false;
+		this.state.compositionEngineHandler = false;
 	}
 
 	/**
@@ -1764,7 +1762,7 @@ export default class CompositionEngine<TComponent = unknown> {
 		}, pending.timeout);
 		pending.timer = timer;
 		this.mappingPendingEntry = pending;
-		this.state.compositionEngineHandle = true;
+		this.state.compositionEngineHandler = true;
 		this.notifyMapping({ type: "started", key: keyOfDestiny });
 
 		return "consumed";
@@ -1979,7 +1977,7 @@ export default class CompositionEngine<TComponent = unknown> {
 
 		// NOTE: Since this is the start of the sequence key, we do not check the endKey.
 		this.context = nextCtx;
-		this.state.compositionEngineHandle = true;
+		this.state.compositionEngineHandler = true;
 
 		const pending: CompositionPending = {
 			timeout: result.timeout ?? this.defaultTimeout,
@@ -2034,10 +2032,20 @@ export default class CompositionEngine<TComponent = unknown> {
 				// recording it. Only chains that reach a terminal state
 				// (timeout, end key, `execute` returning null, or an explicit
 				// abort) are undoable.
-				if (outcome.reason === "terminate" || outcome.reason === "endkey") {
+				const terminal =
+					outcome.reason === "terminate" || outcome.reason === "endkey";
+				if (terminal) {
 					this.recordHistory();
 				}
 				this.clearPending();
+				// Subscribers must hear the chain end either way: a terminal
+				// state emits `completed`, a gate rejection emits `broken` —
+				// the same event a no-match break emits below.
+				this.notify(
+					terminal
+						? { type: "completed" }
+						: { type: "broken", key: this.currentKey[0] ?? result.key },
+				);
 				return outcome.release;
 			}
 

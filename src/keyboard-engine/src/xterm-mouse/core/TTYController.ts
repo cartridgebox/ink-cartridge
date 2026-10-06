@@ -20,7 +20,6 @@ const ttyCleanupRegistry: FinalizationRegistry<{
   handleEvent: (data: Buffer) => void;
   outputStream: NodeJS.WriteStream;
   previousRawMode: boolean | null;
-  isRaw: boolean | null;
   setRawModeFn?: (mode: boolean) => void;
 }> = new FinalizationRegistry(
   (heldValue: {
@@ -28,7 +27,6 @@ const ttyCleanupRegistry: FinalizationRegistry<{
     handleEvent: (data: Buffer) => void;
     outputStream: NodeJS.WriteStream;
     previousRawMode: boolean | null;
-    isRaw: boolean | null;
     setRawModeFn?: (mode: boolean) => void;
   }) => {
     try {
@@ -38,11 +36,14 @@ const ttyCleanupRegistry: FinalizationRegistry<{
     }
 
     try {
-      if (heldValue.isRaw) {
+      // Restore the mode from BEFORE enabling — not "off". A terminal that was
+      // already raw must stay raw, and with a custom `setRawModeFn` the
+      // stream's own `isRaw` never reflects the change anyway.
+      if (heldValue.previousRawMode !== null) {
         if (heldValue.setRawModeFn) {
-          heldValue.setRawModeFn(false);
+          heldValue.setRawModeFn(heldValue.previousRawMode);
         } else {
-          heldValue.inputStream.setRawMode(false);
+          heldValue.inputStream.setRawMode(heldValue.previousRawMode);
         }
       }
       heldValue.inputStream.pause();
@@ -92,12 +93,12 @@ export class TTYController {
     private setRawModeFn?: (mode: boolean) => void,
   ) {
     validateReadableStream(inputStream, 'inputStream');
-    // biome-ignore lint/security/noSecrets: stream name
+
     validateWritableStream(outputStream, 'outputStream');
     validateFunction(handleEvent, 'handleEvent');
 
     if (setRawModeFn !== undefined) {
-      // biome-ignore lint/security/noSecrets: function name
+
       validateFunction(setRawModeFn, 'setRawModeFn');
     }
   }
@@ -156,13 +157,19 @@ export class TTYController {
           handleEvent: this.handleEvent,
           outputStream: this.outputStream,
           previousRawMode: this.previousRawMode,
-          isRaw: this.inputStream.isRaw ?? false,
           setRawModeFn: this.setRawModeFn,
         },
         this.cleanupToken,
       );
     } catch (err) {
-      this.enabled = false;
+      // Roll back what already took effect: the mouse-on codes are written and
+      // raw mode may be on. `enabled` is still true here, so disable() runs the
+      // full cleanup — its own failure must not mask the original error.
+      try {
+        this.disable();
+      } catch {
+        // Keep the original failure; disable()'s finally already reset the flags.
+      }
       throw new MouseError(
         `Failed to enable mouse: ${err instanceof Error ? err.message : String(err)}`,
         err instanceof Error ? err : undefined,
@@ -180,38 +187,56 @@ export class TTYController {
       return;
     }
 
-    try {
-      // Unregister from FinalizationRegistry before cleanup
-      if (this.cleanupToken) {
-        ttyCleanupRegistry.unregister(this.cleanupToken);
-        this.cleanupToken = null;
+    // Every step runs independently: one failing step (a broken stdout, a
+    // throwing pause()) must not skip the rest of the terminal restore. The
+    // first failure is reported once the cleanup has been attempted in full.
+    let failure: unknown = null;
+    const attempt = (step: () => void): void => {
+      try {
+        step();
+      } catch (err) {
+        failure ??= err;
       }
+    };
 
-      this.inputStream.off('data', this.handleEvent);
-      this.inputStream.pause();
-
-      if (this.previousRawMode !== null) {
-        this.setRawMode(this.previousRawMode);
-        this.currentRawMode = this.previousRawMode;
-      }
-
-      if (this.previousEncoding !== null) {
-        this.inputStream.setEncoding(this.previousEncoding);
-      }
-
+    attempt(() => {
       this.outputStream.write(
         ANSI_CODES.mouseSGR.off + ANSI_CODES.mouseMotion.off + ANSI_CODES.mouseDrag.off + ANSI_CODES.mouseButton.off,
       );
-    } catch (err) {
+    });
+    attempt(() => this.inputStream.off('data', this.handleEvent));
+    attempt(() => this.inputStream.pause());
+
+    const previousRawMode = this.previousRawMode;
+    if (previousRawMode !== null) {
+      attempt(() => {
+        this.setRawMode(previousRawMode);
+        this.currentRawMode = previousRawMode;
+      });
+    }
+
+    const previousEncoding = this.previousEncoding;
+    if (previousEncoding !== null) {
+      attempt(() => this.inputStream.setEncoding(previousEncoding));
+    }
+
+    // Unregister only after a fully successful cleanup: on a partial failure
+    // the registry stays as the last-resort GC fallback.
+    if (failure === null && this.cleanupToken) {
+      ttyCleanupRegistry.unregister(this.cleanupToken);
+      this.cleanupToken = null;
+    }
+
+    this.enabled = false;
+    this.previousRawMode = null;
+    this.previousEncoding = null;
+    this.currentRawMode = null;
+
+    if (failure !== null) {
       throw new MouseError(
-        `Failed to disable mouse: ${err instanceof Error ? err.message : String(err)}`,
-        err instanceof Error ? err : undefined,
+        `Failed to disable mouse: ${failure instanceof Error ? failure.message : String(failure)}`,
+        failure instanceof Error ? failure : undefined,
       );
-    } finally {
-      this.enabled = false;
-      this.previousRawMode = null;
-      this.previousEncoding = null;
-      this.currentRawMode = null;
     }
   };
 
@@ -273,10 +298,5 @@ export class TTYController {
    */
   public destroy(): void {
     this.disable();
-
-    if (this.cleanupToken) {
-      ttyCleanupRegistry.unregister(this.cleanupToken);
-      this.cleanupToken = null;
-    }
   }
 }

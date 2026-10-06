@@ -125,7 +125,7 @@ describe('back', () => {
     expect(getCapture()!.currentPath.map((p) => p.component)).toEqual([Menu, GameLevel]);
   });
 
-  it('throws when back(0) is called (levels must be >= 1)', () => {
+  it('throws when back(0) is called (levels must be an integer >= 1)', () => {
     const { getCapture } = renderWithCapture(Menu);
     const ctx = getCapture()!;
 
@@ -133,12 +133,28 @@ describe('back', () => {
       ctx.skip(GameLevel, { level: 1 });
     });
 
-    // The levels < 1 guard runs before dispatch, so the error throws synchronously.
-    expect(() => ctx.back(0)).toThrow('levels must be >= 1');
+    // The levels guard runs before dispatch, so the error throws synchronously.
+    expect(() => ctx.back(0)).toThrow('levels must be an integer >= 1');
+  });
+
+  it('rejects NaN and fractional levels before dispatch, leaving the path unchanged', () => {
+    const { getCapture } = renderWithCapture(Menu);
+    const ctx = getCapture()!;
+
+    act(() => {
+      ctx.skip(GameLevel, { level: 1 });
+    });
+
+    // `NaN < 1` is false and a fraction truncates in the reducer's
+    // `slice(0, -levels)` — either would corrupt the path (NaN empties it).
+    expect(() => ctx.back(NaN)).toThrow('levels must be an integer >= 1');
+    expect(() => ctx.back(1.5)).toThrow('levels must be an integer >= 1');
+    expect(getCapture()!.currentPath.map((p) => p.component)).toEqual([Menu, GameLevel]);
   });
 
   it('rejects back(n) when n exceeds the current depth, leaving the path unchanged', () => {
-    const { getCapture } = renderWithCapture(Menu);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { getCapture, lastFrame } = renderWithCapture(Menu);
     const ctx = getCapture()!;
 
     act(() => {
@@ -146,11 +162,17 @@ describe('back', () => {
     });
     expect(getCapture()!.currentPath.map((p) => p.component)).toEqual([Menu, GameLevel]);
 
-    // back(5) exceeds depth of 2 — the reducer rejects this; path must not change.
-    ctx.back(5);
+    // back(5) exceeds depth of 2 — the action is ignored: no exception (a
+    // throw inside the reducer would not be catchable and would unmount the
+    // app), the path stays put, and development gets a warning.
+    act(() => {
+      ctx.back(5);
+    });
 
     const updated = getCapture()!;
     expect(updated.currentPath.map((p) => p.component)).toEqual([Menu, GameLevel]);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('back(5) failed'));
+    expect(lastFrame()).toContain('Level 1');
   });
 
   it('clears all open overlays when navigating via back', () => {
