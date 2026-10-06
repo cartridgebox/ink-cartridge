@@ -383,10 +383,14 @@ describe('TTYController', () => {
       mockOutputStream.write = vi.fn(() => {
         throw new Error('Write failed');
       });
+      const pauseSpy = vi.spyOn(mockInputStream, 'pause');
 
       // Act & Assert
-      expect(() => controller.disable()).toThrow();
+      expect(() => controller.disable()).toThrow(/Failed to disable mouse/);
       expect(controller.isEnabled()).toBe(false); // Should still set enabled to false
+      // A failed off-code write must not skip the rest of the cleanup.
+      expect(pauseSpy).toHaveBeenCalled();
+      expect(mockInputStream.isRaw).toBe(false); // raw mode restored
     });
 
     test('still writes the off codes when cleanup throws mid-way', () => {

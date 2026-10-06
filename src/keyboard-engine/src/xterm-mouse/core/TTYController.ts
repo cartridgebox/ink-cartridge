@@ -187,41 +187,56 @@ export class TTYController {
       return;
     }
 
-    try {
-      // The off codes are what actually un-stick the terminal, so emit them
-      // first — a throwing pause()/setRawMode() must not skip them.
+    // Every step runs independently: one failing step (a broken stdout, a
+    // throwing pause()) must not skip the rest of the terminal restore. The
+    // first failure is reported once the cleanup has been attempted in full.
+    let failure: unknown = null;
+    const attempt = (step: () => void): void => {
+      try {
+        step();
+      } catch (err) {
+        failure ??= err;
+      }
+    };
+
+    attempt(() => {
       this.outputStream.write(
         ANSI_CODES.mouseSGR.off + ANSI_CODES.mouseMotion.off + ANSI_CODES.mouseDrag.off + ANSI_CODES.mouseButton.off,
       );
+    });
+    attempt(() => this.inputStream.off('data', this.handleEvent));
+    attempt(() => this.inputStream.pause());
 
-      this.inputStream.off('data', this.handleEvent);
-      this.inputStream.pause();
+    const previousRawMode = this.previousRawMode;
+    if (previousRawMode !== null) {
+      attempt(() => {
+        this.setRawMode(previousRawMode);
+        this.currentRawMode = previousRawMode;
+      });
+    }
 
-      if (this.previousRawMode !== null) {
-        this.setRawMode(this.previousRawMode);
-        this.currentRawMode = this.previousRawMode;
-      }
+    const previousEncoding = this.previousEncoding;
+    if (previousEncoding !== null) {
+      attempt(() => this.inputStream.setEncoding(previousEncoding));
+    }
 
-      if (this.previousEncoding !== null) {
-        this.inputStream.setEncoding(this.previousEncoding);
-      }
+    // Unregister only after a fully successful cleanup: on a partial failure
+    // the registry stays as the last-resort GC fallback.
+    if (failure === null && this.cleanupToken) {
+      ttyCleanupRegistry.unregister(this.cleanupToken);
+      this.cleanupToken = null;
+    }
 
-      // Unregister only after a fully successful cleanup: on a partial failure
-      // the registry stays as the last-resort GC fallback.
-      if (this.cleanupToken) {
-        ttyCleanupRegistry.unregister(this.cleanupToken);
-        this.cleanupToken = null;
-      }
-    } catch (err) {
+    this.enabled = false;
+    this.previousRawMode = null;
+    this.previousEncoding = null;
+    this.currentRawMode = null;
+
+    if (failure !== null) {
       throw new MouseError(
-        `Failed to disable mouse: ${err instanceof Error ? err.message : String(err)}`,
-        err instanceof Error ? err : undefined,
+        `Failed to disable mouse: ${failure instanceof Error ? failure.message : String(failure)}`,
+        failure instanceof Error ? failure : undefined,
       );
-    } finally {
-      this.enabled = false;
-      this.previousRawMode = null;
-      this.previousEncoding = null;
-      this.currentRawMode = null;
     }
   };
 
