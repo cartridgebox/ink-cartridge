@@ -51,7 +51,7 @@ describe('openLayer', () => {
     expect(updated.allLayers[0].elements.size).toBe(1);
   });
 
-  it('throws when opening a layer with a duplicate ID', () => {
+  it('ignores opening a layer with a duplicate ID', () => {
     const { getCapture } = renderWithCapture(Menu);
     const ctx = getCapture()!;
 
@@ -62,6 +62,27 @@ describe('openLayer', () => {
 
     ctx.openLayer('dup', 2);
     expect(getCapture()!.allLayers.length).toBe(1);
+  });
+});
+
+describe('invalid targets', () => {
+  it('ignores an element applied to an unopened layer, warning in development', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { getCapture, lastFrame } = renderWithCapture(Menu);
+
+    act(() => {
+      getCapture()!.applyElement('missing-layer', {
+        elementId: 'e1',
+        element: Popup,
+      });
+    });
+
+    // Not a throw: the action is ignored and the app keeps rendering.
+    expect(getCapture()!.allLayers).toHaveLength(0);
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining('has not been registered'),
+    );
+    expect(lastFrame()).toContain('Menu');
   });
 });
 

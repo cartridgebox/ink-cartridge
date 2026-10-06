@@ -35,7 +35,7 @@ export function registerComponent<C extends React.ComponentType<any>>(
 ): void {
   if (registry.has(component)) {
     throw new Error(
-      `[Ink-Cartridge] Component "${component.displayName || component.name || "anonymous"}" is already registered. Duplicate registration is not allowed.`,
+      `[ink-cartridge] Component "${component.displayName || component.name || "anonymous"}" is already registered. Duplicate registration is not allowed.`,
     );
   }
 
@@ -49,11 +49,9 @@ export function registerComponent<C extends React.ComponentType<any>>(
     if (!parentEntry) {
       const compName = component.displayName || component.name || "anonymous";
       const parentName =
-        (options.parent as any).displayName ||
-        (options.parent as any).name ||
-        "anonymous";
+        options.parent.displayName || options.parent.name || "anonymous";
       throw new Error(
-        `[Ink-Cartridge] registerComponent("${compName}"): parent component "${parentName}" is not registered. ` +
+        `[ink-cartridge] registerComponent("${compName}"): parent component "${parentName}" is not registered. ` +
         `Register the parent first with registerComponent(${parentName}, template).`,
       );
     }
