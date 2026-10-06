@@ -96,7 +96,8 @@ function decodeESCButton(code: number): { button: ButtonType; action: MouseEvent
         break;
     }
   } else {
-    // Button event
+    // Button event — `& 3` keeps only the two button bits, so the modifier and
+    // motion bits above them are already masked off here.
     switch (code & 3) {
       case 0:
         button = 'left';

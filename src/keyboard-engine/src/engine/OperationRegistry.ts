@@ -202,7 +202,7 @@ export default class OperationRegistry<TComponent = unknown> {
         const entry = this.state.shortcutOperationsRef.get(each.operate);
         if (!entry) {
           throw new Error(
-            `[ink-cartridge]You want to call the shortcut ${each.operate} in the global key, but it is not registered`,
+            `[ink-cartridge] You want to call the shortcut ${each.operate} in the global key, but it is not registered`,
           );
         }
 

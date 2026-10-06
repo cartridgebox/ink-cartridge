@@ -11,10 +11,10 @@ Fix a batch of correctness bugs found in a source review, and normalize error-me
 - `ink-cartridge` now exports `activateElementInModalLayer` and `deactivateElementInModalLayer` from the package root as well.
 
 ### Changed
-- Error and warning messages use the `[ink-cartridge]` prefix instead of the capitalized `[Ink-Cartridge]` spelling, so code that matches those strings should switch to the new prefix.
+- Error and warning messages use the `[ink-cartridge]` prefix instead of the capitalized `[Ink-Cartridge]` spelling, so code that matches those strings should switch to the new prefix. Message text only — no API is removed or changed.
 - The vendored `[xterm-mouse]` prefix for validation errors is gone; those messages use `[ink-cartridge]` too.
 - Messages raised by the keyboard-engine package keep their `[keyboard-engine]` prefix.
-- Navigation and layer validation failures no longer throw from inside the reducer: React cannot surface a `useReducer` throw at the dispatch call site, so those errors used to tear the whole app down.
+- Navigation and layer validation failures no longer throw from inside the reducer: React cannot surface a `useReducer` throw at the dispatch call site, so those errors used to tear the whole app down. Not breaking — the throw was never observable from the call site, so no working error-handling contract is removed; errors from the reducer that are not validation failures still propagate.
 - Those validation failures now warn in development and leave the previous state unchanged; production builds stay silent and simply ignore the action.
 - `getGlobalKeys()` returns a copy, like `getGlobalSequences()`, so a caller can no longer mutate engine state through the returned array.
 - A global sequence that is already pending keeps the pending slot: pressing the first key of a sequence from the other `affectLayer` phase no longer silently replaces the armed one.
