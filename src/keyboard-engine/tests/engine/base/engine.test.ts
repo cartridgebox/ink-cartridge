@@ -70,6 +70,34 @@ describe("BindingService boundKeyboard", () => {
     expect(() => engine.boundKeyboard("missing", {})).toThrow();
   });
 
+  it("does not suppress a global key when boundKeyboard throws", () => {
+    const engine = createEngine();
+    const globalOperate = vi.fn();
+    engine.sync({ pagePath: [Page], layers: [], modalLayers: [] });
+    engine.globalKeys([{ key: "x", operate: globalOperate }]);
+    // Unknown action id: the binding fails, so it must not register the
+    // override that would hide the global key from here on.
+    expect(() => engine.boundKeyboard("x", "missing-action")).toThrow();
+    engine.processKey("x", {});
+    expect(globalOperate).toHaveBeenCalledTimes(1);
+  });
+
+  it("applies no override when a cover:false conflict throws mid-scan", () => {
+    const engine = createEngine();
+    const first = vi.fn();
+    engine.sync({ pagePath: [Page], layers: [], modalLayers: [] });
+    engine.globalKeys([
+      { key: "x", operate: first },
+      { key: "y", operate: () => {}, cover: false },
+    ]);
+    expect(() => engine.boundKeyboard(["x", "y"], () => {})).toThrow(
+      /cover: false/,
+    );
+    // The scan aborted on "y"; "x" must not have been left overridden.
+    engine.processKey("x", {});
+    expect(first).toHaveBeenCalledTimes(1);
+  });
+
   it("honours times, observer and once", () => {
     const engine = createEngine();
     const handler = vi.fn();
