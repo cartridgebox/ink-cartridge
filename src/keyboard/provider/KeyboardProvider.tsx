@@ -255,8 +255,8 @@ function useStableOptions<T extends object>(value: T | undefined): T | undefined
 			previous !== undefined &&
 			value !== undefined &&
 			Object.keys(previous).length === Object.keys(value).length &&
-			(Object.keys(previous) as (keyof T)[]).every((key) =>
-				Object.is(previous[key], value[key])
+			Object.keys(previous).every((key) =>
+				Object.is(Reflect.get(previous, key), Reflect.get(value, key))
 			);
 		if (!same) ref.current = value;
 	}
