@@ -1,6 +1,6 @@
 {
   "name": "@cartridge-engine/theme",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Theming for Ink apps — ThemeProvider, useTheme, and the make-theme-type / init-theme CLIs",
   "type": "module",
   "main": "./dist/index.js",
