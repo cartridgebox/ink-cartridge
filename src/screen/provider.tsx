@@ -528,7 +528,7 @@ function findCommonAncestor(
 		}
 	}
 
-	throw new Error(
+	throw new ScreenValidationError(
 		`[ink-cartridge] Cannot find common ancestor. The target component may not be in the same tree.`
 	);
 }
@@ -547,7 +547,7 @@ function buildPathFrom(
 		node = getParent(node);
 	}
 	if (!node) {
-		throw new Error(
+		throw new ScreenValidationError(
 			`[ink-cartridge] Target component is not a descendant of the ancestor.`
 		);
 	}
@@ -560,6 +560,17 @@ export function getPath(pages: Page[]) {
 }
 
 /**
+ * A reducer validation failure: the action cannot be applied to the current
+ * state (unknown layer/element, out-of-range navigation, an ID conflict).
+ * {@link screenReducer} turns these into a development warning plus a no-op;
+ * any other error from the reducer is a genuine bug and keeps propagating.
+ *
+ * The reducer works on copies, so returning the previous state after such a
+ * failure commits none of the partial work.
+ */
+class ScreenValidationError extends Error {}
+
+/**
  * Pure reducer for {@link ScreenState}.
  *
  * Handles all navigation actions: skip (down), back (up), gotoScreen
@@ -570,18 +581,17 @@ export function getPath(pages: Page[]) {
  * Navigation actions filter out non-persistent layers and modal layers
  * (crossPage: false) and recalculate active state for persistent entries.
  *
- * Validation failures (unknown layer/element, out-of-range navigation, ID
- * conflicts) do NOT escape as exceptions: a throw inside `useReducer` is not
- * catchable at the dispatch call site and unmounts the app. They warn in
- * development and leave the previous state unchanged.
+ * Validation failures do NOT escape as exceptions: a throw inside `useReducer`
+ * is not catchable at the dispatch call site and unmounts the app. They warn
+ * in development and leave the previous state unchanged; every other error is
+ * re-thrown so real bugs stay visible.
  */
 function screenReducer(state: ScreenState, action: ScreenAction): ScreenState {
 	try {
 		return reduceScreenAction(state, action);
 	} catch (err) {
-		warnInDev(
-			`${err instanceof Error ? err.message : String(err)} — action ignored.`
-		);
+		if (!(err instanceof ScreenValidationError)) throw err;
+		warnInDev(`${err.message} — action ignored.`);
 		return state;
 	}
 }
@@ -595,7 +605,7 @@ function reduceScreenAction(state: ScreenState, action: ScreenAction): ScreenSta
 			// target must be a direct child.
 			const isSelf = action.component === current.component;
 			if (!isSelf && !isChildOf(action.component, current.component)) {
-				throw new Error(
+				throw new ScreenValidationError(
 					`[ink-cartridge] "${
 						action.component.displayName || action.component.name || "anonymous"
 					}" is not a child of "${
@@ -657,7 +667,7 @@ function reduceScreenAction(state: ScreenState, action: ScreenAction): ScreenSta
 			const levels = action.levels ?? 1;
 
 			if (state.path.length <= levels) {
-				throw new Error(
+				throw new ScreenValidationError(
 					levels === 1
 						? "[ink-cartridge] back() failed: already at the root node, cannot go back."
 						: `[ink-cartridge] back(${levels}) failed: current depth is ${state.path.length}, cannot go back ${levels} levels.`
@@ -693,7 +703,7 @@ function reduceScreenAction(state: ScreenState, action: ScreenAction): ScreenSta
 				.indexOf(commonAncestor);
 
 			if (ancestorIndex === -1) {
-				throw new Error(
+				throw new ScreenValidationError(
 					`[ink-cartridge] gotoScreen failed: cannot locate common ancestor.`
 				);
 			}
@@ -750,7 +760,7 @@ function reduceScreenAction(state: ScreenState, action: ScreenAction): ScreenSta
 			if (
 				state.allModalLayers.some((each) => each.layerId === action.layerId)
 			) {
-				throw new Error(
+				throw new ScreenValidationError(
 					`
           [ink-cartridge] Layer ID "${action.layerId}" is already used by a modal layer. Modal layers and normal layers share the ID namespace in the keyboard engine, so reuse across the two is not allowed.
           `
@@ -786,7 +796,7 @@ function reduceScreenAction(state: ScreenState, action: ScreenAction): ScreenSta
 			);
 
 			if (targetLayerIndex === -1) {
-				throw new Error(
+				throw new ScreenValidationError(
 					`
           [ink-cartridge] The target ${action.targetLayerId} you entered has not been registered.
 
@@ -855,7 +865,7 @@ function reduceScreenAction(state: ScreenState, action: ScreenAction): ScreenSta
 			);
 
 			if (targetLayerIndex === -1) {
-				throw new Error(
+				throw new ScreenValidationError(
 					`
           [ink-cartridge] The layer ${action.targetLayerId} you want to delete is not registered; you might have made a typo, or it was never registered at all.
           `
@@ -983,14 +993,14 @@ function reduceScreenAction(state: ScreenState, action: ScreenAction): ScreenSta
 				(each) => each.layerId === action.targetLayerId
 			);
 			if (targetLayerIndex === -1) {
-				throw new Error(
+				throw new ScreenValidationError(
 					`[ink-cartridge] activateElement: layer "${action.targetLayerId}" is not registered.`
 				);
 			}
 			const targetLayer = state.allLayers[targetLayerIndex];
 			const targetElement = targetLayer.elements.get(action.targetElementId);
 			if (!targetElement) {
-				throw new Error(
+				throw new ScreenValidationError(
 					`[ink-cartridge] activateElement: element "${action.targetElementId}" does not exist on layer "${action.targetLayerId}".`
 				);
 			}
@@ -1014,14 +1024,14 @@ function reduceScreenAction(state: ScreenState, action: ScreenAction): ScreenSta
 				(each) => each.layerId === action.targetLayerId
 			);
 			if (targetLayerIndex === -1) {
-				throw new Error(
+				throw new ScreenValidationError(
 					`[ink-cartridge] deactivateElement: layer "${action.targetLayerId}" is not registered.`
 				);
 			}
 			const targetLayer = state.allLayers[targetLayerIndex];
 			const targetElement = targetLayer.elements.get(action.targetElementId);
 			if (!targetElement) {
-				throw new Error(
+				throw new ScreenValidationError(
 					`[ink-cartridge] deactivateElement: element "${action.targetElementId}" does not exist on layer "${action.targetLayerId}".`
 				);
 			}
@@ -1052,7 +1062,7 @@ function reduceScreenAction(state: ScreenState, action: ScreenAction): ScreenSta
 				return state;
 			}
 			if (state.allLayers.some((each) => each.layerId === action.layerId)) {
-				throw new Error(
+				throw new ScreenValidationError(
 					`
           [ink-cartridge] Modal layer ID "${action.layerId}" is already used by a normal layer. Modal layers and normal layers share the ID namespace in the keyboard engine, so reuse across the two is not allowed.
           `
@@ -1091,7 +1101,7 @@ function reduceScreenAction(state: ScreenState, action: ScreenAction): ScreenSta
 			);
 
 			if (targetModalLayerIndex === -1) {
-				throw new Error(
+				throw new ScreenValidationError(
 					`
           [ink-cartridge] The target modal layer ${action.targetModalLayerId} you entered has not been registered.
 
@@ -1162,7 +1172,7 @@ function reduceScreenAction(state: ScreenState, action: ScreenAction): ScreenSta
 			);
 
 			if (targetModalLayerIndex === -1) {
-				throw new Error(
+				throw new ScreenValidationError(
 					`
           [ink-cartridge] The modal layer ${action.targetModalLayerId} you want to delete elements from is not registered; you might have made a typo, or it was never registered at all.
           `
@@ -1206,7 +1216,7 @@ function reduceScreenAction(state: ScreenState, action: ScreenAction): ScreenSta
 				(each) => each.layerId === action.targetModalLayerId
 			);
 			if (targetModalLayerIndex === -1) {
-				throw new Error(
+				throw new ScreenValidationError(
 					`[ink-cartridge] activateElementInModalLayer: modal layer "${action.targetModalLayerId}" is not registered.`
 				);
 			}
@@ -1215,7 +1225,7 @@ function reduceScreenAction(state: ScreenState, action: ScreenAction): ScreenSta
 				action.targetElementId
 			);
 			if (!targetElement) {
-				throw new Error(
+				throw new ScreenValidationError(
 					`[ink-cartridge] activateElementInModalLayer: element "${action.targetElementId}" does not exist on modal layer "${action.targetModalLayerId}".`
 				);
 			}
@@ -1239,7 +1249,7 @@ function reduceScreenAction(state: ScreenState, action: ScreenAction): ScreenSta
 				(each) => each.layerId === action.targetModalLayerId
 			);
 			if (targetModalLayerIndex === -1) {
-				throw new Error(
+				throw new ScreenValidationError(
 					`[ink-cartridge] deactivateElementInModalLayer: modal layer "${action.targetModalLayerId}" is not registered.`
 				);
 			}
@@ -1248,7 +1258,7 @@ function reduceScreenAction(state: ScreenState, action: ScreenAction): ScreenSta
 				action.targetElementId
 			);
 			if (!targetElement) {
-				throw new Error(
+				throw new ScreenValidationError(
 					`[ink-cartridge] deactivateElementInModalLayer: element "${action.targetElementId}" does not exist on modal layer "${action.targetModalLayerId}".`
 				);
 			}
