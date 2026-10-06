@@ -12,7 +12,6 @@ import {
 } from "../../src/screen/provider.js";
 import { CurrentScreen } from "../../src/screen/current-screen.js";
 import {
-  clearShortcutOperations,
   KeyboardProvider,
 } from "../../src/keyboard/provider.js";
 import {
@@ -104,7 +103,6 @@ const lowSeq = vi.fn();
 beforeEach(() => {
   clearRegistry();
   clearDispatchers();
-  clearShortcutOperations();
   lowKey.mockClear();
   highKey.mockClear();
   lowFocusKey.mockClear();

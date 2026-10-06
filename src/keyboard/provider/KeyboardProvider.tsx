@@ -13,7 +13,6 @@ import type {
 	ValueSchema,
 } from "@cartridge-engine/keyboard-engine";
 import {
-	clearShortcutOperations,
 	Mouse,
 	type MouseOptions,
 	type XtermMouseEvent,
@@ -243,6 +242,28 @@ export interface KeyboardProviderProps {
 }
 
 /**
+ * Keep the same reference while `value`'s own properties are shallow-equal, so
+ * an inline `mouseOptions={{ ... }}` prop does not tear down and rebuild the
+ * Mouse on every render. A genuine value change still yields a new reference,
+ * re-running the effect.
+ */
+function useStableOptions<T extends object>(value: T | undefined): T | undefined {
+	const ref = useRef<T | undefined>(value);
+	const previous = ref.current;
+	if (previous !== value) {
+		const same =
+			previous !== undefined &&
+			value !== undefined &&
+			Object.keys(previous).length === Object.keys(value).length &&
+			(Object.keys(previous) as (keyof T)[]).every((key) =>
+				Object.is(previous[key], value[key])
+			);
+		if (!same) ref.current = value;
+	}
+	return ref.current;
+}
+
+/**
  * Provides the keyboard system to the component tree.
  *
  * Instantiates a {@link KeyboardEngine} (kept alive across renders via a
@@ -304,6 +325,9 @@ export function KeyboardProvider({
 		});
 	}
 	const engine = internalRef.current;
+	// An inline `mouseOptions={{ ... }}` prop is a new object every render; the
+	// effect below must react to the option VALUES, not the object identity.
+	const stableMouseOptions = useStableOptions(mouseOptions);
 
 	// Register during render — not only in an effect — so a child effect that
 	// calls the module-level API resolves the engine: React runs child effects
@@ -345,7 +369,7 @@ export function KeyboardProvider({
 			);
 			return;
 		}
-		const mouseInstance = new Mouse(mouseOptions);
+		const mouseInstance = new Mouse(stableMouseOptions);
 		try {
 			mouseInstance.enable();
 		} catch (err) {
@@ -373,7 +397,7 @@ export function KeyboardProvider({
 			mouseInstance.off("release", handle);
 			mouseInstance.destroy();
 		};
-	}, [mouse, engine, mouseOptions]);
+	}, [mouse, engine, stableMouseOptions]);
 
 	const value: KeyboardContextValue = useMemo(
 		() => ({
@@ -482,5 +506,3 @@ export function KeyboardProvider({
 		</KeyboardContext.Provider>
 	);
 }
-
-export { clearShortcutOperations };

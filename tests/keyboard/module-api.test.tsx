@@ -146,7 +146,7 @@ describe("module-level keyboard API", () => {
   });
 
   it("keeps a shared engine registered until its last provider unmounts", () => {
-    const engine = new KeyboardEngine({
+    const engine = new KeyboardEngine<React.ComponentType<unknown>>({
       normalizeKeyNames: (input: string) => (input ? [input] : []),
       isNormalChar: () => false,
     });
@@ -195,6 +195,18 @@ describe("module-level keyboard API", () => {
     addAction({ actionId: "greet", action: vi.fn(), keys: ["g"] });
     expect(hasAction("greet")).toBe(true);
     removeAction("greet");
+    expect(hasAction("greet")).toBe(false);
+  });
+
+  it("clearShortcutOperations clears the mounted engine's actions", async () => {
+    renderApp();
+    await flush();
+
+    addAction({ actionId: "greet", action: vi.fn(), keys: ["g"] });
+    expect(hasAction("greet")).toBe(true);
+
+    clearShortcutOperations();
+
     expect(hasAction("greet")).toBe(false);
   });
 

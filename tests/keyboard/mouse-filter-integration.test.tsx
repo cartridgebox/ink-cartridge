@@ -9,7 +9,6 @@ import {
 } from '../../src/screen/provider.js';
 import { CurrentScreen } from '../../src/screen/current-screen.js';
 import {
-  clearShortcutOperations,
   KeyboardProvider,
 } from '../../src/keyboard/provider.js';
 import { useKeyboard } from '../../src/keyboard/hook.js';
@@ -32,7 +31,6 @@ describe('mouse report filtering', () => {
   beforeEach(() => {
     clearRegistry();
     clearDispatchers();
-    clearShortcutOperations();
     registerComponent(EchoApp, {});
     // The test stdin is not a TTY, so Mouse.isSupported() warns and disables
     // the mouse feed — irrelevant here, the filter keys off the `mouse` prop.
@@ -70,6 +68,36 @@ describe('mouse report filtering', () => {
     });
     await flush();
     expect(lastFrame()).toContain('a');
+
+    unmount();
+  });
+
+  it('still accepts typing after a pasted [< fragment', async () => {
+    const { stdin, lastFrame, unmount } = render(
+      <ScenarioManagementProvider defaultScreen={EchoApp} fullScreen>
+        <KeyboardProvider autoTab={false} mouse>
+          <CurrentScreen />
+        </KeyboardProvider>
+      </ScenarioManagementProvider>,
+    );
+
+    // Pasted text that merely looks like the start of a mouse report: it is
+    // swallowed, but it must not keep eating the keys that follow it.
+    await act(async () => {
+      stdin.write('[<3');
+    });
+    await flush();
+
+    await act(async () => {
+      stdin.write('a');
+    });
+    await flush();
+    await act(async () => {
+      stdin.write('b');
+    });
+    await flush();
+
+    expect(lastFrame()).toContain('ab');
 
     unmount();
   });

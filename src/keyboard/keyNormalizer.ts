@@ -1,4 +1,14 @@
 /**
+ * Whether `key` is an object whose properties can be inspected. Both
+ * adapters take `key: unknown` (the engine stays framework-agnostic and
+ * passes through whatever the host framework provides), so junk input must
+ * read as "no flags" instead of throwing on a property access.
+ */
+function isKeyDescriptor(key: unknown): key is Record<string, unknown> {
+  return typeof key === 'object' && key !== null;
+}
+
+/**
  * Inspect an Ink `Key` descriptor and return `true` when the key is
  * NOT a normal character — i.e. it is an arrow key, navigation key,
  * modifier key, or release event.
@@ -7,7 +17,8 @@
  * stays framework-agnostic.
  */
 export function isInkSpecialKey(key: unknown): boolean {
-  const k = key as Record<string, unknown>;
+  if (!isKeyDescriptor(key)) return false;
+  const k = key;
   if (k.upArrow || k.downArrow || k.leftArrow || k.rightArrow) return true;
   if (k.pageDown || k.pageUp || k.home || k.end) return true;
   if (k.return || k.escape || k.tab || k.backspace || k.delete) return true;
@@ -31,17 +42,20 @@ export function isInkSpecialKey(key: unknown): boolean {
  *   press('',  { tab: true })                → ["tab"]
  *   press('',  { tab: true, shift: true })   → ["shift+tab"]
  *
+ * Junk `key` values (undefined, null) read as a descriptor with no flags, so
+ * a plain character input still normalizes to its bare name.
+ *
  * @param input - Raw character string from Ink's useInput (empty for special keys).
  * @param key   - Full Key descriptor from Ink.
  * @returns An ordered array of key-name strings.
  */
 export function normalizeKeyNames(input: string, key: unknown): string[] {
-  const k = key as any;
+  const k: Record<string, unknown> = isKeyDescriptor(key) ? key : {};
   const names: string[] = [];
 
-  const hasCtrl = k.ctrl as boolean;
-  const hasShift = k.shift as boolean;
-  const hasMeta = k.meta as boolean;
+  const hasCtrl = Boolean(k.ctrl);
+  const hasShift = Boolean(k.shift);
+  const hasMeta = Boolean(k.meta);
   const hasModifier = hasCtrl || hasShift || hasMeta;
 
   const specialMap: Array<[string, string]> = [

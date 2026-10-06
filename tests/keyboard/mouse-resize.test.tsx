@@ -9,7 +9,6 @@ import {
 } from "../../src/screen/provider.js";
 import { CurrentScreen } from "../../src/screen/current-screen.js";
 import {
-	clearShortcutOperations,
 	KeyboardProvider,
 } from "../../src/keyboard/provider.js";
 import { useMouseRegion } from "../../src/keyboard/hook.js";
@@ -103,7 +102,6 @@ describe("mouse region resize sync", () => {
 	beforeEach(() => {
 		clearRegistry();
 		clearDispatchers();
-		clearShortcutOperations();
 		registerComponent(ClickTargetApp, {});
 		// xterm-mouse's support check reads process streams, not the mocks
 		// passed to Ink — fake TTY so the mouse feed actually starts.

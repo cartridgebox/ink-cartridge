@@ -118,4 +118,15 @@ describe("isInkSpecialKey", () => {
     expect(isInkSpecialKey({})).toBe(false);
     expect(isInkSpecialKey({ ctrl: false, shift: false })).toBe(false);
   });
+
+  test("treats undefined and null descriptors as a normal character", () => {
+    expect(isInkSpecialKey(undefined)).toBe(false);
+    expect(isInkSpecialKey(null)).toBe(false);
+  });
+
+  test("normalizeKeyNames treats undefined and null descriptors as no flags", () => {
+    expect(normalizeKeyNames("a", undefined)).toEqual(["a"]);
+    expect(normalizeKeyNames("a", null)).toEqual(["a"]);
+    expect(normalizeKeyNames("", undefined)).toEqual([]);
+  });
 });

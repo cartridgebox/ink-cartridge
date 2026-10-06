@@ -16,7 +16,6 @@ import {
 } from "../../src/screen/provider.js";
 import { CurrentScreen } from "../../src/screen/current-screen.js";
 import {
-  clearShortcutOperations,
   KeyboardProvider,
 } from "../../src/keyboard/provider.js";
 import {
@@ -99,7 +98,6 @@ let stdin: MockStdin;
 beforeEach(() => {
   clearRegistry();
   clearDispatchers();
-  clearShortcutOperations();
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   // xterm-mouse's support check reads process streams, not the mocks.
   Object.defineProperty(process.stdin, "isTTY", { value: true, configurable: true });
@@ -1146,6 +1144,66 @@ describe("region focus across sibling layers", () => {
     // The focus-scoped binding follows the click.
     await press("l");
     expect(lastFrameText()).toContain("Low f1 k1 c1");
+
+    unmount();
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* App 7: one ref shared by two DIFFERENT focusIds                     */
+/*                                                                     */
+/* The map must always point at the most recently registered LIVE      */
+/* entry: unmounting the latest registration falls back to the one     */
+/* still mounted, instead of forwarding to a dead focusId.             */
+/* ------------------------------------------------------------------ */
+
+function TwoFocusPanel({ showSecond }: { showSecond: boolean }) {
+  const { boundKeyboard } = useKeyboard();
+  const first = useFocusState("sf-a");
+  const second = useFocusState("sf-b");
+  const ref = useMouseRegion({});
+
+  useEffect(() => {
+    return boundKeyboard(["a"], () => {}, { ref, focusId: "sf-a" });
+  }, [boundKeyboard, ref]);
+  useEffect(() => {
+    if (!showSecond) return;
+    return boundKeyboard(["b"], () => {}, { ref, focusId: "sf-b" });
+  }, [boundKeyboard, ref, showSecond]);
+
+  return (
+    <Box ref={ref} width={20} height={3}>
+      <Text>
+        sa:{first ? "1" : "0"} sb:{second ? "1" : "0"}
+      </Text>
+    </Box>
+  );
+}
+
+function TwoFocusScreen() {
+  const { boundKeyboard } = useKeyboard();
+  const [showSecond, setShowSecond] = useState(true);
+  useEffect(
+    () => boundKeyboard(["t"], () => setShowSecond((v) => !v)),
+    [boundKeyboard],
+  );
+  return <TwoFocusPanel showSecond={showSecond} />;
+}
+
+describe("region focus with a ref shared by two focusIds", () => {
+  it("falls back to the live entry when the latest registration unmounts", async () => {
+    const { unmount } = renderApp(TwoFocusScreen);
+    await flush();
+
+    // The latest registration ("sf-b") wins the click.
+    await click(5, 2);
+    expect(lastFrameText()).toContain("sa:0 sb:1");
+
+    // Unmount the second binding, then click again: the region must forward
+    // to the entry whose binding is still mounted.
+    await press("t");
+    await click(5, 2);
+    expect(lastFrameText()).toContain("sa:1 sb:0");
 
     unmount();
   });

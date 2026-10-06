@@ -9,7 +9,6 @@ import {
 } from '../../src/screen/provider.js';
 import { CurrentScreen } from '../../src/screen/current-screen.js';
 import {
-  clearShortcutOperations,
   KeyboardProvider,
 } from '../../src/keyboard/provider.js';
 import { useKeyboard } from '../../src/keyboard/hook.js';
@@ -68,7 +67,6 @@ describe('input delivery under Ink 8', () => {
   beforeEach(() => {
     clearRegistry();
     clearDispatchers();
-    clearShortcutOperations();
     received.length = 0;
     namedHits.length = 0;
     registerComponent(RecordingApp, {});

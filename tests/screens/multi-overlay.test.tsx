@@ -8,7 +8,7 @@ import { registerComponent, clearRegistry } from '../../src/screen/registry.js';
 import { ScenarioManagementProvider, clearDispatchers } from '../../src/screen/provider.js';
 import { CurrentScreen } from '../../src/screen/current-screen.js';
 import { useScreenSystem } from '../../src/screen/hook.js';
-import { KeyboardProvider, clearShortcutOperations } from '../../src/keyboard/provider.js';
+import { KeyboardProvider } from '../../src/keyboard/provider.js';
 import { useKeyboard } from '../../src/keyboard/hook.js';
 
 async function flush(): Promise<void> {
@@ -129,7 +129,6 @@ beforeEach(() => {
 
 afterEach(() => {
   clearDispatchers();
-  clearShortcutOperations();
   vi.restoreAllMocks();
 });
 
