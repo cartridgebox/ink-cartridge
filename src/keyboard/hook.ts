@@ -735,7 +735,11 @@ export function useMouseRegion(
   callbacks: MouseRegionCallbacks,
   options?: MouseRegionOptions,
 ): RefObject<DOMElement | null> {
-  const ctx = useContext(KeyboardContext);
+  // Use the owner-scoped wrappers from useKeyboard, not the raw context: the
+  // click/hover focus calls below must re-push this element's owner, otherwise
+  // focusSet resolves against whatever sibling element is on top of the owner
+  // stack and silently no-ops.
+  const ctx = useKeyboard();
   const layerCtx = useContext(LayerElementContext);
   const modalCtx = useContext(ModalLayerElementContext);
   const screenCtx = useContext(ScreenSystemContext);

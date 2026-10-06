@@ -24,6 +24,7 @@ import {
   useFocusState,
   useMouseRegion,
 } from "../../src/keyboard/hook.js";
+import { useScreenSystem } from "../../src/screen/hook.js";
 import type { ReadableStreamWithEncoding } from "@cartridge-engine/keyboard-engine";
 
 /**
@@ -1048,6 +1049,103 @@ describe("region focus hover forwarding (enterOnFocus / leaveOffFocus)", () => {
     await move(67, 2);
     expect(lastFrameText()).toContain("H4 f0 k1 e1 l1");
     expect(lastFrameText()).toContain("H1 f1 k0 e0 l0");
+
+    unmount();
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* App 4: two sibling layers — clicking the LOWER layer's region       */
+/*                                                                     */
+/* The owner stack top is the LAST mounted layer element (the high     */
+/* one). Forwarding focus from the low region must re-push the low     */
+/* layer's owner, or focusSet resolves against the high layer and      */
+/* silently no-ops.                                                    */
+/* ------------------------------------------------------------------ */
+
+interface LowerLayerPanelProps {
+  label: string;
+  left: number;
+  focusId: string;
+  keyName: string;
+  /** Registered first, so `focusId` starts inactive until a click focuses it. */
+  seedFocusId?: string;
+}
+
+function LowerLayerPanel({
+  label,
+  left,
+  focusId,
+  keyName,
+  seedFocusId,
+}: LowerLayerPanelProps) {
+  const { boundKeyboard } = useKeyboard();
+  const focused = useFocusState(focusId);
+  const [clicks, setClicks] = useState(0);
+  const [keys, setKeys] = useState(0);
+  const ref = useMouseRegion({ onClick: () => setClicks((c) => c + 1) });
+
+  useEffect(() => {
+    const unbinds: (() => void)[] = [];
+    if (seedFocusId) {
+      unbinds.push(boundKeyboard(["z"], () => {}, { focusId: seedFocusId }));
+    }
+    unbinds.push(
+      boundKeyboard([keyName], () => setKeys((k) => k + 1), { ref, focusId }),
+    );
+    return () => unbinds.forEach((unbind) => unbind());
+  }, [boundKeyboard, ref, focusId, keyName, seedFocusId]);
+
+  return (
+    <Box ref={ref} position="absolute" top={0} left={left} width={20} height={3}>
+      <Text>
+        {label} f{focused ? "1" : "0"} k{keys} c{clicks}
+      </Text>
+    </Box>
+  );
+}
+
+const LowLayerPanel = () => (
+  <LowerLayerPanel
+    label="Low"
+    left={0}
+    focusId="lf"
+    keyName="l"
+    seedFocusId="lo-seed"
+  />
+);
+const HighLayerPanel = () => (
+  <LowerLayerPanel label="High" left={23} focusId="hf" keyName="h" />
+);
+
+function TwoLayerFocusScreen() {
+  const { openLayer, applyElement } = useScreenSystem();
+  useEffect(() => {
+    openLayer("low", 1);
+    applyElement("low", { elementId: "low-el", element: LowLayerPanel });
+    openLayer("high", 2);
+    applyElement("high", { elementId: "high-el", element: HighLayerPanel });
+  }, [openLayer, applyElement]);
+  return <Text>page</Text>;
+}
+
+describe("region focus across sibling layers", () => {
+  it("clicking the lower layer's region focuses its own target", async () => {
+    const { unmount } = renderApp(TwoLayerFocusScreen);
+    await flush();
+
+    // High is mounted last, so it tops the owner stack. Low's seed target
+    // holds low's focus, so "lf" starts inactive.
+    expect(lastFrameText()).toContain("Low f0");
+    expect(lastFrameText()).toContain("High f1");
+
+    // Columns 1..20 hold the low region; the high one starts at 23.
+    await click(5, 2);
+    expect(lastFrameText()).toContain("Low f1 k0 c1");
+
+    // The focus-scoped binding follows the click.
+    await press("l");
+    expect(lastFrameText()).toContain("Low f1 k1 c1");
 
     unmount();
   });
