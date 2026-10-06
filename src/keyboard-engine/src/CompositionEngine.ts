@@ -968,7 +968,7 @@ export default class CompositionEngine<TComponent = unknown> {
 	 *
 	 * Clears the pending timer (no stale timeout callback will fire),
 	 * resets the context to `{ value: undefined, lastFlag: null, steps: [] }`,
-	 * and sets the engine's `compositionEngineHandle` flag to `false` so
+	 * and sets the engine's `compositionEngineHandler` flag to `false` so
 	 * pipeline processors stop treating the chain as pending. A pending
 	 * mapping sequence is cancelled too — callers reach for `abort()` to
 	 * drop the user's unfinished input, and a half-typed mapping prefix is
@@ -1102,7 +1102,7 @@ export default class CompositionEngine<TComponent = unknown> {
 		}
 
 		this.context = currentCtx;
-		this.state.compositionEngineHandle = false;
+		this.state.compositionEngineHandler = false;
 		// Report what was actually undone, not what was requested — a walk
 		// stopped by an `undoAction` returning `null` leaves the remaining
 		// sequences buffered.
@@ -1236,7 +1236,7 @@ export default class CompositionEngine<TComponent = unknown> {
 		}
 
 		this.context = currentCtx;
-		this.state.compositionEngineHandle = false;
+		this.state.compositionEngineHandler = false;
 		// Report the individual keys actually undone, not what was requested.
 		this.notify({ type: "undone", steps: undoneEntries });
 		return currentCtx;
@@ -1392,7 +1392,7 @@ export default class CompositionEngine<TComponent = unknown> {
 		}
 
 		this.context = { value: undefined, lastFlag: null, steps: [] };
-		this.state.compositionEngineHandle = false;
+		this.state.compositionEngineHandler = false;
 	}
 
 	private resetPendingTimer(timeout: number): void {
@@ -1415,7 +1415,7 @@ export default class CompositionEngine<TComponent = unknown> {
 			clearTimeout(this.mappingPendingEntry.timer);
 			this.mappingPendingEntry = null;
 		}
-		this.state.compositionEngineHandle = false;
+		this.state.compositionEngineHandler = false;
 	}
 
 	/**
@@ -1762,7 +1762,7 @@ export default class CompositionEngine<TComponent = unknown> {
 		}, pending.timeout);
 		pending.timer = timer;
 		this.mappingPendingEntry = pending;
-		this.state.compositionEngineHandle = true;
+		this.state.compositionEngineHandler = true;
 		this.notifyMapping({ type: "started", key: keyOfDestiny });
 
 		return "consumed";
@@ -1977,7 +1977,7 @@ export default class CompositionEngine<TComponent = unknown> {
 
 		// NOTE: Since this is the start of the sequence key, we do not check the endKey.
 		this.context = nextCtx;
-		this.state.compositionEngineHandle = true;
+		this.state.compositionEngineHandler = true;
 
 		const pending: CompositionPending = {
 			timeout: result.timeout ?? this.defaultTimeout,
