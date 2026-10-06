@@ -177,10 +177,10 @@ describe('component tree', () => {
 
   it('leaves no registration behind when the parent is missing', () => {
     function Child() {
-      return React.createElement('div', null);
+      return <div />;
     }
     function UnregisteredParent() {
-      return React.createElement('div', null);
+      return <div />;
     }
 
     expect(() => {

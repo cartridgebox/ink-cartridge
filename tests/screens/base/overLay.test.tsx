@@ -52,6 +52,7 @@ describe('openLayer', () => {
   });
 
   it('ignores opening a layer with a duplicate ID', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const { getCapture } = renderWithCapture(Menu);
     const ctx = getCapture()!;
 
@@ -60,8 +61,16 @@ describe('openLayer', () => {
     });
     expect(getCapture()!.allLayers.length).toBe(1);
 
-    ctx.openLayer('dup', 2);
+    act(() => {
+      ctx.openLayer('dup', 2);
+    });
+    // Ignored, not thrown: the existing layer keeps its z-index and a
+    // development warning explains the no-op.
     expect(getCapture()!.allLayers.length).toBe(1);
+    expect(getCapture()!.allLayers[0].zIndex).toBe(1);
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining('already registered'),
+    );
   });
 });
 

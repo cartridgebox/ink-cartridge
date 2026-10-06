@@ -518,7 +518,11 @@ describe("composition lifecycle", () => {
     engine.processKey("3", {});
     expect(engine.getLastCompositionEvent()?.type).toBe("started");
     engine.processKey("w", {});
-    expect(engine.getLastCompositionEvent()?.type).toBe("broken");
+    // The breaking key is reported too, not just the event type.
+    expect(engine.getLastCompositionEvent()).toEqual({
+      type: "broken",
+      key: "w",
+    });
     expect(engine.bufferedCompositionCount()).toBe(0);
   });
 
