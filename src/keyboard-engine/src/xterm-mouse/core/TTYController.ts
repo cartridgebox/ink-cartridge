@@ -93,12 +93,12 @@ export class TTYController {
     private setRawModeFn?: (mode: boolean) => void,
   ) {
     validateReadableStream(inputStream, 'inputStream');
-    
+
     validateWritableStream(outputStream, 'outputStream');
     validateFunction(handleEvent, 'handleEvent');
 
     if (setRawModeFn !== undefined) {
-      
+
       validateFunction(setRawModeFn, 'setRawModeFn');
     }
   }

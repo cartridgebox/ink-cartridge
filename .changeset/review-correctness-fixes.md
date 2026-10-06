@@ -13,7 +13,8 @@ Fix a batch of correctness bugs found in a source review, and normalize error-me
 ### Changed
 - Error and warning messages use the `[ink-cartridge]` prefix instead of the capitalized `[Ink-Cartridge]` spelling, so code that matches those strings should switch to the new prefix. Message text only — no API is removed or changed.
 - The vendored `[xterm-mouse]` prefix for validation errors is gone; those messages use `[ink-cartridge]` too.
-- Messages raised by the keyboard-engine package keep their `[keyboard-engine]` prefix.
+- Keyboard-engine messages keep their existing split: package-specific messages use `[keyboard-engine]`, the shared validation messages that used the capitalized spelling now use `[ink-cartridge]`.
+- `useMouseRegion` now requires a `<KeyboardProvider>` ancestor: it forwards focus through the owner-scoped wrappers from `useKeyboard`, which throw without a provider. A region rendered without one used to silently skip focus forwarding; it now fails at render time.
 - Navigation and layer validation failures no longer throw from inside the reducer: React cannot surface a `useReducer` throw at the dispatch call site, so those errors used to tear the whole app down. Not breaking — the throw was never observable from the call site, so no working error-handling contract is removed; errors from the reducer that are not validation failures still propagate.
 - Those validation failures now warn in development and leave the previous state unchanged; production builds stay silent and simply ignore the action.
 - `getGlobalKeys()` returns a copy, like `getGlobalSequences()`, so a caller can no longer mutate engine state through the returned array.
