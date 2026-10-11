@@ -28,6 +28,7 @@ export function createEngine(
     defaultMode?: string;
     autoTab?: boolean;
     tabKey?: string;
+    releaseFocusWhenEmpty?: boolean;
     isNormalChar?: (key: unknown) => boolean;
     normalizeKeyNames?: (input: string) => string[];
   } = {},
@@ -37,6 +38,7 @@ export function createEngine(
     defaultMode: options.defaultMode,
     autoTab: options.autoTab,
     tabKey: options.tabKey,
+    releaseFocusWhenEmpty: options.releaseFocusWhenEmpty,
     normalizeKeyNames:
       options.normalizeKeyNames ??
       ((input: string) => (input ? [input] : [])),

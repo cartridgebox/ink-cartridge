@@ -16,6 +16,16 @@ export interface BaseFocusTarget {
 
   /** Keys allowed to pass through a modal barrier while this focus target is active. */
   allowedKeys: KeyRule[];
+
+  /**
+   * Number of live bindings holding this target.
+   *
+   * Only maintained when the engine runs with `releaseFocusWhenEmpty`; the
+   * target is removed once the last holder releases it (see
+   * `LayerManager.releaseFocus`). Optional so the exported type stays
+   * backwards compatible — the engine always initializes it.
+   */
+  refCount?: number;
 }
 
 /**

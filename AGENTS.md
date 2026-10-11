@@ -127,6 +127,8 @@ See `agents/rules/testing.md` (loaded when editing `tests/**/*`) and `docs-agent
 
 A shipping change needs a changeset: one `.changeset/<name>.md` file. Agents write the **body**; the user decides the bump level (`patch`/`minor`/`major`, never a version number) in the frontmatter — `changesets/action` derives versions. A change spanning several packages shares one file: one frontmatter line per package, one body.
 
+Work that belongs together shares one file too: a follow-up fix to something the same unreleased changeset introduced — a review finding, a regression the new code caused — amends that file's body as its own bullet under the matching section, instead of adding a second `.changeset/*.md`. Only work that ships independently gets its own file.
+
 The body MUST be in English, neatly formatted, and use exactly these five sections, always all five and in this order. A section with no related change reads `None` on its own line — never drop the heading.
 
 | Section | Covers | Old type prefix |

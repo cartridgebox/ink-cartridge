@@ -28,43 +28,48 @@ function getFocusTarget(
   return layer.focusTargets.get(entry.fromGroup)?.map.get(entry.id);
 }
 
+/** Keys a rule list currently disables — the rules whose `when` is false. */
+function disabledKeys(
+  rules: KeyRule[],
+  conditions: Map<string, boolean>,
+): string[] {
+  return rules.filter((r) => !checkWhen(r.when, conditions)).map((r) => r.key);
+}
+
 function isAllowed(
   layer: ElementKeyboard,
   eventNames: string[],
   conditions: Map<string, boolean>,
 ): boolean {
-  const blockedKeys = layer.allowedKeys
-    .filter((r) => !checkWhen(r.when, conditions))
-    .map((r) => r.key);
+  // Each allow-list is checked against the keys it disables itself: a
+  // when-disabled rule vetoes its own scope only. Several focus targets can be
+  // active at once, and one target disabling a key must not cancel another
+  // target's — or the layer's — allow for that key.
+  if (
+    passAllowedKeys(
+      layer.allowedKeys,
+      disabledKeys(layer.allowedKeys, conditions),
+      eventNames,
+    )
+  ) {
+    return true;
+  }
 
-  if (layer.currentFocusIds.length > 0) {
-    const allFt: FocusTarget[] = [];
-    for (const each of layer.currentFocusIds) {
-      const target = getFocusTarget(layer, each);
-      if (target) allFt.push(target);
-    }
-    // A focus target's own when-disabled keys must be treated as blocked
-    // by the modal barrier too, otherwise a key the focused element
-    // disabled would still count as "allowed" and penetrate the modal.
-    for (const ft of allFt) {
-      for (const rule of ft.allowedKeys) {
-        if (!checkWhen(rule.when, conditions)) {
-          blockedKeys.push(rule.key);
-        }
-      }
-    }
-    const allAllowedKeys = [
-      ...new Set(allFt.flatMap((each) => each.allowedKeys)),
-    ];
+  for (const each of layer.currentFocusIds) {
+    const target = getFocusTarget(layer, each);
+    if (!target) continue;
     if (
-      allFt.length > 0 &&
-      passAllowedKeys(allAllowedKeys, blockedKeys, eventNames)
+      passAllowedKeys(
+        target.allowedKeys,
+        disabledKeys(target.allowedKeys, conditions),
+        eventNames,
+      )
     ) {
       return true;
     }
   }
 
-  return passAllowedKeys(layer.allowedKeys, blockedKeys, eventNames);
+  return false;
 }
 
 function hasWhenFalseBinding(

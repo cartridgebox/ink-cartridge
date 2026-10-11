@@ -43,6 +43,16 @@ export interface BaseBoundKeyEntry {
    * is skipped entirely.
    */
   mode?: string;
+
+  /**
+   * The shortcut action id this binding was registered through, when the
+   * handler was given as an id rather than a callback.
+   *
+   * Kept so the action-key map can be cleaned up per registration: the
+   * resolved callback alone cannot tell which action a key belongs to, and a
+   * key may be bound by several actions at once.
+   */
+  actionId?: string;
 }
 
 /**

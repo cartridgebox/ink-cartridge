@@ -308,6 +308,48 @@ describe("LayerManager group focus branches", () => {
     expect(engine.focusCurrent("g").result?.id).toBe("three");
   });
 
+  it("does not reclaim group focus for a kicked group on re-registration", () => {
+    const engine = createEngine();
+    engine.sync({ pagePath: [Root], layers: [], modalLayers: [] });
+    engine.boundKeyboard(["a"], () => {}, { focusId: "d" });
+    engine.boundKeyboard(["b"], () => {}, {
+      focusId: { group: "g", focusId: "ga" },
+    });
+    engine.kickFocusGroup("g");
+    expect(engine.focusCurrent("g").noFound).toBe(true);
+
+    // Re-registering onto the existing target must leave the kick in place...
+    engine.boundKeyboard(["c"], () => {}, {
+      focusId: { group: "g", focusId: "ga" },
+    });
+    expect(engine.focusCurrent("g").noFound).toBe(true);
+
+    // ...and asking for it explicitly still works.
+    expect(engine.activateFocusGroup("ga", "g")).toBe(true);
+  });
+
+  it("does not reclaim default focus on re-registration either", () => {
+    const engine = createEngine();
+    engine.sync({ pagePath: [Root], layers: [], modalLayers: [] });
+    engine.boundKeyboard(["a"], () => {}, { focusId: "d" });
+    engine.kickFocusGroup();
+    engine.boundKeyboard(["b"], () => {}, { focusId: "d" });
+    expect(engine.focusCurrent().noFound).toBe(true);
+  });
+
+  it("auto-activates each group's first target independently", () => {
+    const engine = createEngine();
+    engine.sync({ pagePath: [Root], layers: [], modalLayers: [] });
+    engine.boundKeyboard(["a"], () => {}, { focusId: "one" });
+    engine.boundKeyboard(["b"], () => {}, {
+      focusId: { group: "g", focusId: "ga" },
+    });
+
+    expect(engine.focusCurrent().result?.id).toBe("one");
+    expect(engine.focusCurrent("g").result?.id).toBe("ga");
+    expect(engine.activateFocusGroup("ga", "g")).toBe(false);
+  });
+
   it("no-ops for missing groups and targets and replaces group focus", () => {
     const engine = createEngine();
     expect(engine.focusSet("one")).toBe(false);
@@ -337,7 +379,9 @@ describe("LayerManager group focus branches", () => {
     expect(engine.focusNext("g")).toBe(false);
     expect(engine.focusPrev("g")).toBe(false);
     engine.boundKeyboard(["b"], () => {}, { focusId: "solo" });
-    expect(engine.focusSet("solo")).toBe(true); // activate the default group
+    // The default group claims its own first target, so it is already active.
+    expect(engine.focusCurrent().result?.id).toBe("solo");
+    expect(engine.focusSet("solo")).toBe(false);
     expect(engine.focusNext()).toBe(false);
     expect(engine.focusPrev()).toBe(false);
     expect(engine.focusCurrent().result?.id).toBe("solo");

@@ -668,6 +668,75 @@ describe("providers helpers", () => {
     expect(layer.stoppedKeys).toHaveLength(0);
   });
 
+  it("keeps a shared rule until its last holder releases it", () => {
+    const layer = makePageLayer();
+    const removeOne = pushKeyEntries(
+      layer,
+      "stoppedKeys",
+      ["x"],
+      (key) => makeKeyRule(key),
+    );
+    const removeTwo = pushKeyEntries(
+      layer,
+      "stoppedKeys",
+      ["x"],
+      (key) => makeKeyRule(key),
+    );
+    // One rule per key: a duplicate rule with a failing `when` would block the
+    // key for the other holder too.
+    expect(layer.stoppedKeys).toHaveLength(1);
+
+    removeOne();
+    expect(layer.stoppedKeys).toHaveLength(1);
+
+    removeTwo();
+    expect(layer.stoppedKeys).toHaveLength(0);
+  });
+
+  it("releases a rule once even when its cleanup runs twice", () => {
+    const layer = makePageLayer();
+    const removeOne = pushKeyEntries(
+      layer,
+      "stoppedKeys",
+      ["x"],
+      (key) => makeKeyRule(key),
+    );
+    const removeTwo = pushKeyEntries(
+      layer,
+      "stoppedKeys",
+      ["x"],
+      (key) => makeKeyRule(key),
+    );
+
+    // A `once` binding unbinds itself and the caller's cleanup still fires.
+    removeOne();
+    removeOne();
+    expect(layer.stoppedKeys).toHaveLength(1);
+
+    removeTwo();
+    expect(layer.stoppedKeys).toHaveLength(0);
+  });
+
+  it("does not resurrect entries removed after its own call", () => {
+    const layer = makePageLayer();
+    const removeOne = pushKeyEntries(
+      layer,
+      "stoppedKeys",
+      ["x"],
+      (key) => makeKeyRule(key),
+    );
+    const removeTwo = pushKeyEntries(
+      layer,
+      "stoppedKeys",
+      ["y"],
+      (key) => makeKeyRule(key),
+    );
+
+    removeTwo();
+    removeOne();
+    expect(layer.stoppedKeys).toEqual([]);
+  });
+
   it("finalizes bindings with action maps and cleanup", () => {
     const layer = makePageLayer();
     const handler = vi.fn();
@@ -686,6 +755,68 @@ describe("providers helpers", () => {
     unbind();
     expect(layer.bindings).toHaveLength(0);
     expect(actionMap.has("save")).toBe(false);
+  });
+
+  it("keeps an action map key another binding of the same action uses", () => {
+    const layer = makePageLayer();
+    const actionMap = new Map<string, string[]>();
+    const first = makeBinding(["x"], vi.fn(), { actionId: "save" });
+    const second = makeBinding(["x"], vi.fn(), { actionId: "save" });
+    layer.bindings.push(first, second);
+
+    const unbindFirst = finalizeBoundKeyboard(
+      layer.bindings,
+      actionMap,
+      layer,
+      first,
+      "save",
+      ["x"],
+    );
+    const unbindSecond = finalizeBoundKeyboard(
+      layer.bindings,
+      actionMap,
+      layer,
+      second,
+      "save",
+      ["x"],
+    );
+    expect(actionMap.get("save")).toEqual(["x"]);
+
+    unbindFirst();
+    expect(actionMap.get("save")).toEqual(["x"]);
+
+    unbindSecond();
+    expect(actionMap.has("save")).toBe(false);
+  });
+
+  it("drops an action map key only when no binding of that action uses it", () => {
+    const layer = makePageLayer();
+    const actionMap = new Map<string, string[]>();
+    const saveEntry = makeBinding(["s"], vi.fn(), { actionId: "save" });
+    const quitEntry = makeBinding(["s"], vi.fn(), { actionId: "quit" });
+    layer.bindings.push(saveEntry, quitEntry);
+
+    const unbindSave = finalizeBoundKeyboard(
+      layer.bindings,
+      actionMap,
+      layer,
+      saveEntry,
+      "save",
+      ["s"],
+    );
+    finalizeBoundKeyboard(
+      layer.bindings,
+      actionMap,
+      layer,
+      quitEntry,
+      "quit",
+      ["s"],
+    );
+
+    // The other action binding the same key must not keep this entry alive.
+    unbindSave();
+    expect(actionMap.has("save")).toBe(false);
+    expect(actionMap.get("quit")).toEqual(["s"]);
   });
 
   it("cleans overrides only when no binding still uses the key", () => {

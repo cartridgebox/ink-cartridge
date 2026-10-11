@@ -216,6 +216,20 @@ export interface KeyboardProviderProps {
 	autoTab?: boolean;
 
 	/**
+	 * Remove a focus target automatically once nothing binds to it any more.
+	 * Off by default.
+	 *
+	 * When on, the cleanup returned by `boundKeyboard`, `boundSequence`,
+	 * `penetration`, `stop`, and `allowModal` drops the reference it holds;
+	 * the last holder to let go removes the target and focus moves to the
+	 * group's first remaining target; a group whose last target goes is left
+	 * without an active target until a new one registers (or `focusSet` /
+	 * `activateFocusGroup` runs). Also available on the engine itself
+	 * (`new KeyboardEngine({ releaseFocusWhenEmpty: true })`).
+	 */
+	releaseFocusWhenEmpty?: boolean;
+
+	/**
 	 * Enables terminal mouse tracking (wires xterm-mouse into the engine).
 	 *
 	 * Mouse escape sequences are filtered out of the keyboard stream
@@ -306,6 +320,7 @@ export function KeyboardProvider({
 	defaultMode,
 	valueSchema,
 	autoTab,
+	releaseFocusWhenEmpty,
 	mouse,
 	mouseOptions,
 	engine: provideEngine
@@ -322,6 +337,7 @@ export function KeyboardProvider({
 			isNormalChar: isInkSpecialKey,
 			valueSchema,
 			autoTab,
+			releaseFocusWhenEmpty,
 		});
 	}
 	const engine = internalRef.current;
