@@ -168,6 +168,36 @@ describe("releaseFocusWhenEmpty", () => {
     expect(engine.readLayer(Root)?.defaultTargets.size).toBe(0);
   });
 
+  it("counts an allowModal rule as a holder", () => {
+    const engine = createEngine({ releaseFocusWhenEmpty: true });
+    engine.sync({
+      pagePath: [Root],
+      layers: [],
+      modalLayers: [makeSyncLayer("M", ["m1"])],
+    });
+    const targets = () => engine.readLayer("M", "m1")?.defaultTargets;
+
+    engine.pushOwner("M");
+    const unbindKey = engine.boundKeyboard(["x"], () => {}, {
+      elementId: "m1",
+      focusId: "m",
+    });
+    const unbindAllow = engine.allowModal(["t"], {
+      elementId: "m1",
+      focusId: "m",
+    });
+    engine.popOwner("M");
+    expect(targets()?.has("m")).toBe(true);
+
+    // The boundKeyboard still holds the target, so the allowModal release
+    // must not take it away.
+    unbindAllow();
+    expect(targets()?.has("m")).toBe(true);
+
+    unbindKey();
+    expect(targets()?.has("m")).toBe(false);
+  });
+
   it("releases on the layer that registered the binding, not the current owner", () => {
     const engine = createEngine({ releaseFocusWhenEmpty: true });
     engine.sync({

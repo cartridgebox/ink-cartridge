@@ -29,9 +29,9 @@ Add an opt-in engine option that drops a focus target once nothing binds to it.
 - `allowModal` evaluates each allow-list on its own: a conditionally disabled rule no longer blocks the same key for other active focus targets or for the layer-level list.
 
 ### Tests
-- `tests/engine/base/focus-release.test.ts` covers release on last unbind, focus hand-off, shared/sequence/penetration/stop holders, idempotent cleanups, `once` self-unbind, per-group release, a re-registered group target regaining focus, and stale references that must not delete a re-registered target.
-- `tests/engine/base/LayerManager.test.ts` covers per-group auto-activation, the single-target group case, and a kicked group not being reclaimed by a re-registration.
-- `tests/pure-functions/base/pure.test.ts` covers a shared rule surviving its first holder's release, a duplicated cleanup releasing once, the stale-array resurrection, and action-key map entries scoped to their own action.
-- `tests/engine/base/engine.test.ts` covers a shared action staying resolvable after one of its bindings unbinds.
+- `src/keyboard-engine/tests/engine/base/focus-release.test.ts` covers release on last unbind, focus hand-off, shared/sequence/penetration/stop/allowModal holders, idempotent cleanups, `once` self-unbind, per-group release, a re-registered group target regaining focus, and stale references that must not delete a re-registered target.
+- `src/keyboard-engine/tests/engine/base/LayerManager.test.ts` covers per-group auto-activation, the single-target group case, and a kicked group not being reclaimed by a re-registration.
+- `src/keyboard-engine/tests/pure-functions/base/pure.test.ts` covers a shared rule surviving its first holder's release, a duplicated cleanup releasing once, the stale-array resurrection, and action-key map entries scoped to their own action.
+- `src/keyboard-engine/tests/engine/base/engine.test.ts` covers a shared action staying resolvable after one of its bindings unbinds.
+- `src/keyboard-engine/tests/processors/base/processors.test.ts` covers a key staying stopped while a second holder of the same rule remains, and a when-disabled `allowModal` rule staying scoped to its own target or layer list.
 - `tests/keyboard/focus-release.test.tsx` covers the provider prop end to end: unmounting a group's last holder releases the target and re-mounting takes its focus back, while the target stays registered with the option off.
-- `tests/processors/base/processors.test.ts` covers a key staying stopped while a second holder of the same rule remains, and a when-disabled `allowModal` rule staying scoped to its own target or layer list.
