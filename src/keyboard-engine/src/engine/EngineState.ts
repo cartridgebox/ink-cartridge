@@ -123,6 +123,11 @@ export default class EngineState<TComponent> {
   autoTab: boolean;
   /** Key name used for auto-tab focus rotation (default `"tab"`). */
   tabKey: string;
+  /**
+   * Whether a focus target is removed once the last binding holding it is
+   * unbound. See {@link EngineProps.releaseFocusWhenEmpty}.
+   */
+  releaseFocusWhenEmpty: boolean;
 
   /** The composition engine instance, assigned by KeyboardEngine after construction. */
   compositionEngine!: CompositionEngine<TComponent>;
@@ -134,5 +139,6 @@ export default class EngineState<TComponent> {
     this._isNormalChar = props.isNormalChar;
     this.tabKey = props.tabKey ?? "tab";
     this.autoTab = props.autoTab ?? false;
+    this.releaseFocusWhenEmpty = props.releaseFocusWhenEmpty ?? false;
   }
 }

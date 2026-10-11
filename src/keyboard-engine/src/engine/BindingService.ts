@@ -16,14 +16,26 @@ import { ModalMissCallback } from "../types/modal.js";
 import {
   AllowModalOptions,
   BoundKeyboardOptions,
+  FocusRef,
   ModalMissOptions,
   PenetrationOptions,
   SequenceOptions,
   StopOptions,
 } from "../types/options.js";
 import { ElementKeyboard, PageKeyboardLayer } from "../types/page-layer.js";
+import { FocusTarget } from "../types/focus.js";
 import EngineState from "./EngineState.js";
 import LayerManager from "./LayerManager.js";
+
+/**
+ * A focus target plus the identity it was registered under, so a binding
+ * cleanup can release exactly the reference it took.
+ */
+type FocusAttachment = {
+  target: FocusTarget;
+  id: string;
+  group: string | undefined;
+};
 
 /**
  * Resolves keyboard bindings against the current owner's layer: key
@@ -35,6 +47,74 @@ export default class BindingService<TComponent = unknown> {
     private state: EngineState<TComponent>,
     private layers: LayerManager<TComponent>,
   ) {}
+
+  /** Split a `focusId` option into the id and group it resolves under. */
+  private focusIdentity(
+    focusId: string | FocusRef,
+  ): { id: string; group: string | undefined } {
+    return typeof focusId === "string"
+      ? { id: focusId, group: undefined }
+      : { id: focusId.focusId, group: focusId.group };
+  }
+
+  /**
+   * Resolve the focus target a binding attaches to, creating it on first use.
+   * Returns the target plus its identity, so the cleanup can release it.
+   *
+   * Call this only where the registration is committed — creating the target
+   * here also auto-activates and announces it, so a call that throws before
+   * the entry is pushed would strand a focused target with no cleanup.
+   */
+  private attachFocusTarget(
+    layer: PageKeyboardLayer | ElementKeyboard,
+    focusId: string | FocusRef,
+  ): FocusAttachment {
+    const { id, group } = this.focusIdentity(focusId);
+    return {
+      target: this.layers.getOrCreateFocusTarget(layer, id, group),
+      id,
+      group,
+    };
+  }
+
+  /**
+   * Build a releaser for one focus reference — see `releaseFocusWhenEmpty`
+   * on the engine.
+   *
+   * Idempotent by construction, not defensively: `once`/`times` unbind from
+   * inside the handler and the caller's cleanup still runs afterwards, so a
+   * single reference would otherwise be released twice and take a second,
+   * still-live holder's reference with it.
+   */
+  private focusReleaser(
+    layer: PageKeyboardLayer | ElementKeyboard,
+    focus: FocusAttachment | undefined,
+  ): (() => void) | undefined {
+    if (!focus) return undefined;
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      this.layers.releaseFocus(layer, focus.target, focus.id, focus.group);
+    };
+  }
+
+  /**
+   * Wrap a cleanup so the focus reference is released after the entry is
+   * removed — a target is only empty once its rule is gone.
+   */
+  private withFocusRelease(
+    layer: PageKeyboardLayer | ElementKeyboard,
+    focus: FocusAttachment | undefined,
+    cleanup: () => void,
+  ): () => void {
+    const release = this.focusReleaser(layer, focus);
+    if (!release) return cleanup;
+    return () => {
+      cleanup();
+      release();
+    };
+  }
 
   private getKeyboardInCurrentContext(
     owner: string | TComponent,
@@ -106,7 +186,7 @@ export default class BindingService<TComponent = unknown> {
             `[keyboard-engine] The shortcut key you used does not exist with ID ${handler}`,
           );
         }
-        return { keys, handler: entry.action };
+        return { keys, handler: entry.action, actionId: handler };
       }
       return { keys, handler };
     };
@@ -218,10 +298,6 @@ export default class BindingService<TComponent = unknown> {
     const layer = this.getKeyboardInCurrentContext(owner, options?.elementId);
     if (options?.focusId) {
       const fid = options.focusId;
-      const target =
-        typeof fid === "string"
-          ? this.layers.getOrCreateFocusTarget(layer, fid)
-          : this.layers.getOrCreateFocusTarget(layer, fid.focusId, fid.group);
 
       const overrides = collectGlobalKeyOverrides(keys, owner, `focusId="${fid}"`);
 
@@ -229,17 +305,26 @@ export default class BindingService<TComponent = unknown> {
       entry.when = options?.when;
       entry.mode = options?.mode;
 
-      target.bindings.push(entry);
+      // Attach and hold only once the entry is certain to be pushed: the two
+      // calls above can throw, and a throw returns no cleanup that could
+      // release the reference — or remove the target they created.
+      const focus = this.attachFocusTarget(layer, fid);
+      this.layers.holdFocus(focus.target);
+      focus.target.bindings.push(entry);
       for (const k of overrides) layer.globalKeyOverrides.add(k);
 
+      // The releaser goes into `finalizeBoundKeyboard` instead of wrapping its
+      // return value: a `once` binding consumes itself from inside the
+      // handler, and that path has to release the reference too.
       return finalizeBoundKeyboard(
-        target.bindings,
-        target.actionKeysMap,
+        focus.target.bindings,
+        focus.target.actionKeysMap,
         layer,
         entry,
         handler,
         keys,
         options,
+        this.focusReleaser(layer, focus),
       );
     }
 
@@ -279,20 +364,18 @@ export default class BindingService<TComponent = unknown> {
     const layer = this.getKeyboardInCurrentContext(owner, options?.elementId);
     const compiledWhen = options?.when;
 
-    const container: KeyRuleContainer = options?.focusId
-      ? typeof options.focusId === "string"
-        ? this.layers.getOrCreateFocusTarget(layer, options.focusId)
-        : this.layers.getOrCreateFocusTarget(
-            layer,
-            options.focusId.focusId,
-            options.focusId.group,
-          )
-      : layer;
+    const focus = options?.focusId
+      ? this.attachFocusTarget(layer, options.focusId)
+      : undefined;
+    const container: KeyRuleContainer = focus?.target ?? layer;
 
-    return pushKeyEntries(container, "penetrationKeys", keys, (key) => ({
+    const cleanup = pushKeyEntries(container, "penetrationKeys", keys, (key) => ({
       key,
       when: compiledWhen,
     }));
+    if (focus) this.layers.holdFocus(focus.target);
+
+    return this.withFocusRelease(layer, focus, cleanup);
   }
 
   stop(keys: string[], options?: StopOptions): () => void {
@@ -306,20 +389,19 @@ export default class BindingService<TComponent = unknown> {
 
     let effectiveKeys: string[] = keys;
     if (options?.stopAction) {
-      const map = options.focusId
-        ? (typeof options.focusId === "string"
-            ? this.layers.getOrCreateFocusTarget(layer, options.focusId)
-            : this.layers.getOrCreateFocusTarget(
-                layer,
-                options.focusId.focusId,
-                options.focusId.group,
-              )
-          ).actionKeysMap
+      // Read the target's map without creating it: the loop below throws on an
+      // unknown action, and a throw returns no cleanup — an auto-activated
+      // empty target would then outlive the call.
+      const ref = options.focusId
+        ? this.focusIdentity(options.focusId)
+        : undefined;
+      const map = ref
+        ? this.layers.readFocusTarget(layer, ref.id, ref.group)?.actionKeysMap
         : layer.actionKeysMap;
       const merged: string[] = [];
       const ownerName = componentName(owner);
       for (const actionId of keys) {
-        const boundKeys = map.get(actionId);
+        const boundKeys = map?.get(actionId);
         if (!boundKeys) {
           throw new Error(
             `[keyboard-engine] stop(["${actionId}"], { stopAction: true }) on "${ownerName}": ` +
@@ -335,21 +417,18 @@ export default class BindingService<TComponent = unknown> {
     }
 
     const compiledWhen = options?.when;
+    const focus = options?.focusId
+      ? this.attachFocusTarget(layer, options.focusId)
+      : undefined;
+    const container: KeyRuleContainer = focus?.target ?? layer;
 
-    const container: KeyRuleContainer = options?.focusId
-      ? typeof options.focusId === "string"
-        ? this.layers.getOrCreateFocusTarget(layer, options.focusId)
-        : this.layers.getOrCreateFocusTarget(
-            layer,
-            options.focusId.focusId,
-            options.focusId.group,
-          )
-      : layer;
-
-    return pushKeyEntries(container, "stoppedKeys", effectiveKeys, (key) => ({
+    const cleanup = pushKeyEntries(container, "stoppedKeys", effectiveKeys, (key) => ({
       key,
       when: compiledWhen,
     }));
+    if (focus) this.layers.holdFocus(focus.target);
+
+    return this.withFocusRelease(layer, focus, cleanup);
   }
 
   allowModal(keys: string[], options?: AllowModalOptions): () => void {
@@ -367,20 +446,18 @@ export default class BindingService<TComponent = unknown> {
       );
     }
 
-    const container: KeyRuleContainer = options?.focusId
-      ? typeof options.focusId === "string"
-        ? this.layers.getOrCreateFocusTarget(layer, options.focusId)
-        : this.layers.getOrCreateFocusTarget(
-            layer,
-            options.focusId.focusId,
-            options.focusId.group,
-          )
-      : layer;
+    const focus = options?.focusId
+      ? this.attachFocusTarget(layer, options.focusId)
+      : undefined;
+    const container: KeyRuleContainer = focus?.target ?? layer;
 
-    return pushKeyEntries(container, "allowedKeys", keys, (key) => ({
+    const cleanup = pushKeyEntries(container, "allowedKeys", keys, (key) => ({
       key,
       when: options?.when,
     }));
+    if (focus) this.layers.holdFocus(focus.target);
+
+    return this.withFocusRelease(layer, focus, cleanup);
   }
 
   boundSequence(
@@ -480,15 +557,10 @@ export default class BindingService<TComponent = unknown> {
     // auto-activate it when it is the layer's first) — otherwise the
     // sequence's focus filtering never matches: currentFocusIds stays empty
     // and focusSet/focusCurrent cannot resolve the id. boundKeyboard already
-    // does this via getOrCreateFocusTarget; sequences only referenced the id.
-    if (options?.focusId) {
-      const fid = options.focusId;
-      if (typeof fid === "string") {
-        this.layers.getOrCreateFocusTarget(layer, fid);
-      } else {
-        this.layers.getOrCreateFocusTarget(layer, fid.focusId, fid.group);
-      }
-    }
+    // does this via attachFocusTarget; sequences only referenced the id.
+    const focus = options?.focusId
+      ? this.attachFocusTarget(layer, options.focusId)
+      : undefined;
 
     let binding: BaseSequenceBinding | PageSequenceBinding;
 
@@ -518,14 +590,16 @@ export default class BindingService<TComponent = unknown> {
       layer.sequences.set(firstKey, existing);
     }
 
-    return () => {
+    if (focus) this.layers.holdFocus(focus.target);
+
+    return this.withFocusRelease(layer, focus, () => {
       const arr = layer.sequences.get(firstKey);
       if (arr) {
         const idx = arr.indexOf(binding);
         if (idx !== -1) arr.splice(idx, 1);
         if (arr.length === 0) layer.sequences.delete(firstKey);
       }
-    };
+    });
   }
 
   /**

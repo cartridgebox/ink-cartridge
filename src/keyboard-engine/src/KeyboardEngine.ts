@@ -152,6 +152,23 @@ export interface EngineProps<TComponent> {
    * ```
    */
   tabKey?: string;
+
+  /**
+   * Remove a focus target automatically once nothing binds to it any more.
+   *
+   * Off by default. When on, the cleanup returned by `boundKeyboard`,
+   * `boundSequence`, `penetration`, `stop`, and `allowModal` drops the
+   * reference it holds; the last holder to let go removes the target and
+   * focus moves to the group's first remaining target.
+   *
+   * A component that re-binds releases before it re-registers (React runs the
+   * previous cleanup before the new effect). When its group has no other
+   * target, the re-created one claims that group's focus back; when it does,
+   * focus has already moved to a sibling and stays there.
+   *
+   * @default false
+   */
+  releaseFocusWhenEmpty?: boolean;
 }
 
 /**

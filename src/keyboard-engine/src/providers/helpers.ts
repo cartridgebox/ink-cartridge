@@ -110,9 +110,26 @@ export interface KeyRuleContainer {
 }
 
 /**
- * Push key entries into a rule array on `container`, deduplicating by key
- * name, and return a cleanup function that removes exactly the entries that
- * were added by this call.
+ * Live holder count per rule object, so several registrations of one key can
+ * share a single array entry.
+ *
+ * The arrays are matched as a set, and a duplicate rule is not harmless: the
+ * modal processor collects the key of every rule whose `when` is false and
+ * rejects it outright, so a second rule with a failing condition would block
+ * the key for the other holder too. A WeakMap keeps this bookkeeping out of
+ * the exported {@link KeyRule} type; the count dies with the rule.
+ */
+const ruleHolders = new WeakMap<KeyRule, number>();
+
+/**
+ * Push key entries into a rule array on `container` and return a cleanup
+ * function that releases the references this call took.
+ *
+ * One rule per key, reference counted: the rule is removed only when the last
+ * holder releases it. Removing it on the first cleanup let one caller's unbind
+ * strip a rule another caller still needed, and assigning a filtered copy of
+ * the array captured at call time resurrected entries a later cleanup had
+ * already removed.
  *
  * Used by `allowModal`, `penetration`, and `stop` to
  * eliminate the repeated bookkeeping pattern across focus-target and
@@ -140,21 +157,37 @@ export function pushKeyEntries(
       container.stoppedKeys = array;
     }
   }
-  const added: string[] = [];
+  const acquired: KeyRule[] = [];
   for (const k of keys) {
-    if (!array.some((r) => r.key === k)) {
-      array.push(createEntry(k));
-      added.push(k);
+    let rule = array.find((r) => r.key === k);
+    if (!rule) {
+      rule = createEntry(k);
+      array.push(rule);
     }
+    ruleHolders.set(rule, (ruleHolders.get(rule) ?? 0) + 1);
+    acquired.push(rule);
   }
+
+  let released = false;
   return () => {
-    const filtered = array.filter((r) => !added.includes(r.key));
-    if (property === 'allowedKeys') {
-      container.allowedKeys = filtered;
-    } else if (property === 'penetrationKeys') {
-      container.penetrationKeys = filtered;
-    } else {
-      container.stoppedKeys = filtered;
+    // Repeatable: a `once` binding unbinds itself from inside its handler and
+    // the caller's cleanup still runs, so one registration is released twice —
+    // the second must not take another holder's reference with it.
+    if (released) return;
+    released = true;
+
+    // Re-read the live array rather than the one captured above.
+    const live = container[property];
+    if (!live) return;
+    for (const rule of acquired) {
+      const holders = (ruleHolders.get(rule) ?? 1) - 1;
+      if (holders > 0) {
+        ruleHolders.set(rule, holders);
+        continue;
+      }
+      ruleHolders.delete(rule);
+      const idx = live.indexOf(rule);
+      if (idx !== -1) live.splice(idx, 1);
     }
   };
 }
@@ -268,6 +301,10 @@ export function clearShortcutOperations(): void {
  * @param handler        Original handler (function or action‑ID string).
  * @param keys           Normalized key names.
  * @param options        Original {@link BoundKeyboardOptions}.
+ * @param onRelease      Runs after the entry is removed, on every unbind path
+ *                       — including the `once`/`times` self-unbind that
+ *                       bypasses the returned closure. Must be idempotent,
+ *                       since both paths can fire for one binding.
  * @returns              An unbind function that reverses the registration.
  */
 export function finalizeBoundKeyboard(
@@ -278,6 +315,7 @@ export function finalizeBoundKeyboard(
   handler: KeyHandler | string,
   keys: string[],
   options?: BoundKeyboardOptions,
+  onRelease?: () => void,
 ): () => void {
   // If handler is a string (actionId), register the keys in the
   // actionKeysMap so that stop({ stopAction: true }) and modifyAction()
@@ -295,8 +333,22 @@ export function finalizeBoundKeyboard(
     if (idx !== -1) bindingsArray.splice(idx, 1);
     cleanupGlobalKeyOverrides(layer, entry.keys);
     if (typeof handler === 'string') {
-      removeKeysFromActionMap(actionKeysMap, handler, keys);
+      // Drop only the keys no remaining binding of THIS action still uses.
+      // The map is keyed by action id, so a key another action happens to
+      // bind must not keep this entry alive, and a second live binding of
+      // this action must not lose its entry — hence the actionId match.
+      removeKeysFromActionMap(
+        actionKeysMap,
+        handler,
+        keys.filter(
+          (key) =>
+            !bindingsArray.some(
+              (e) => e.actionId === handler && e.keys.includes(key),
+            ),
+        ),
+      );
     }
+    onRelease?.();
   };
 
   // Wrap handler with times / once lifecycle when requested.

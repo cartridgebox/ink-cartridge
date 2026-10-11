@@ -1,5 +1,6 @@
 import { defaultTargetsSymbol } from "../types/default-targets-symbol.js";
 import {
+  BaseFocusTarget,
   FocusCurrentResult,
   FocusSetOptions,
   FocusTarget,
@@ -281,12 +282,32 @@ export default class LayerManager<TComponent = unknown> {
   }
 
   /**
+   * Whether `group` (or the default group) already has an active focus entry.
+   *
+   * This is the gate for auto-activation, and it must ask about the target's
+   * own group: gating on the whole layer instead left a group with no active
+   * target whenever any other group was focused, so a released-then-recreated
+   * target could never take its focus back.
+   */
+  private hasActiveFocusFor(
+    layer: PageKeyboardLayer | ElementKeyboard,
+    group: string | typeof defaultTargetsSymbol,
+  ): boolean {
+    return layer.currentFocusIds.some((each) => each.fromGroup === group);
+  }
+
+  /**
    * Get or lazily create a focus target on a layer.
    *
-   * The first target registered on a layer (in the default group or any
-   * named group) is auto-activated and triggers {@link notifyFocusChange}
-   * — this is why a screen with a single focus target needs no explicit
-   * `focusSet` call.
+   * A group's first target — in a named group or in the default one — is
+   * auto-activated while that group has no active focus, and triggers
+   * {@link notifyFocusChange}. Activation is per group, not per layer: a
+   * screen with several groups activates the first target of each, so none of
+   * them needs an explicit `focusSet` call.
+   *
+   * Only a newly created target claims focus. Re-registering onto a target
+   * that already exists leaves focus alone, or any redundant re-bind would
+   * silently undo a {@link kickFocusGroup} on that group.
    */
   getOrCreateFocusTarget(
     layer: PageKeyboardLayer | ElementKeyboard,
@@ -303,6 +324,7 @@ export default class LayerManager<TComponent = unknown> {
           penetrationKeys: [],
           actionKeysMap: new Map(),
           allowedKeys: [],
+          refCount: 0,
         };
 
         g = {
@@ -311,7 +333,7 @@ export default class LayerManager<TComponent = unknown> {
         };
         layer.focusTargets.set(group, g);
 
-        if (layer.currentFocusIds.length === 0) {
+        if (!this.hasActiveFocusFor(layer, group)) {
           layer.currentFocusIds.push({ fromGroup: group, id: focusId });
           this.notifyFocusChange();
         }
@@ -327,15 +349,16 @@ export default class LayerManager<TComponent = unknown> {
           penetrationKeys: [],
           actionKeysMap: new Map(),
           allowedKeys: [],
+          refCount: 0,
         };
 
         g.map.set(focusId, target);
         g.order.push(focusId);
-      }
 
-      if (layer.currentFocusIds.length === 0) {
-        layer.currentFocusIds.push({ fromGroup: group, id: focusId });
-        this.notifyFocusChange();
+        if (!this.hasActiveFocusFor(layer, group)) {
+          layer.currentFocusIds.push({ fromGroup: group, id: focusId });
+          this.notifyFocusChange();
+        }
       }
 
       return target;
@@ -348,10 +371,11 @@ export default class LayerManager<TComponent = unknown> {
         stoppedKeys: [],
         actionKeysMap: new Map(),
         allowedKeys: [],
+        refCount: 0,
       };
       layer.defaultTargets.set(focusId, target);
       layer.defaultFocusOrder.push(focusId);
-      if (layer.currentFocusIds.length === 0) {
+      if (!this.hasActiveFocusFor(layer, defaultTargetsSymbol)) {
         layer.currentFocusIds.push({
           fromGroup: defaultTargetsSymbol,
           id: focusId,
@@ -360,6 +384,59 @@ export default class LayerManager<TComponent = unknown> {
       }
     }
     return target;
+  }
+
+  /**
+   * Take a reference on a focus target so {@link releaseFocus} can remove it
+   * once the last holder lets go. No-op unless the engine runs with
+   * `releaseFocusWhenEmpty`.
+   *
+   * Call this only where the registration is committed — after every
+   * validation that can throw and immediately before the entry is pushed. An
+   * earlier call would leave a reference that no cleanup can ever release,
+   * and the target would outlive its last binding.
+   */
+  holdFocus(target: BaseFocusTarget): void {
+    if (!this.state.releaseFocusWhenEmpty) return;
+    target.refCount = (target.refCount ?? 0) + 1;
+  }
+
+  /**
+   * Drop one reference from a focus target, removing it when the count
+   * reaches zero. No-op unless the engine runs with `releaseFocusWhenEmpty`.
+   *
+   * The identity check is load-bearing: a cleanup can outlive its target —
+   * the layer may have been cleaned and the same focus id re-registered by a
+   * newer binding. Removing by id alone would delete the replacement.
+   */
+  releaseFocus(
+    layer: PageKeyboardLayer | ElementKeyboard,
+    target: BaseFocusTarget,
+    focusId: string,
+    group?: string,
+  ): boolean {
+    if (!this.state.releaseFocusWhenEmpty) return false;
+
+    const next = (target.refCount ?? 0) - 1;
+    target.refCount = next > 0 ? next : 0;
+    if (next > 0) return false;
+    if (this.readFocusTarget(layer, focusId, group) !== target) return false;
+
+    return this.removeFocusTarget(layer, focusId, group);
+  }
+
+  /**
+   * Read a registered focus target by id, in a named group or the default one
+   * — without creating it, unlike {@link getOrCreateFocusTarget}.
+   */
+  readFocusTarget(
+    layer: PageKeyboardLayer | ElementKeyboard,
+    focusId: string,
+    group?: string,
+  ): BaseFocusTarget | undefined {
+    return group
+      ? layer.focusTargets.get(group)?.map.get(focusId)
+      : layer.defaultTargets.get(focusId);
   }
 
   readLayer(screenComponent: TComponent): PageKeyboardLayer | undefined;
@@ -760,6 +837,22 @@ export default class LayerManager<TComponent = unknown> {
       return false;
     }
 
+    return this.removeFocusTarget(layer, focusId, group);
+  }
+
+  /**
+   * Remove a focus target from `layer`, handing focus to the group's first
+   * remaining target — or clearing the group's focus slot when none is left.
+   *
+   * Takes the layer directly instead of resolving it from the owner stack:
+   * callers include binding cleanups, which run outside the React owner push
+   * and would otherwise resolve against whatever element happens to be on top.
+   */
+  private removeFocusTarget(
+    layer: PageKeyboardLayer | ElementKeyboard,
+    focusId: string,
+    group?: string,
+  ): boolean {
     if (group) {
       const g = layer.focusTargets.get(group);
       if (!g) return false;
@@ -841,11 +934,15 @@ export default class LayerManager<TComponent = unknown> {
    * engine.boundKeyboard('*', handleEmail, { focusId: { group: 'field', focusId: 'email' } });
    * engine.boundKeyboard('tab', handleTab, { focusId: { group: 'nav',   focusId: 'tabs' } });
    *
-   * // Give each group its initial focus — only succeeds for groups that
-   * // are not yet active. 'field' was already auto-activated when its
-   * // first target was registered, so this call returns false for it.
+   * // Every group claimed its own focus when its first target was
+   * // registered, so both calls below are no-ops.
    * engine.activateFocusGroup('name', 'field');  // false — already active
-   * engine.activateFocusGroup('tabs', 'nav');    // true  — first activation
+   * engine.activateFocusGroup('tabs', 'nav');    // false — already active
+   *
+   * // The call is for a group left empty: kickFocusGroup drops the active
+   * // entry without picking a replacement.
+   * engine.kickFocusGroup('nav');
+   * engine.activateFocusGroup('tabs', 'nav');    // true  — the group was empty
    * ```
    */
   activateFocusGroup(focusId: string, group?: string): boolean;
@@ -916,10 +1013,11 @@ export default class LayerManager<TComponent = unknown> {
    * layer — the group holds no active focus afterward.
    *
    * Only the group's active slot is removed: registered focus targets and
-   * their bindings stay intact, and the group can be re-activated later
-   * via {@link activateFocusGroup} or {@link focusSet}. To remove
-   * individual targets instead, use `focusUnregister`. Subscribers are
-   * notified on successful removal.
+   * their bindings stay intact. The group is re-activated by
+   * {@link activateFocusGroup}, {@link focusSet}, or by a new target being
+   * created in it — re-registering a target that already exists does not
+   * bring its focus back. To remove individual targets instead, use
+   * `focusUnregister`. Subscribers are notified on successful removal.
    *
    * @returns `true` if the group's entry was removed from
    *          `currentFocusIds`; `false` when the owner has no layer, the

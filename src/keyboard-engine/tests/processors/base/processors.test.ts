@@ -63,6 +63,25 @@ describe("layer processor", () => {
     expect(page).not.toHaveBeenCalled();
   });
 
+  it("keeps a key stopped while another holder of the same stop rule remains", () => {
+    const engine = createEngine();
+    const page = vi.fn();
+    engine.sync({
+      pagePath: [Root],
+      layers: [makeSyncLayer("A", ["a1"])],
+      modalLayers: [],
+    });
+    engine.pushOwner("A");
+    const stopOne = engine.stop(["x"], { elementId: "a1" });
+    engine.stop(["x"], { elementId: "a1" });
+    engine.popOwner("A");
+    engine.boundKeyboard(["x"], page);
+
+    stopOne();
+    expect(engine.processKey("x", {})).toBe(true);
+    expect(page).not.toHaveBeenCalled();
+  });
+
   it("gives sequences priority over ordinary bindings in the same layer", () => {
     const engine = createEngine();
     const seq = vi.fn();
@@ -125,6 +144,26 @@ describe("modal processor", () => {
     expect(page).toHaveBeenCalled();
   });
 
+  it("keeps an unconditional allowModal key beside a when-disabled one", () => {
+    const engine = createEngine();
+    const page = vi.fn();
+    engine.sync({
+      pagePath: [Root],
+      layers: [],
+      modalLayers: [makeSyncLayer("M", ["m1"])],
+    });
+    engine.boundKeyboard(["t"], page);
+    engine.pushOwner("M");
+    engine.allowModal(["t"], { elementId: "m1" });
+    engine.allowModal(["t"], { elementId: "m1", when: () => false });
+    engine.popOwner("M");
+
+    // A second rule for the same key must not defeat the first: the modal
+    // processor treats every when-disabled rule's key as blocked.
+    expect(engine.processKey("t", {})).toBe(false);
+    expect(page).toHaveBeenCalled();
+  });
+
   it("passes a focus target's enabled allowModal key through to the page", () => {
     const engine = createEngine();
     const page = vi.fn();
@@ -164,6 +203,52 @@ describe("modal processor", () => {
 
     expect(engine.processKey("x", {})).toBe(true);
     expect(page).not.toHaveBeenCalled();
+  });
+
+  it("scopes a when-disabled allowModal rule to its own focus target", () => {
+    const engine = createEngine();
+    const page = vi.fn();
+    engine.sync({
+      pagePath: [Root],
+      layers: [],
+      modalLayers: [makeSyncLayer("M", ["m1"])],
+    });
+    engine.boundKeyboard(["t"], page);
+    engine.pushOwner("M");
+    engine.allowModal(["t"], { elementId: "m1", focusId: "ft0" });
+    engine.allowModal(["t"], {
+      elementId: "m1",
+      focusId: { group: "g", focusId: "ft1" },
+      when: () => false,
+    });
+    engine.popOwner("M");
+
+    // Both targets are active. The group's disabled rule is its own refusal,
+    // not a veto of the default target's unconditional allow.
+    expect(engine.processKey("t", {})).toBe(false);
+    expect(page).toHaveBeenCalled();
+  });
+
+  it("keeps a layer-level allow when a focus target disables the key", () => {
+    const engine = createEngine();
+    const page = vi.fn();
+    engine.sync({
+      pagePath: [Root],
+      layers: [],
+      modalLayers: [makeSyncLayer("M", ["m1"])],
+    });
+    engine.boundKeyboard(["t"], page);
+    engine.pushOwner("M");
+    engine.allowModal(["t"], { elementId: "m1" });
+    engine.allowModal(["t"], {
+      elementId: "m1",
+      focusId: "ft0",
+      when: () => false,
+    });
+    engine.popOwner("M");
+
+    expect(engine.processKey("t", {})).toBe(false);
+    expect(page).toHaveBeenCalled();
   });
 
   it("reports modal misses through miss listeners", () => {

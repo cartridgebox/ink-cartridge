@@ -197,6 +197,19 @@ describe("BindingService penetration/stop/allowModal/sequence", () => {
     expect(() => engine.stop(["missing"], { stopAction: true })).toThrow();
   });
 
+  it("keeps a shared action resolvable after one of its bindings unbinds", () => {
+    const engine = createEngine();
+    engine.defineShortcutAction([
+      { actionId: "quit", action: () => {}, keys: ["q"] },
+    ]);
+    engine.sync({ pagePath: [Page], layers: [], modalLayers: [] });
+    const unbind = engine.boundKeyboard(["q"], "quit");
+    engine.boundKeyboard(["q"], "quit");
+
+    unbind();
+    expect(() => engine.stop(["quit"], { stopAction: true })).not.toThrow();
+  });
+
   it("allowModal only works inside a modal element", () => {
     const engine = createEngine();
     engine.sync({ pagePath: [Page], layers: [], modalLayers: [] });
