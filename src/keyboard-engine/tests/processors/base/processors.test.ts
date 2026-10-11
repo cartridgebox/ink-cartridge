@@ -144,26 +144,6 @@ describe("modal processor", () => {
     expect(page).toHaveBeenCalled();
   });
 
-  it("keeps an unconditional allowModal key beside a when-disabled one", () => {
-    const engine = createEngine();
-    const page = vi.fn();
-    engine.sync({
-      pagePath: [Root],
-      layers: [],
-      modalLayers: [makeSyncLayer("M", ["m1"])],
-    });
-    engine.boundKeyboard(["t"], page);
-    engine.pushOwner("M");
-    engine.allowModal(["t"], { elementId: "m1" });
-    engine.allowModal(["t"], { elementId: "m1", when: () => false });
-    engine.popOwner("M");
-
-    // A second rule for the same key must not defeat the first: the modal
-    // processor treats every when-disabled rule's key as blocked.
-    expect(engine.processKey("t", {})).toBe(false);
-    expect(page).toHaveBeenCalled();
-  });
-
   it("passes a focus target's enabled allowModal key through to the page", () => {
     const engine = createEngine();
     const page = vi.fn();

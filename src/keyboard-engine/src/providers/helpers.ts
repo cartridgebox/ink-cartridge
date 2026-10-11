@@ -118,6 +118,10 @@ export interface KeyRuleContainer {
  * rejects it outright, so a second rule with a failing condition would block
  * the key for the other holder too. A WeakMap keeps this bookkeeping out of
  * the exported {@link KeyRule} type; the count dies with the rule.
+ *
+ * The cost of one rule per key is that a later registration of the same key
+ * does not replace the earlier rule — its `when` is ignored, since the array
+ * keeps whichever condition registered first.
  */
 const ruleHolders = new WeakMap<KeyRule, number>();
 

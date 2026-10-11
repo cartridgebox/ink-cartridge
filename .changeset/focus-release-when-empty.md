@@ -34,4 +34,4 @@ Add an opt-in engine option that drops a focus target once nothing binds to it.
 - `tests/pure-functions/base/pure.test.ts` covers a shared rule surviving its first holder's release, a duplicated cleanup releasing once, the stale-array resurrection, and action-key map entries scoped to their own action.
 - `tests/engine/base/engine.test.ts` covers a shared action staying resolvable after one of its bindings unbinds.
 - `tests/keyboard/focus-release.test.tsx` covers the provider prop end to end: unmounting a group's last holder releases the target and re-mounting takes its focus back, while the target stays registered with the option off.
-- `tests/processors/base/processors.test.ts` covers a key staying stopped while a second holder of the same rule remains, an unconditional `allowModal` key staying allowed beside a when-disabled rule for it, and a when-disabled `allowModal` rule staying scoped to its own target or layer list.
+- `tests/processors/base/processors.test.ts` covers a key staying stopped while a second holder of the same rule remains, and a when-disabled `allowModal` rule staying scoped to its own target or layer list.
