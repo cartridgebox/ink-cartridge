@@ -27,6 +27,7 @@ Screen navigation and keyboard system demos. Each demo is a self-contained file 
 | Demo | Description | Command |
 |------|-------------|---------|
 | pending-state | thereGlobalQueueWaiting + currentScreenHasSequenceWaiting with sync, pending-state UI feedback | `npx tsx examples/core/pending-state.tsx` |
+| pending-state-layer | `currentScreenHasSequenceWaiting()` inside a layer element: the owner decides the scope, so the hint tracks the layer's own `d d` sequence — armed, fired, or timed out | `npx tsx examples/core/pending-state-layer.tsx` |
 | layer-system | Layer A/B z-index order, layer broadcast, bubbling, penetration, stop, modal barrier | `npx tsx examples/layer-system/LayerSystem.tsx` |
 | takeover-scope | `automaticTakeoverKeyboard` with a page list (array): layer bindings go dormant only on listed pages and stay active elsewhere | `npx tsx examples/core/takeover-scope.tsx` |
 | bring-to-front | `clickOnRise`/`dragOnRise` + `bringLayerToFront`: draggable panels that raise their layer on click or drag, topmost key routing, modal barrier comparison | `npx tsx examples/core/bring-to-front.tsx` |
