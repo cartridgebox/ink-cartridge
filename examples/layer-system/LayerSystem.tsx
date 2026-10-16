@@ -10,7 +10,7 @@
  *   and closes with escape.
  *
  * Run:
- *   npx tsx examples/layer-system/LayerSystem.demo.tsx
+ *   npx tsx examples/layer-system/LayerSystem.tsx
  */
 import React, {
   useContext,

@@ -213,13 +213,13 @@ render(
 
 
 Not only that, it also supports full coordination between mouse and keyboard focus.
-This makes terminal interaction smoother. [Demo Example](./examples/xterm-mouse/MouseHoverFocus.demo.tsx)
+This makes terminal interaction smoother. [Demo Example](./examples/xterm-mouse/MouseHoverFocus.tsx)
 
 <div align="center">
 <img src="static/quickstart-mouse-focus.gif" width="2040" alt="mouse-focus" />
 </div>
 
-Drag: [Demo Example](./examples/xterm-mouse/MouseDrag.demo.tsx)
+Drag: [Demo Example](./examples/xterm-mouse/MouseDrag.tsx)
 
 <div align="center">
 <img src="static/quickstart-mouse-drag.gif" width="2040" alt="mouse-drag" />
@@ -227,7 +227,7 @@ Drag: [Demo Example](./examples/xterm-mouse/MouseDrag.demo.tsx)
 
 With Ink-cartridge, you can achieve buttery-smooth window raising, taking the interactivity and visual quality of React Ink apps to the next level. 
 On top of that, it keeps keyboard priority exactly aligned with window priority. As shown in the example below, when you press the X key, only the highest-priority window will respond.
-[Demo Example](./examples/core/bring-to-front.demo.tsx)
+[Demo Example](./examples/core/bring-to-front.tsx)
 
 <div align="center">
 <img src="static/quickstart-windous-rise.gif" width="2040" alt="windous-rise" />

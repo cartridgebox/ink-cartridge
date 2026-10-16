@@ -17,7 +17,7 @@
  *   q                     — quit (closes the modal first while it is open)
  *
  * Run:
- *   npx tsx examples/core/bring-to-front.demo.tsx
+ *   npx tsx examples/core/bring-to-front.tsx
  */
 import React, { useContext, useEffect, useRef, useState } from 'react';
 import { Box, Text, render } from 'ink';

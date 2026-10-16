@@ -14,7 +14,7 @@
  *   q — quit
  *
  * Run:
- *   npx tsx examples/xterm-mouse/MouseHitTest.demo.tsx
+ *   npx tsx examples/xterm-mouse/MouseHitTest.tsx
  */
 import React, { useState } from 'react';
 import { render, Box, Text } from 'ink';

@@ -23,7 +23,7 @@
  *   q — quit
  *
  * Run:
- *   npx tsx examples/xterm-mouse/SequenceMouse.demo.tsx
+ *   npx tsx examples/xterm-mouse/SequenceMouse.tsx
  */
 import React, { useEffect, useState } from 'react';
 import { render, Box, Text } from 'ink';

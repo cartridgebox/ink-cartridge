@@ -6,12 +6,12 @@ paths: ["examples/**/*"]
 
 ## Naming
 
-Every demo file must follow `{ComponentName}[.{variant}].demo.tsx`:
+Every demo file must follow `{ComponentName}[.{variant}].tsx`:
 
-- `Badge.demo.tsx` — single demo for Badge component
-- `SearchBar.multi.demo.tsx` — "multi" variant of SearchBar demo
+- `Badge.tsx` — single demo for Badge component
+- `SearchBar.multi.tsx` — "multi" variant of SearchBar demo
 
-Each component lives in its own directory: `examples/<component-name>/<Demo>.demo.tsx`.
+Each component lives in its own directory: `examples/<component-name>/<Demo>.tsx`.
 
 ## Content
 

@@ -25,7 +25,7 @@ Then **must** ask: new example or updating existing example?
    - Interactive → `registerComponent(Demo, {})` + `<ScenarioManagementProvider><KeyboardProvider><CurrentScreen /></>`
    - With overlay/modal → Interactive + `fullScreen` + `useWindowSize()` + `position="absolute"`
 5. Draft the complete demo and present it to the user
-6. User confirms; write the file to `examples/<component-name>/<ComponentName>[.variant].demo.tsx`
+6. User confirms; write the file to `examples/<component-name>/<ComponentName>[.variant].tsx`
 7. **Must** run `npx tsc -p examples/tsconfig.json --noEmit` and ensure it passes
 8. **Must** update `examples/README.md` — add a row to the correct table (Component Demos or Core System Demos)
 
@@ -177,7 +177,7 @@ And on the provider:
 
 ## Non-negotiable conventions
 
-- File naming: `{ComponentName}[.{variant}].demo.tsx` (e.g., `Badge.demo.tsx`, `SearchBar.multi.demo.tsx`)
+- File naming: `{ComponentName}[.{variant}].tsx` (e.g., `Badge.tsx`, `SearchBar.multi.tsx`)
 - Directory: `examples/<component-name>/`
 - All text **must** be in English — comments, UI strings, key descriptions
 - **Must** use JSX; `React.createElement` is forbidden

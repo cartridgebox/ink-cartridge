@@ -16,7 +16,7 @@
  *   q — quit
  *
  * Run:
- *   npx tsx examples/xterm-mouse/MouseLayerStack.demo.tsx
+ *   npx tsx examples/xterm-mouse/MouseLayerStack.tsx
  */
 import React, { useContext, useEffect, useState } from 'react';
 import { Box, Text, render } from 'ink';

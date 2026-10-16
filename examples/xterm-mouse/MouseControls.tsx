@@ -15,7 +15,7 @@
  *   q — quit
  *
  * Run:
- *   npx tsx examples/xterm-mouse/MouseControls.demo.tsx
+ *   npx tsx examples/xterm-mouse/MouseControls.tsx
  */
 import React, { useEffect, useState } from 'react';
 import { Box, Text, render } from 'ink';

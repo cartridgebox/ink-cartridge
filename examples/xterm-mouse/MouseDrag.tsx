@@ -12,7 +12,7 @@
  *   q — quit
  *
  * Run:
- *   npx tsx examples/xterm-mouse/MouseDrag.demo.tsx
+ *   npx tsx examples/xterm-mouse/MouseDrag.tsx
  */
 import React, { useEffect, useRef, useState } from 'react';
 import { Box, Text, render } from 'ink';

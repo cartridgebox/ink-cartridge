@@ -17,7 +17,7 @@
  *   q — quit
  *
  * Run:
- *   npx tsx examples/xterm-mouse/MouseFocus.demo.tsx
+ *   npx tsx examples/xterm-mouse/MouseFocus.tsx
  */
 import React, { useEffect, useState } from 'react';
 import { render, Box, Text } from 'ink';

@@ -23,7 +23,7 @@
  *   q — quit
  *
  * Run:
- *   npx tsx examples/xterm-mouse/MouseHoverFocus.demo.tsx
+ *   npx tsx examples/xterm-mouse/MouseHoverFocus.tsx
  */
 import React, { useEffect, useState } from 'react';
 import { render, Box, Text } from 'ink';

@@ -15,7 +15,7 @@
  *   q — quit
  *
  * Run:
- *   npx tsx examples/xterm-mouse/MouseFocusGroups.demo.tsx
+ *   npx tsx examples/xterm-mouse/MouseFocusGroups.tsx
  */
 import React, { useCallback, useEffect, useState } from 'react';
 import { render, Box, Text } from 'ink';
