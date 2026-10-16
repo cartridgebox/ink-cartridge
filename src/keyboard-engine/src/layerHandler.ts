@@ -92,11 +92,27 @@ export function tryMatchBindings<T extends BaseBoundKeyEntry>(
 }
 
 /**
+ * Whether an event carries the auto-tab key, in either direction.
+ *
+ * A host's `normalizeKeyNames` is free to drop the bare name while a modifier
+ * is held — the bundled Ink adapter does exactly that, so Shift+Tab arrives as
+ * `["shift+tab"]` alone. The reverse direction is therefore matched as
+ * `shift+<tabKey>` rather than assuming the bare name survives.
+ */
+export function isAutoTabEvent(eventNames: string[], tabKey: string): boolean {
+	return eventNames.includes(tabKey) || eventNames.includes(`shift+${tabKey}`);
+}
+
+/**
  * Built-in Tab / Shift+Tab focus rotation for a given layer.
  *
  * Cycles {@link PageKeyboardLayer.currentFocusIds} through the page layer's
  * {@link PageKeyboardLayer.defaultFocusOrder} list (Tab forward, Shift+Tab backward).
  * Wraps around at both ends.
+ *
+ * @param tabKey The bare key name the host's `normalizeKeyNames` produces for
+ *               the forward direction (see `EngineProps.tabKey`). The backward
+ *               direction is matched as `shift+<tabKey>`.
  *
  * @returns `true` if a tab event was handled and focus was moved.
  */
@@ -105,8 +121,12 @@ export function handleTabNavigation(
 	eventNames: string[],
 	shift: boolean,
 	notifyFocusChange: () => void,
+	tabKey: string = "tab",
 ): boolean {
-	if (!eventNames.includes("tab") || layer.defaultFocusOrder.length === 0)
+	if (
+		!isAutoTabEvent(eventNames, tabKey) ||
+		layer.defaultFocusOrder.length === 0
+	)
 		return false;
 
 	let current: string | null = null;
@@ -207,7 +227,13 @@ export function handleLayer<TC>(
 	if (
 		ctx.autoTab &&
 		isTop &&
-		handleTabNavigation(layer, ctx.eventNames, shift, ctx.notifyFocusChange)
+		handleTabNavigation(
+			layer,
+			ctx.eventNames,
+			shift,
+			ctx.notifyFocusChange,
+			ctx.autoTabKey,
+		)
 	)
 		return true;
 

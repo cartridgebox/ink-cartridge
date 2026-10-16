@@ -1,6 +1,10 @@
 import { checkWhen } from "./checkWhen.js";
 import { isNormalCharacter } from "./isNormalCharacter.js";
-import { keyMatchesRule, tryMatchBindings } from "./layerHandler.js";
+import {
+	isAutoTabEvent,
+	keyMatchesRule,
+	tryMatchBindings,
+} from "./layerHandler.js";
 import { BaseSequenceBinding } from "./types/binding.js";
 import { defaultTargetsSymbol } from "./types/default-targets-symbol.js";
 import { FocusTarget } from "./types/focus.js";
@@ -23,7 +27,9 @@ export type ElementHandleResult = boolean | "sequence";
  * Built-in Tab / Shift+Tab focus rotation for an element-level keyboard layer.
  *
  * Cycles the element's default focus order (Tab forward, Shift+Tab backward),
- * wrapping at both ends.
+ * wrapping at both ends. The key names come from `ctx.autoTabKey` and its
+ * `shift+` variant, so the rotation works whether or not the host's
+ * `normalizeKeyNames` keeps the bare name next to the modified one.
  *
  * @returns `true` if a tab event was handled and focus was moved.
  */
@@ -32,7 +38,10 @@ export function handleTabNavigation<TC>(
 	ctx: PipelineContext<TC>,
 	shift: boolean,
 ): boolean {
-	if (!ctx.eventNames.includes("tab") || layer.defaultFocusOrder.length === 0)
+	if (
+		!isAutoTabEvent(ctx.eventNames, ctx.autoTabKey) ||
+		layer.defaultFocusOrder.length === 0
+	)
 		return false;
 
 	let current: string | null = null;
