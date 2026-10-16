@@ -148,6 +148,13 @@ export function back(levels: number = 1): void {
 
 /**
  * Jump to any registered screen across branches of the tree.
+ *
+ * A target already on the current path — the current screen or one of its
+ * ancestors — takes `template + params` in place of its own params and is
+ * remounted, exactly as `skip` treats the current screen. Pass
+ * `{ onlyAttribute: true }` to update only its props and keep the mounted
+ * instance. Pages below the target are dropped, as with any jump to an
+ * ancestor.
  */
 export function gotoScreen<C extends React.ComponentType<any>>(
 	component: C,
@@ -160,11 +167,12 @@ export function gotoScreen<C extends React.ComponentType<any>>(
 			}" is not registered. Please call registerComponent() first.`
 		);
 	}
-	const [params = {}] = args;
+	const [params = {}, options] = args;
 	getDispatch()({
 		type: "gotoScreen",
 		component,
 		params: toActionParams(params),
+		onlyAttribute: options?.onlyAttribute ?? false,
 	});
 }
 
@@ -722,6 +730,37 @@ function reduceScreenAction(state: ScreenState, action: ScreenAction): ScreenSta
 			const template = getTemplate(action.component) ?? {};
 			const mergedParams = { ...template, ...action.params };
 
+			const crossPageLayers = state.allLayers.filter(
+				(each) => each.crossPage === true
+			);
+			const crossPageModalLayers = state.allModalLayers.filter(
+				(each) => each.crossPage === true
+			);
+
+			// An empty suffix means the target is already on the path — the
+			// current screen or one of its ancestors. As with `skip` on the
+			// current screen, the params replace that entry's own; `onlyAttribute`
+			// picks between updating them in place (same Page, so region focus
+			// survives) and remounting the target with them. Pages below the
+			// target are dropped, as with any jump to an ancestor.
+			if (suffix.length === 0) {
+				const targetPage: Page = action.onlyAttribute
+					? state.path[ancestorIndex]
+					: { component: action.component, regionFocus: new Map() };
+				return {
+					path: [...state.path.slice(0, ancestorIndex), targetPage],
+					pathParams: [
+						...state.pathParams.slice(0, ancestorIndex),
+						mergedParams,
+					],
+					// The counter is the page element's React key: advancing it
+					// remounts the target, keeping it leaves the instance mounted.
+					counter: action.onlyAttribute ? state.counter : state.counter + 1,
+					allLayers: crossPageLayers,
+					allModalLayers: crossPageModalLayers,
+				};
+			}
+
 			const newPathParams = [
 				...state.pathParams.slice(0, ancestorIndex + 1),
 				...suffix.map((comp) => {
@@ -730,12 +769,6 @@ function reduceScreenAction(state: ScreenState, action: ScreenAction): ScreenSta
 				}),
 			];
 
-			const crossPageLayers = state.allLayers.filter(
-				(each) => each.crossPage === true
-			);
-			const crossPageModalLayers = state.allModalLayers.filter(
-				(each) => each.crossPage === true
-			);
 			return {
 				path: newPath,
 				pathParams: newPathParams,
@@ -1390,11 +1423,12 @@ export function ScenarioManagementProvider({
 					}" is not registered.`
 				);
 			}
-			const [params = {}] = args;
+			const [params = {}, options] = args;
 			dispatch({
 				type: "gotoScreen",
 				component,
 				params: toActionParams(params),
+				onlyAttribute: options?.onlyAttribute ?? false,
 			});
 		},
 		[]
