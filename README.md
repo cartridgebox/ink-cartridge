@@ -20,6 +20,7 @@
 - [Documentation](#documentation)
 - [For AI](#for-ai)
 - [Examples](#examples)
+- [Versioning](#versioning)
 - [License](#license)
 
 ## Design Philosophy
@@ -283,6 +284,20 @@ Skills live in [`skills/`](skills/) (SKILL.md per agent tool); install them for 
 ## Examples
 
 Runnable demos for every component. See [examples/README.md](examples/README.md) for the full list and run commands.
+
+## Versioning
+
+`ink-cartridge` does not follow semantic versioning strictly. A version is chosen by
+the size and the circumstances of a change rather than by API compatibility alone:
+
+- **major** — a large release or a large-scale refactor. A breaking change does not by
+  itself force a major bump.
+- **minor** / **patch** — the two are split by scale: a new capability or a sizeable
+  behavior change lands as a minor, a small fix or a narrow adjustment as a patch.
+
+In practice, read the [CHANGELOG](CHANGELOG.md) instead of inferring compatibility from
+the number — every change is listed there, grouped into Added, Changed, Fixed, Breaking
+Changes and Tests.
 
 ## License
 
