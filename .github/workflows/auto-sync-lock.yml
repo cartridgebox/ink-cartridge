@@ -96,37 +96,19 @@ jobs:
           delete-branch: true
           labels: automated
 
-      - name: Squash-merge the sync PR
+      # PROBE ONLY — temporary copy of this workflow used to verify that the
+      # authored identity clears the ruleset's unattributed-changes rule. It
+      # reports instead of merging; this branch is deleted after the probe and
+      # the real step never looks like this.
+      - name: Report the sync PR state (probe, no merge)
         if: steps.cpr.outputs.pull-request-number != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           pr="${{ steps.cpr.outputs.pull-request-number }}"
-          # A freshly opened PR can take a moment before GitHub reports it as
-          # mergeable, so retry rather than fail the run on the first attempt.
-          for attempt in 1 2 3 4 5 6; do
-            if gh pr merge "$pr" --squash --delete-branch \
-              --subject "chore: sync package-lock.json [skip ci] (#$pr)"; then
-              echo "::notice::Merged auto-sync PR #$pr"
-              exit 0
-            fi
-            echo "::warning::merge attempt $attempt failed, retrying in 5s"
-            sleep 5
-          done
-
-          state="$(gh pr view "$pr" --json mergeStateStatus --jq .mergeStateStatus)"
-          echo "::error::Could not merge auto-sync PR #$pr (mergeStateStatus: $state)."
-          {
-            echo "### Auto-sync lock file needs attention"
-            echo ""
-            echo "PR #$pr could not be merged automatically (mergeStateStatus: \`$state\`)."
-            echo "Open it: https://github.com/${{ github.repository }}/pull/$pr"
-            echo ""
-            if [ "$state" = "BLOCKED" ]; then
-              echo "A BLOCKED PR on this repository means the ruleset \"default\" sees a"
-              echo "commit that is not attributed to a GitHub account. Check that"
-              echo "\`SYNC_IDENTITY\` in \`.github/workflows/auto-sync-lock.yml\` uses an email"
-              echo "verified on a GitHub account, or approve the PR by hand once."
-            fi
-          } >> "$GITHUB_STEP_SUMMARY"
-          exit 1
+          sleep 20
+          echo "=== PR state ==="
+          gh pr view "$pr" --json number,author,mergeStateStatus,mergeable,reviewDecision --jq .
+          echo "=== commit authors ==="
+          gh pr view "$pr" --json commits --jq '.commits[] | {headline: .messageHeadline, authors: [.authors[].login]}'
+          echo "::notice::PROBE ONLY — not merging."
