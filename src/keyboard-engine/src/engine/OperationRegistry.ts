@@ -11,7 +11,6 @@ import {
   SequenceOperationEntry,
   ShortcutOperationEntry,
 } from "../types/entry.js";
-import { SequenceListeningOptions } from "../types/options.js";
 import { GlobalPendingSequence, PendingSequence } from "../types/pending-sequence.js";
 import EngineState from "./EngineState.js";
 import type LayerManager from "./LayerManager.js";
@@ -509,18 +508,15 @@ export default class OperationRegistry<TComponent = unknown> {
    * Check whether the current owner's layer has an active pending
    * multi-key sequence (registered via `boundSequence`).
    *
-   * Unlike {@link thereGlobalQueueWaiting}, this only checks the layer
-   * belonging to the current owner. With `options.monitorLayer: true`,
-   * a layer-id owner's own pending sequence is inspected; otherwise the
-   * top page's pending sequence is used.
+   * The owner decides the scope, and a layer-id owner means the layer itself:
+   * an overlay or modal element reads its own layer's pending sequence —
+   * including one armed by one of that layer's elements — instead of the
+   * page's. On a page, the page's own pending sequence is inspected.
    *
    * @throws If there is no current owner (no active page, layer, or
    *         modal layer).
    */
-  currentScreenHasSequenceWaiting(
-    sync?: () => void,
-    options?: SequenceListeningOptions,
-  ): boolean {
+  currentScreenHasSequenceWaiting(sync?: () => void): boolean {
     if (sync) {
       this.state.pendingSyncs.add(sync);
     }
@@ -533,41 +529,12 @@ export default class OperationRegistry<TComponent = unknown> {
       );
     }
 
-    let pending: PendingSequence | null = null;
+    const pending: PendingSequence | null =
+      typeof owner === "string"
+        ? (this.state.layersKeyboardMap.get(owner)?.pendingSequence
+            .pendingSequence ?? null)
+        : this.layers.getLayer(owner).pendingSequence;
 
-    if (options?.monitorLayer === true && typeof owner === "string") {
-      const seq = this.state.layersKeyboardMap.get(owner)
-      if (seq) {
-        pending = seq.pendingSequence.pendingSequence
-      }
-    } else if (typeof owner !== "string") {
-      pending = this.layers.getLayer(owner).pendingSequence;
-      
-    } else {
-      const topC = this.layers.getTopPage();
-
-      if (!topC) {
-        throw new Error(
-          `
-								[keyboard-engine] currentScreenHasSequenceWaiting(): You have not enabled the option to listen for layers, yet there are currently no pages; 
-                you must enable this option, or else register a new page.
-
-                enable option:
-                currentScreenHasSequenceWaiting(sync, {
-                  monitorLayer: true
-                })
-
-                Create a registration page: Determined by the framework host.
-
-							`,
-        );
-      }
-
-      pending = this.layers.getLayer(topC).pendingSequence;
-    }
-
-    return (
-      pending !== null && pending !== undefined
-    );
+    return pending !== null && pending !== undefined;
   }
 }

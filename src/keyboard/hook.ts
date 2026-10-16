@@ -438,6 +438,11 @@ export function useKeyboard(): KeyboardContextValue {
         withOwner(() =>
           ctx.useModalMissListener(cb, withElement(options)),
         ),
+      // Owner-scoped like the methods above: without the re-push, a call from a
+      // layer element reads whichever layer — or page — happens to sit on top
+      // of the owner stack, which is how sibling elements break each other.
+      currentScreenHasSequenceWaiting: (sync?: () => void) =>
+        withOwner(() => ctx.currentScreenHasSequenceWaiting(sync)),
       focusSet: (focusId: string, groupOrOptions?: string | FocusSetOptions) =>
         withOwner(() => ctx.focusSet(focusId, withFocusOptions(groupOrOptions))),
       focusNext: (groupOrOptions?: string | FocusSetOptions) =>
