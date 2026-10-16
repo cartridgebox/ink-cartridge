@@ -93,6 +93,10 @@ jobs:
             default token, so `npm ci` in the workflow run is the guard.
           add-paths: package-lock.json
           branch: auto-sync/lockfile
+          # Explicit, because the action otherwise bases the PR on the branch it
+          # runs from — a manual dispatch from a feature branch would target that
+          # branch instead of main.
+          base: ${{ github.event.repository.default_branch }}
           delete-branch: true
           labels: automated
 
