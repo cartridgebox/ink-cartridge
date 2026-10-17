@@ -63,10 +63,9 @@ export interface BaseBoundKeyEntry {
  */
 export interface PageBoundKeyEntry extends BaseBoundKeyEntry {
   /**
-   * When `true`, this binding stops responding after its owning layer
-   * has appeared on screen. The binding is only active before the layer
-   * renders for the first time — once the layer becomes visible, any
-   * subsequent key presses matching this entry are silently ignored.
+   * When `true`, this binding is skipped while a layer or modal layer is open:
+   * key presses matching it are silently ignored until every layer is closed,
+   * at which point it responds again.
    */
   stopsWorkingAfterLayerAppearing?: boolean;
 }
@@ -111,10 +110,9 @@ export interface BaseSequenceBinding {
  */
 export interface PageSequenceOptions extends SequenceOptions {
   /**
-   * When `true`, this binding stops responding after its owning layer
-   * has appeared on screen. The binding is only active before the layer
-   * renders for the first time — once the layer becomes visible, any
-   * subsequent key presses matching this entry are silently ignored.
+   * When `true`, this binding is skipped while a layer or modal layer is open:
+   * key presses matching it are silently ignored until every layer is closed,
+   * at which point it responds again.
    */
   stopsWorkingAfterLayerAppearing: boolean;
 }
