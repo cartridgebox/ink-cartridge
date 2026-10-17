@@ -36,7 +36,7 @@
   "peerDependencies": {
     "react": ">=18",
     "ink": ">=5",
-    "ink-cartridge": "*"
+    "ink-cartridge": "^6.2.0"
   },
   "devDependencies": {
     "@types/node": "^20.19.39",

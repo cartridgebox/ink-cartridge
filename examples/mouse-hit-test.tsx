@@ -14,7 +14,7 @@
  *   q — quit
  *
  * Run:
- *   npx tsx examples/xterm-mouse/MouseHitTest.demo.tsx
+ *   npx tsx examples/mouse-hit-test.tsx
  */
 import React, { useState } from 'react';
 import { render, Box, Text } from 'ink';
@@ -25,7 +25,7 @@ import {
   KeyboardProvider,
   useKeyboard,
   useMouseRegion,
-} from '../../src/index.js';
+} from '../src/index.js';
 
 const GRID = 8;
 const GRID_AREA = GRID * GRID;

@@ -79,33 +79,3 @@ export function registerComponent(...): void;
 // Register a component
 export function registerComponent(...) { ... }
 ```
-
-## 5. Timestamp large comment blocks
-
-Any `//` comment block spanning **more than 5 lines** MUST end with a timestamp (date + project version from `package.json`). JSDoc (`/** */`) never carries timestamps — they would leak into the typedoc output:
-
-```
-// @2026-06-14 v3.1.0
-```
-
-**Correct** (6-line block with timestamp):
-```ts
-// The write queue is a promise chain. We use `.then(task, task)` so
-// that even if a previous write rejects, the next write still executes.
-// Without the second argument, a rejection would break the chain forever.
-// This is critical because the queue is shared across all writers and
-// one failing writer must not block subsequent writes.
-// @2026-06-14 v3.1.0
-this.pending = this.pending.then(task, task);
-```
-
-**Wrong** (8-line block, missing timestamp):
-```ts
-// We need to iterate in reverse order because the keyboard event
-// must be offered to the topmost layer first. If the top layer
-// does not handle the key, we try the next one below it and so
-// on until someone consumes it or we run out of layers.
-// The reverse loop also correctly handles the case where a layer
-// is removed mid-iteration.
-for (let i = path.length - 1; i >= 0; i--) { ... }
-```

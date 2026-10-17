@@ -7,6 +7,8 @@ import {
   GameLevel,
   Combat,
   Settings,
+  StatefulScreen,
+  statefulMountCount,
   renderWithCapture,
   setupBaseScreenTests,
   teardownBaseScreenTests,
@@ -121,6 +123,109 @@ describe('gotoScreen', () => {
     expect(() => gotoScreen(Menu, {})).toThrow(
       /called before Provider is mounted/,
     );
+  });
+});
+
+describe('gotoScreen to a screen already on the path', () => {
+  beforeEach(() => {
+    statefulMountCount.current = 0;
+  });
+
+  it('applies params and remounts the current screen by default', async () => {
+    const { getCapture, lastFrame } = renderWithCapture(Menu);
+    const ctx = getCapture()!;
+
+    await act(async () => {
+      ctx.skip(StatefulScreen, { label: 'a' });
+    });
+    expect(statefulMountCount.current).toBe(1);
+
+    await act(async () => {
+      ctx.gotoScreen(StatefulScreen, { label: 'b' });
+    });
+
+    expect(lastFrame()).toContain('label:b');
+    expect(statefulMountCount.current).toBe(2);
+    expect(getCapture()!.currentPath.map((p) => p.component)).toEqual([
+      Menu,
+      StatefulScreen,
+    ]);
+  });
+
+  it('updates props without remounting when onlyAttribute is true', async () => {
+    const { getCapture, lastFrame } = renderWithCapture(Menu);
+    const ctx = getCapture()!;
+
+    await act(async () => {
+      ctx.skip(StatefulScreen, { label: 'a' });
+    });
+    expect(statefulMountCount.current).toBe(1);
+
+    await act(async () => {
+      ctx.gotoScreen(StatefulScreen, { label: 'b' }, { onlyAttribute: true });
+    });
+
+    expect(lastFrame()).toContain('label:b');
+    expect(statefulMountCount.current).toBe(1);
+    expect(getCapture()!.currentPath.map((p) => p.component)).toEqual([
+      Menu,
+      StatefulScreen,
+    ]);
+  });
+
+  it('applies params when jumping to an ancestor already on the path', async () => {
+    const { getCapture, lastFrame } = renderWithCapture(Menu);
+    const ctx = getCapture()!;
+
+    await act(async () => {
+      ctx.skip(GameLevel, { level: 1 });
+    });
+    await act(async () => {
+      ctx.skip(Combat, { enemy: 'goblin' });
+    });
+
+    await act(async () => {
+      ctx.gotoScreen(GameLevel, { level: 7 });
+    });
+
+    expect(getCapture()!.currentPath.map((p) => p.component)).toEqual([
+      Menu,
+      GameLevel,
+    ]);
+    expect(lastFrame()).toContain('Level 7');
+  });
+
+  it('mounts an ancestor fresh even with onlyAttribute', async () => {
+    function Child() {
+      return <Text>Child</Text>;
+    }
+    registerComponent(Child, {}, { parent: StatefulScreen });
+
+    const { getCapture, lastFrame } = renderWithCapture(Menu);
+    const ctx = getCapture()!;
+
+    await act(async () => {
+      ctx.skip(StatefulScreen, { label: 'a' });
+    });
+    expect(statefulMountCount.current).toBe(1);
+
+    await act(async () => {
+      ctx.skip(Child);
+    });
+
+    await act(async () => {
+      ctx.gotoScreen(StatefulScreen, { label: 'b' }, { onlyAttribute: true });
+    });
+
+    // The params are applied and the deeper page is dropped, but the ancestor
+    // was unmounted while the child was on top — only the page entry (and its
+    // regionFocus map) survives, so the component mounts fresh.
+    expect(getCapture()!.currentPath.map((p) => p.component)).toEqual([
+      Menu,
+      StatefulScreen,
+    ]);
+    expect(lastFrame()).toContain('label:b');
+    expect(statefulMountCount.current).toBe(2);
   });
 });
 

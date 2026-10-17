@@ -165,6 +165,29 @@ describe("BindingService boundKeyboard", () => {
     expect(aHandler).not.toHaveBeenCalled();
     expect(bHandler).toHaveBeenCalled();
   });
+
+  it("keeps stopsWorkingAfterLayerAppearing on a focusId binding", () => {
+    const engine = createEngine();
+    const handler = vi.fn();
+    engine.sync({ pagePath: [Page], layers: [], modalLayers: [] });
+    engine.boundKeyboard(["x"], handler, {
+      focusId: "panel",
+      stopsWorkingAfterLayerAppearing: true,
+    });
+
+    engine.processKey("x", {});
+    expect(handler).toHaveBeenCalledTimes(1);
+
+    // With a layer on screen the page binding stops responding — the same rule
+    // a binding without focusId follows.
+    engine.sync({
+      pagePath: [Page],
+      layers: [makeSyncLayer("L", [])],
+      modalLayers: [],
+    });
+    engine.processKey("x", {});
+    expect(handler).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("BindingService penetration/stop/allowModal/sequence", () => {
@@ -831,7 +854,7 @@ describe("OperationRegistry edge cases", () => {
     expect(engine.thereGlobalQueueWaiting(sync)).toBe(false);
   });
 
-  it("supports monitorLayer and missing owner branches", () => {
+  it("reports a layer owner's own pending sequence, page or no page", () => {
     const engine = createEngine();
     expect(() => engine.currentScreenHasSequenceWaiting()).toThrow();
 
@@ -844,20 +867,25 @@ describe("OperationRegistry edge cases", () => {
     engine.boundSequence(["x", "y"], () => {}, { elementId: "e1" });
     engine.popOwner("L");
     engine.processKey("x", {});
-    expect(
-      engine["registry"].currentScreenHasSequenceWaiting(() => {}, {
-        monitorLayer: true,
-      }),
-    ).toBe(true);
+    // The owner is the layer, so the element's pending sequence is reported
+    // through the public API — no option, no registry access.
+    expect(engine.currentScreenHasSequenceWaiting(() => {})).toBe(true);
+    // The page below it is not waiting, so a page owner answers false — the
+    // scope follows the owner, not the top layer.
+    engine.pushOwner(Page);
+    expect(engine.currentScreenHasSequenceWaiting()).toBe(false);
+    engine.popOwner(Page);
 
+    // A layer with no page below it behaves the same way instead of throwing.
     engine.sync({
       pagePath: [],
       layers: [makeSyncLayer("L", ["e1"])],
       modalLayers: [],
     });
-    expect(() =>
-      engine.currentScreenHasSequenceWaiting(() => {}),
-    ).toThrow();
+    expect(engine.currentScreenHasSequenceWaiting(() => {})).toBe(true);
+
+    engine.processKey("y", {});
+    expect(engine.currentScreenHasSequenceWaiting()).toBe(false);
   });
 });
 

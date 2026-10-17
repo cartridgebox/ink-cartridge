@@ -240,14 +240,3 @@ export interface AllowModalOptions {
   /** ID of the element the allow rule applies to. */
   elementId?: string;
 }
-
-/**
- * Options for {@link KeyboardEngine.currentScreenHasSequenceWaiting}.
- */
-export interface SequenceListeningOptions {
-  /**
-   * When `true`, also inspects the pending sequence of the current layer
-   * when the owner is a layer id, instead of only the top page's sequence.
-   */
-  monitorLayer?: boolean;
-}

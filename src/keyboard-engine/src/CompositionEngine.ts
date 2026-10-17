@@ -1399,7 +1399,12 @@ export default class CompositionEngine<TComponent = unknown> {
 		if (!this.pendingEntry) return;
 		clearTimeout(this.pendingEntry.timer);
 		const timer = setTimeout(() => {
+			// This wait was restarted by a mismatched key in exclusive mode, and
+			// its expiry ends the chain exactly like the other two timers do: the
+			// keys are recorded for undo and subscribers learn it completed.
 			this.clearPending();
+			this.recordHistory();
+			this.notify({ type: "completed" });
 		}, timeout);
 		this.pendingEntry.timer = timer;
 		this.pendingEntry.timeout = timeout;

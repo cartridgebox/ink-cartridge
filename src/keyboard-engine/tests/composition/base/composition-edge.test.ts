@@ -487,6 +487,24 @@ describe("composition lifecycle", () => {
     expect(broken.hasPendingComposition()).toBe(false);
   });
 
+  it("completes an exclusive chain when its restarted wait expires", () => {
+    vi.useFakeTimers();
+    const engine = syncEngine();
+    head(engine, "3", { exclusive: true });
+    engine.processKey("3", {});
+    // The mismatched key is consumed and the wait restarts…
+    expect(engine.processKey("z", {})).toBe(true);
+    expect(engine.getLastCompositionEvent()?.type).toBe("consumed");
+
+    vi.advanceTimersByTime(600);
+
+    // …and when that restarted wait expires the chain ends the same way any
+    // other timeout does: recorded for undo and announced as completed.
+    expect(engine.hasPendingComposition()).toBe(false);
+    expect(engine.getLastCompositionEvent()?.type).toBe("completed");
+    expect(engine.bufferedCompositionCount()).toBe(1);
+  });
+
   it("stops a chain when an end key matches", () => {
     const engine = syncEngine();
     head(engine);

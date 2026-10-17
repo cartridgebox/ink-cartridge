@@ -304,6 +304,16 @@ export default class BindingService<TComponent = unknown> {
       const entry = createBoundKeyEntry(keys, handler);
       entry.when = options?.when;
       entry.mode = options?.mode;
+      // A focused binding on a page is matched with the same
+      // `shouldSkipOnlyLayer` predicate as a page-level one, so the flag has
+      // to be stored here too or the option silently does nothing. Element
+      // layers never carry it, exactly like the non-focus branch below.
+      // (The assertion is safe: `PageBoundKeyEntry` only adds this optional
+      // flag to `BaseBoundKeyEntry`.)
+      if (!("associatedLayer" in layer)) {
+        (entry as PageBoundKeyEntry).stopsWorkingAfterLayerAppearing =
+          options?.stopsWorkingAfterLayerAppearing;
+      }
 
       // Attach and hold only once the entry is certain to be pushed: the two
       // calls above can throw, and a throw returns no cleanup that could

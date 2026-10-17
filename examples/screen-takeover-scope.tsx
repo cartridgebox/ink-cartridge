@@ -8,7 +8,7 @@ import {
   ScenarioManagementProvider,
   useKeyboard,
   useScreenSystem,
-} from "../../src/index.js";
+} from "../src/index.js";
 
 // Fixed dimensions keep the centering math for the floating layer consistent.
 const OVERLAY_W = 42;

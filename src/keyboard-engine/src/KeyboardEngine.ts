@@ -131,9 +131,11 @@ export interface EngineProps<TComponent> {
    * Override the key name used for automatic focus rotation when
    * {@link autoTab} is `true`.
    *
-   * The value must be a key name that {@link normalizeKeyNames} can
-   * produce — the engine matches via `eventNames.includes(thisKey)`,
-   * so the string must exactly match a normalized name the adapter emits.
+   * The value must be the bare key name {@link normalizeKeyNames} produces.
+   * Forward rotation matches it, reverse rotation matches ``shift+tabKey`` —
+   * the reverse name is derived from this value, so an adapter that drops the
+   * bare name while Shift is held (the bundled Ink adapter does) still rotates
+   * backward.
    *
    * When omitted, the engine defaults to `"tab"` (and `"shift+tab"`
    * for reverse rotation). Provide a custom value when your host

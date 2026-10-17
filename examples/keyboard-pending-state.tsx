@@ -1,6 +1,6 @@
 import { Box, render, Text } from "ink";
 import React, { useCallback, useEffect, useState } from "react";
-import { CurrentScreen, KeyboardProvider, registerComponent, ScenarioManagementProvider, useKeyboard } from "../../src/index.js";
+import { CurrentScreen, KeyboardProvider, registerComponent, ScenarioManagementProvider, useKeyboard } from "../src/index.js";
 
 
 function App() {

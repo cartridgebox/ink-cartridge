@@ -12,7 +12,7 @@
  *   q — quit
  *
  * Run:
- *   npx tsx examples/xterm-mouse/MouseDrag.demo.tsx
+ *   npx tsx examples/mouse-drag.tsx
  */
 import React, { useEffect, useRef, useState } from 'react';
 import { Box, Text, render } from 'ink';
@@ -23,7 +23,7 @@ import {
   ScenarioManagementProvider,
   useKeyboard,
   useMouseRegion,
-} from '../../src/index.js';
+} from '../src/index.js';
 
 function DraggableWindow() {
   const [pos, setPos] = useState({ top: 3, left: 3 });

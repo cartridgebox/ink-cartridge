@@ -15,7 +15,7 @@ import {
 	removeProcessor,
 	setProcessorWeight,
 	withOwner,
-} from "../../src/index.js";
+} from "../src/index.js";
 
 /**
  * Module-level keyboard API demo.
