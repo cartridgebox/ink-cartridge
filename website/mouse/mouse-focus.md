@@ -130,7 +130,7 @@ const ref = useMouseRegion(
 | `true` | `true` (default) | Enter focuses, leave clears |
 | `true` | `false` | Enter focuses, leave **keeps** it |
 
-`leaveOffFocus: false` suits targets where hovering is a temporary preview but the focus must stay — a panel with a narrow edge the cursor easily slips off, for instance. All three modes are on display as the three panels of `MouseHoverFocus.tsx`.
+`leaveOffFocus: false` suits targets where hovering is a temporary preview but the focus must stay — a panel with a narrow edge the cursor easily slips off, for instance. All three modes are on display as the three panels of `mouse-hover-focus.tsx`.
 
 Clearing on leave goes through `kickFocusGroup`, which **drops the focus that group currently holds** rather than restoring the previous one. Moving back in sets the focus again; there is no "restore the scene".
 
@@ -160,7 +160,7 @@ In other words, leaving clears **whatever the whole group currently holds**, not
 
 ## The link also applies to `boundSequence`
 
-`boundKeyboard` is not the only writer — `boundSequence(keys, actionId, { ref, focusId })` records the same entry. The difference only shows after a click moves the focus: only the region that holds the focus starts matching its sequence, so the same key pair can take a different branch per panel (see `SequenceMouse.tsx`).
+`boundKeyboard` is not the only writer — `boundSequence(keys, actionId, { ref, focusId })` records the same entry. The difference only shows after a click moves the focus: only the region that holds the focus starts matching its sequence, so the same key pair can take a different branch per panel (see `mouse-sequence.tsx`).
 
 ## When the link does not work, check these four
 

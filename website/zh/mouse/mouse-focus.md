@@ -130,7 +130,7 @@ const ref = useMouseRegion(
 | `true` | `true`（默认） | 移入切焦点，移出清焦点 |
 | `true` | `false` | 移入切焦点，移出**保留**焦点 |
 
-`leaveOffFocus: false` 适合悬停只是临时预览、但焦点必须留住的目标，例如边缘很窄、鼠标容易滑出的面板。三种模式可以对照 `MouseHoverFocus.tsx` 的三个面板。
+`leaveOffFocus: false` 适合悬停只是临时预览、但焦点必须留住的目标，例如边缘很窄、鼠标容易滑出的面板。三种模式可以对照 `mouse-hover-focus.tsx` 的三个面板。
 
 移出时清除用的是 `kickFocusGroup`，它把该组**当前持有的焦点摘掉**，而不是回退到上一个焦点——所以移出之后再移回去，焦点是重新被设置的，不存在「恢复现场」。
 
@@ -160,7 +160,7 @@ useEffect(
 
 ## 联动同样适用于 `boundSequence`
 
-写表的不只是 `boundKeyboard`——`boundSequence(keys, actionId, { ref, focusId })` 也登记同样的条目。区别在点击切完焦点之后才体现：只有持有焦点的那个区域的序列会开始匹配，于是同一组按键在不同面板上可以走不同分支（见 `SequenceMouse.tsx`）。
+写表的不只是 `boundKeyboard`——`boundSequence(keys, actionId, { ref, focusId })` 也登记同样的条目。区别在点击切完焦点之后才体现：只有持有焦点的那个区域的序列会开始匹配，于是同一组按键在不同面板上可以走不同分支（见 `mouse-sequence.tsx`）。
 
 ## 联动没生效时按这四条排查
 
