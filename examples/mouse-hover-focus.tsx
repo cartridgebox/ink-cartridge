@@ -23,7 +23,7 @@
  *   q — quit
  *
  * Run:
- *   npx tsx examples/xterm-mouse/MouseHoverFocus.tsx
+ *   npx tsx examples/mouse-hover-focus.tsx
  */
 import React, { useEffect, useState } from 'react';
 import { render, Box, Text } from 'ink';
@@ -35,7 +35,7 @@ import {
   useKeyboard,
   useFocusState,
   useMouseRegion,
-} from '../../src/index.js';
+} from '../src/index.js';
 
 function HoverPanel({
   label,

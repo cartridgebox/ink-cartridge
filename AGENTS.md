@@ -23,7 +23,7 @@ npm run lint:quick     # eslint src/ packages/ --quiet --cache
 npm run clean          # rm -rf dist
 ```
 
-Per-demo: `npx tsx examples/<pkg>/<Demo>.tsx` (see `examples/README.md`).
+Per-demo: `npx tsx examples/<group>-<name>.tsx` (see `examples/README.md`).
 
 ## Done
 

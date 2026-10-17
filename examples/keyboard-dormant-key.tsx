@@ -11,7 +11,7 @@
  *   a — open the layer        esc — close it        q — quit
  *
  * Run:
- *   npx tsx examples/core/dormant-key.tsx
+ *   npx tsx examples/keyboard-dormant-key.tsx
  */
 import { Box, render, Text, useWindowSize } from "ink";
 import React, { useEffect, useState } from "react";
@@ -22,7 +22,7 @@ import {
 	ScenarioManagementProvider,
 	useKeyboard,
 	useScreenSystem,
-} from "../../src/index.js";
+} from "../src/index.js";
 
 const OVERLAY_W = 46;
 const OVERLAY_H = 7;

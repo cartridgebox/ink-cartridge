@@ -25,7 +25,7 @@ Then **must** ask: new example or updating existing example?
    - Interactive → `registerComponent(Demo, {})` + `<ScenarioManagementProvider><KeyboardProvider><CurrentScreen /></>`
    - With overlay/modal → Interactive + `fullScreen` + `useWindowSize()` + `position="absolute"`
 5. Draft the complete demo and present it to the user
-6. User confirms; write the file to `examples/<component-name>/<ComponentName>[.variant].tsx`
+6. User confirms; write the file to `examples/<group>-<name>.tsx`
 7. **Must** run `npx tsc -p examples/tsconfig.json --noEmit` and ensure it passes
 8. **Must** update `examples/README.md` — add a row to the correct table (Component Demos or Core System Demos)
 
@@ -91,7 +91,7 @@ import {
   ScenarioManagementProvider,
   CurrentScreen,
   KeyboardProvider,
-} from '../../src/index.js';
+} from '../src/index.js';
 import { ComponentName } from '@cartridge-engine/<name>';
 import { Divider } from '@cartridge-engine/divider';
 import { KeyHint } from '@cartridge-engine/key-hint';
@@ -177,8 +177,8 @@ And on the provider:
 
 ## Non-negotiable conventions
 
-- File naming: `{ComponentName}[.{variant}].tsx` (e.g., `Badge.tsx`, `SearchBar.multi.tsx`)
-- Directory: `examples/<component-name>/`
+- File naming: `<group>-<name>.tsx`, flat in `examples/` (e.g. `keyboard-dormant-key.tsx`, `mouse-hover-focus.tsx`)
+- Groups: `screen-`, `keyboard-`, `mouse-` — the subsystem the demo belongs to
 - All text **must** be in English — comments, UI strings, key descriptions
 - **Must** use JSX; `React.createElement` is forbidden
 - Overlay/modal components **must** use `position="absolute"` + `useWindowSize()` centering + `backgroundColor="black"` + `fullScreen` on provider

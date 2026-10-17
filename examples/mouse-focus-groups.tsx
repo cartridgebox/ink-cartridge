@@ -15,7 +15,7 @@
  *   q — quit
  *
  * Run:
- *   npx tsx examples/xterm-mouse/MouseFocusGroups.tsx
+ *   npx tsx examples/mouse-focus-groups.tsx
  */
 import React, { useCallback, useEffect, useState } from 'react';
 import { render, Box, Text } from 'ink';
@@ -27,7 +27,7 @@ import {
   useKeyboard,
   useFocusState,
   useMouseRegion,
-} from '../../src/index.js';
+} from '../src/index.js';
 
 const GROUPS = [
   { label: 'Alpha', group: 'g-alpha', focusId: 'alpha', keyName: 'a' },

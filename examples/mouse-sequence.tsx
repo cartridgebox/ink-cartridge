@@ -23,7 +23,7 @@
  *   q — quit
  *
  * Run:
- *   npx tsx examples/xterm-mouse/SequenceMouse.tsx
+ *   npx tsx examples/mouse-sequence.tsx
  */
 import React, { useEffect, useState } from 'react';
 import { render, Box, Text } from 'ink';
@@ -35,7 +35,7 @@ import {
   useKeyboard,
   useFocusState,
   useMouseRegion,
-} from '../../src/index.js';
+} from '../src/index.js';
 
 /** Explicit keys shared by every panel — bound per-panel via an action id. */
 const FIRE_KEYS = ['x', 'x'];

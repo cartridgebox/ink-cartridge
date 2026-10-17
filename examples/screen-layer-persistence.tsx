@@ -8,7 +8,7 @@ import {
   ScenarioManagementProvider,
   useKeyboard,
   useScreenSystem,
-} from "../../src/index.js";
+} from "../src/index.js";
 
 function Main() {
   const { skip, openLayer, applyElement } = useScreenSystem();

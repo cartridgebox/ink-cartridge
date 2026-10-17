@@ -17,7 +17,7 @@
  *   q — quit
  *
  * Run:
- *   npx tsx examples/xterm-mouse/MouseFocus.tsx
+ *   npx tsx examples/mouse-focus.tsx
  */
 import React, { useEffect, useState } from 'react';
 import { render, Box, Text } from 'ink';
@@ -29,7 +29,7 @@ import {
   useKeyboard,
   useFocusState,
   useMouseRegion,
-} from '../../src/index.js';
+} from '../src/index.js';
 
 function FocusButton({
   label,

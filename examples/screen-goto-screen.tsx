@@ -21,7 +21,7 @@
  *   q — quit
  *
  * Run:
- *   npx tsx examples/core/goto-screen.tsx
+ *   npx tsx examples/screen-goto-screen.tsx
  */
 import React, { useEffect, useState } from 'react';
 import { Box, Text, render } from 'ink';
@@ -32,7 +32,7 @@ import {
   ScenarioManagementProvider,
   useKeyboard,
   useScreenSystem,
-} from '../../src/index.js';
+} from '../src/index.js';
 
 // Module-level, so every refresh gets a new label. A sequence kept inside
 // Counter would be reset by the very remount it is meant to make visible.

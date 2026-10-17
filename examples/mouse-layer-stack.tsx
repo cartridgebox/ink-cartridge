@@ -16,7 +16,7 @@
  *   q — quit
  *
  * Run:
- *   npx tsx examples/xterm-mouse/MouseLayerStack.tsx
+ *   npx tsx examples/mouse-layer-stack.tsx
  */
 import React, { useContext, useEffect, useState } from 'react';
 import { Box, Text, render } from 'ink';
@@ -29,7 +29,7 @@ import {
   useKeyboard,
   useMouseRegion,
   useScreenSystem,
-} from '../../src/index.js';
+} from '../src/index.js';
 
 const BOX_W = 16;
 const BOX_H = 10;

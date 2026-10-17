@@ -14,7 +14,7 @@
  *   q — quit
  *
  * Run:
- *   npx tsx examples/core/pending-state-layer.tsx
+ *   npx tsx examples/keyboard-pending-state-layer.tsx
  */
 import { Box, render, Text, useWindowSize } from "ink";
 import React, { useCallback, useEffect, useState } from "react";
@@ -25,7 +25,7 @@ import {
 	ScenarioManagementProvider,
 	useKeyboard,
 	useScreenSystem,
-} from "../../src/index.js";
+} from "../src/index.js";
 
 const OVERLAY_W = 44;
 const OVERLAY_H = 7;

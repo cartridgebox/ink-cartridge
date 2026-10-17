@@ -7,7 +7,7 @@ import {
   ScenarioManagementProvider,
   useFocusState,
   useKeyboard,
-} from "../../src/index.js";
+} from "../src/index.js";
 
 const ITEMS = ["alpha", "beta", "gamma"];
 
