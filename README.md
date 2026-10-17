@@ -279,7 +279,7 @@ The guides are written by hand and live in [`website/`](website/); API reference
 
 AI-friendly project — see [AGENTS.md](AGENTS.md) for coding conventions, [agents/rules/](agents/rules/) for conditional rules, and [docs-agents/](docs-agents/) for reference material. AI writes, humans review and sign off.
 
-Skills live in [`skills/`](skills/) (SKILL.md per agent tool); install them for an agent with `script/install-skill/<agent>.sh`, e.g. `script/install-skill/claude-code.sh`.
+Skills live in [`skills/`](skills/) (one `SKILL.md` per agent tool); copy a skill's directory into your agent's skills folder to install it.
 
 ## Examples
 
