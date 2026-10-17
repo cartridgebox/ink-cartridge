@@ -12,22 +12,25 @@ export interface RegisterOptions {
 /** Options for {@link skip} and {@link gotoScreen} — navigation flags. */
 export interface SkipOptions {
 	/**
-	 * Refresh an already-mounted target in place instead of remounting it.
+	 * Refresh the target in place instead of remounting it.
 	 *
-	 * Only meaningful when the target is the screen that is mounted right now:
-	 * the current screen for {@link skip}, the current screen or one of its
-	 * ancestors for {@link gotoScreen}.
+	 * Only meaningful when the target is already on the current path: the
+	 * current screen for {@link skip}, the current screen or one of its
+	 * ancestors for {@link gotoScreen}. Pages below the top are not rendered,
+	 * so only the CURRENT screen has a mounted instance to keep — an ancestor
+	 * mounts fresh either way; what survives for it is the page entry's mouse
+	 * regionFocus map.
 	 *
-	 * - `true` — only the component's props are updated; the component is not
-	 *   remounted, so its internal state and mouse regionFocus survive. Useful
-	 *   for performance or when preserving internal state.
+	 * - `true` — only the component's props are updated. When the target is the
+	 *   current screen it is not remounted, so its internal state and mouse
+	 *   regionFocus survive. Useful for performance or when preserving internal
+	 *   state.
 	 * - `false` (default) — the target is remounted with the new props,
 	 *   resetting its internal state.
 	 *
-	 * Ignored (silently) when the target is not the mounted screen: skipping to
-	 * a different child screen, or jumping to a screen that is not on the
-	 * current path. In either case, non-crossPage layers are filtered out, same
-	 * as any navigation.
+	 * Ignored (silently) when the target is not on the current path: skipping
+	 * to a different child screen, or jumping to a screen that is not on the
+	 * path. In every navigation case, non-crossPage layers are filtered out.
 	 */
 	onlyAttribute?: boolean;
 }
@@ -118,7 +121,9 @@ export type BackFn = (levels?: number) => void;
  * {@link SkipOptions.onlyAttribute}. A target that is already on the current
  * path (the current screen or one of its ancestors) takes the params in place
  * of its own and is remounted by default; pass `{ onlyAttribute: true }` to
- * update only its props and keep the mounted instance.
+ * update only its props — that keeps the mounted instance for the current
+ * screen, while an ancestor mounts fresh either way and keeps only its stored
+ * regionFocus map.
  *
  * @typeParam C - The target component type.
  * @param component - The target component (must be registered).

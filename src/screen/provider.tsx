@@ -151,10 +151,11 @@ export function back(levels: number = 1): void {
  *
  * A target already on the current path — the current screen or one of its
  * ancestors — takes `template + params` in place of its own params and is
- * remounted, exactly as `skip` treats the current screen. Pass
- * `{ onlyAttribute: true }` to update only its props and keep the mounted
- * instance. Pages below the target are dropped, as with any jump to an
- * ancestor.
+ * remounted by default. Pass `{ onlyAttribute: true }` to update only its
+ * props: when the target is the current screen its mounted instance is kept;
+ * an ancestor is not rendered while a deeper page is on top, so it mounts
+ * fresh either way, and what survives there is its stored mouse regionFocus
+ * map. Pages below the target are dropped, as with any jump to an ancestor.
  */
 export function gotoScreen<C extends React.ComponentType<any>>(
 	component: C,
