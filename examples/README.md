@@ -39,6 +39,7 @@ npx tsx examples/<group>-<name>.tsx
 
 | Demo | Description | Command |
 |------|-------------|---------|
+| keyboard-composition | Composition chain with `exclusive: true`: `3` waits for `w`, an unrelated key is swallowed and the wait restarts, and the chain lands in the undo buffer once the wait expires (`u` undoes it) | `npx tsx examples/keyboard-composition.tsx` |
 | keyboard-dormant-key | `stopsWorkingAfterLayerAppearing` on a `focusId` binding: the page's `x` stops responding while a layer is open and answers again once it is closed | `npx tsx examples/keyboard-dormant-key.tsx` |
 | keyboard-focus-release | `releaseFocusWhenEmpty`: mounting/unmounting the last holder of a focus target adds and drops the target, focus hands off within the group, and a re-registration takes it back — with live `focusCurrent()` output | `npx tsx examples/keyboard-focus-release.tsx` |
 | keyboard-module-api | Module-level keyboard API driven entirely from plain logic (no `useKeyboard`): `addProcessor`/`setProcessorWeight`/`getProcessors`/`nextMode`/`globalKeys`, plus `getEngine` + `withOwner` for manual page bindings | `npx tsx examples/keyboard-module-api.tsx` |
