@@ -18,6 +18,7 @@ None
 - With `autoTab` on, Shift+Tab is now consumed by the rotation as documented, so an app that bound `shift+tab` itself no longer receives it. Turn `autoTab` off to keep handling the key manually.
 - `stopsWorkingAfterLayerAppearing` now applies to a `focusId` binding. The flag was stored only on the non-focus registration path while the matcher applies the skip predicate to focus targets as well, so a focused page binding kept firing after a layer appeared instead of going dormant.
 - Inside a layer or modal element, `currentScreenHasSequenceWaiting()` answered about the page, not the layer: it reported `false` while the layer really was waiting for the next key, and threw outright when no page existed — with a message telling the caller to pass an option that no public signature accepted.
+- An exclusive composition chain that expires after a mismatched key now records its history and emits `completed`. The restarted wait only cleared the pending state, so the keys could not be undone and subscribers waiting for the chain to end never heard about it — the last event stayed `consumed`.
 
 ### Breaking Changes
 - `SequenceListeningOptions` is gone, and `currentScreenHasSequenceWaiting()` no longer takes a second argument. The type was published as "options for `KeyboardEngine.currentScreenHasSequenceWaiting`", but the option was unreachable: the engine method, `KeyboardContextValue` and the module-level API all took `sync` only, so no working call could ever pass it.
@@ -27,3 +28,4 @@ None
 - `src/keyboard-engine/tests/pure-functions/base/pure.test.ts` covers the page-layer matcher on a shift+tab-only event, `tabKey` and `shift+<tabKey>` matching, a differently spelled variant not being an auto-tab event, and `handleLayer` reading the key from the pipeline context.
 - `src/keyboard-engine/tests/pure-functions/base/elementParser.test.ts` covers the element-level matcher on a shift+tab-only event and with a custom `autoTabKey`.
 - `src/keyboard-engine/tests/engine/base/engine.test.ts` covers `currentScreenHasSequenceWaiting` through the public API (a layer owner reports its own pending sequence with a page below it and without one, a page owner answers for the page, and a call with no owner still throws) and a `focusId` binding with `stopsWorkingAfterLayerAppearing` (it fires with no layer on screen and stays silent once one appears).
+- `src/keyboard-engine/tests/composition/base/composition-edge.test.ts` covers an exclusive chain that consumes a mismatched key and then expires: it emits `completed` and lands in the undo buffer.
