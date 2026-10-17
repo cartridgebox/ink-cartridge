@@ -165,6 +165,29 @@ describe("BindingService boundKeyboard", () => {
     expect(aHandler).not.toHaveBeenCalled();
     expect(bHandler).toHaveBeenCalled();
   });
+
+  it("keeps stopsWorkingAfterLayerAppearing on a focusId binding", () => {
+    const engine = createEngine();
+    const handler = vi.fn();
+    engine.sync({ pagePath: [Page], layers: [], modalLayers: [] });
+    engine.boundKeyboard(["x"], handler, {
+      focusId: "panel",
+      stopsWorkingAfterLayerAppearing: true,
+    });
+
+    engine.processKey("x", {});
+    expect(handler).toHaveBeenCalledTimes(1);
+
+    // With a layer on screen the page binding stops responding — the same rule
+    // a binding without focusId follows.
+    engine.sync({
+      pagePath: [Page],
+      layers: [makeSyncLayer("L", [])],
+      modalLayers: [],
+    });
+    engine.processKey("x", {});
+    expect(handler).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("BindingService penetration/stop/allowModal/sequence", () => {
