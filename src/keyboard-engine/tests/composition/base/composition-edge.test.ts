@@ -503,6 +503,11 @@ describe("composition lifecycle", () => {
     expect(engine.hasPendingComposition()).toBe(false);
     expect(engine.getLastCompositionEvent()?.type).toBe("completed");
     expect(engine.bufferedCompositionCount()).toBe(1);
+    // The recorded entry keeps the context captured when the key ran: clearing
+    // the pending state replaces `this.context` with a fresh object instead of
+    // mutating the recorded one, so undo still restores the step.
+    const undone = engine.undoComposition();
+    expect(undone?.steps).toEqual(["3"]);
   });
 
   it("stops a chain when an end key matches", () => {
