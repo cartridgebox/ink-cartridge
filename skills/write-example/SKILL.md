@@ -27,7 +27,7 @@ Then **must** ask: new example or updating existing example?
 5. Draft the complete demo and present it to the user
 6. User confirms; write the file to `examples/<group>-<name>.tsx`
 7. **Must** run `npx tsc -p examples/tsconfig.json --noEmit` and ensure it passes
-8. **Must** update `examples/README.md` — add a row to the correct table (Component Demos or Core System Demos)
+8. **Must** update `examples/README.md` — add a row to the table for its group (`Screen demos`, `Keyboard demos` or `Mouse demos`)
 
 If tsc reports any type errors, **must** fix them and re-run until clean.
 
