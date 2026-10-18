@@ -14,6 +14,7 @@ Add an in-place refresh to gotoScreen and stop it dropping params for on-path ta
 - `examples/keyboard-pending-state-layer.tsx` shows `currentScreenHasSequenceWaiting()` used from inside a layer: the layer element's own `d d` sequence drives a live "waiting for the second d" hint that clears when the pair fires or times out.
 - `examples/keyboard-dormant-key.tsx` shows `stopsWorkingAfterLayerAppearing` end to end on a `focusId` binding: the page's `x` stops counting while a layer is open and counts again once it is closed.
 - `examples/keyboard-composition.tsx` walks through an exclusive composition chain: `3` waits for `w`, an unrelated key is swallowed and the wait restarts, and the expired wait completes the chain into the undo buffer, where `u` undoes it.
+- `examples/keyboard-mapping.tsx` shows two mappings that share a prefix: `g h` runs after the wait expires (or before an unrelated key, which still reaches its own binding), and `g h j` wins when its key arrives in time.
 - `README.md` gained a Versioning section: versions follow the size and the circumstances of a change rather than strict semver — major only for a large release or a large-scale refactor, minor versus patch split by scale — so the changelog is the source of truth.
 
 ### Fixed
