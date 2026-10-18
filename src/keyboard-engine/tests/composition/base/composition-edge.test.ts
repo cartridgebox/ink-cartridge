@@ -218,6 +218,68 @@ describe("mapping execution", () => {
     expect(engine.getLastMappingEvent()?.type).toBe("completed");
   });
 
+  it("runs a prefix mapping when the wait expires", () => {
+    vi.useFakeTimers();
+    const engine = syncEngine();
+    head(engine, "3");
+    head(engine, "4");
+    engine.addMapping(["g", "h"], ["3"]);
+    engine.addMapping(["g", "h", "j"], ["4"]);
+
+    engine.processKey("g", {});
+    engine.processKey("h", {});
+    expect(engine.getLastMappingEvent()?.type).toBe("continued");
+
+    // The longer mapping never arrived: the completed "g h" runs on the
+    // timeout instead of being dropped.
+    vi.advanceTimersByTime(600);
+    expect(engine.getLastMappingEvent()?.type).toBe("completed");
+    expect(engine.bufferedCompositionCount()).toBe(1);
+    expect(engine.undoComposition()?.steps).toEqual(["3"]);
+  });
+
+  it("runs a prefix mapping on an unrelated key and lets it through", () => {
+    const engine = syncEngine();
+    head(engine, "3");
+    head(engine, "4");
+    engine.addMapping(["g", "h"], ["3"]);
+    engine.addMapping(["g", "h", "j"], ["4"]);
+    const screen = vi.fn();
+    engine.boundKeyboard(["x"], screen);
+
+    engine.processKey("g", {});
+    engine.processKey("h", {});
+    // `x` matches no candidate, so the completed "g h" runs and `x` continues
+    // to its own binding instead of being swallowed. The screen-stack stage
+    // never reports consumption, so the overall result stays false even though
+    // the binding fired.
+    const consumed = engine.processKey("x", {});
+    expect(screen).toHaveBeenCalledTimes(1);
+    expect(engine.getLastMappingEvent()?.type).toBe("completed");
+    expect(consumed).toBe(false);
+    expect(engine.bufferedCompositionCount()).toBe(1);
+    expect(engine.undoComposition()?.steps).toEqual(["3"]);
+  });
+
+  it("prefers the longer mapping when its key arrives in time", () => {
+    vi.useFakeTimers();
+    const engine = syncEngine();
+    head(engine, "3");
+    head(engine, "4");
+    engine.addMapping(["g", "h"], ["3"]);
+    engine.addMapping(["g", "h", "j"], ["4"]);
+
+    engine.processKey("g", {});
+    engine.processKey("h", {});
+    engine.processKey("j", {});
+    // The fallback must not fire here, and the cleared pending leaves nothing
+    // for the later timer to do.
+    expect(engine.getLastMappingEvent()?.type).toBe("completed");
+    vi.advanceTimersByTime(600);
+    expect(engine.bufferedCompositionCount()).toBe(1);
+    expect(engine.undoComposition()?.steps).toEqual(["4"]);
+  });
+
   it("breaks mapping chains and honours key release", () => {
     const engine = syncEngine();
     engine.registryCompositionKey({

@@ -18,6 +18,7 @@ None
 - `stopsWorkingAfterLayerAppearing` now applies to a `focusId` binding. The flag was stored only on the non-focus registration path while the matcher applies the skip predicate to focus targets as well, so a focused page binding kept firing after a layer appeared instead of going dormant.
 - Inside a layer or modal element, `currentScreenHasSequenceWaiting()` answered about the page, not the layer: it reported `false` while the layer really was waiting for the next key, and threw outright when no page existed — with a message telling the caller to pass an option that no public signature accepted.
 - An exclusive composition chain that expires after a mismatched key now records its history and emits `completed`. The restarted wait only cleared the pending state, so the keys could not be undone and subscribers waiting for the chain to end never heard about it — the last event stayed `consumed`.
+- A mapping whose key sequence is a prefix of another mapping no longer becomes unreachable. Disambiguation only completed on a unique candidate, so the shorter mapping never ran: its input was dropped when the wait expired or when an unrelated key arrived. The completed mapping now runs in both cases — on a timeout, and before an unrelated key, which then continues as if nothing had been pending.
 
 ### Breaking Changes
 - With `autoTab` on, Shift+Tab is now consumed by the rotation as documented, so an app that bound `shift+tab` itself no longer receives it. Turn `autoTab` off to keep handling the key manually.
@@ -29,3 +30,4 @@ None
 - `src/keyboard-engine/tests/pure-functions/base/elementParser.test.ts` covers the element-level matcher on a shift+tab-only event and with a custom `autoTabKey`.
 - `src/keyboard-engine/tests/engine/base/engine.test.ts` covers `currentScreenHasSequenceWaiting` through the public API (a layer owner reports its own pending sequence with a page below it and without one, a page owner answers for the page, and a call with no owner still throws) and a `focusId` binding with `stopsWorkingAfterLayerAppearing` (it fires with no layer on screen and stays silent once one appears).
 - `src/keyboard-engine/tests/composition/base/composition-edge.test.ts` covers an exclusive chain that consumes a mismatched key and then expires: it emits `completed` and lands in the undo buffer.
+- That file also covers a mapping whose sequence is a prefix of a longer one: it runs on the timeout, it runs before an unrelated key (which still reaches its own binding), and the longer mapping wins when its key arrives in time.
