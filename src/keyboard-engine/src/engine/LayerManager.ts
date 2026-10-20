@@ -520,8 +520,6 @@ export default class LayerManager<TComponent = unknown> {
    * @returns `true` if the active focus changed to the target; `false` when the
    *          target was already active or the layer/group/target is unavailable.
    */
-  focusSet(focusId: string, group?: string): boolean;
-  focusSet(focusId: string, options?: FocusSetOptions): boolean;
   focusSet(focusId: string, groupOrOptions?: string | FocusSetOptions): boolean {
     const owner = this.getCurrentOwner();
     if (!owner) return false;
@@ -611,8 +609,6 @@ export default class LayerManager<TComponent = unknown> {
    *          (no owner, unresolved layer, unknown group, no active target in
    *          the group, or the group holds fewer than two targets).
    */
-  focusNext(group?: string): boolean;
-  focusNext(options?: FocusSetOptions): boolean;
   focusNext(groupOrOptions?: string | FocusSetOptions): boolean {
     const owner = this.getCurrentOwner();
     if (!owner) return false;
@@ -683,8 +679,6 @@ export default class LayerManager<TComponent = unknown> {
    * @returns `true` if the active target moved, `false` on any no-op path
    *          (see {@link focusNext}).
    */
-  focusPrev(group?: string): boolean;
-  focusPrev(options?: FocusSetOptions): boolean;
   focusPrev(groupOrOptions?: string | FocusSetOptions): boolean {
     const owner = this.getCurrentOwner();
     if (!owner) return false;
@@ -755,8 +749,6 @@ export default class LayerManager<TComponent = unknown> {
    * before any binding registers the group.
    * Check `.result?.id` for the active focus id.
    */
-  focusCurrent(group?: string): FocusCurrentResult;
-  focusCurrent(options?: FocusSetOptions): FocusCurrentResult;
   focusCurrent(groupOrOptions?: string | FocusSetOptions): FocusCurrentResult {
     const owner = this.getCurrentOwner();
     if (!owner) {
@@ -814,8 +806,6 @@ export default class LayerManager<TComponent = unknown> {
    * @returns `true` if a focus target was removed, `false` on any no-op
    *          path (no owner, unresolved layer, unknown group or target).
    */
-  focusUnregister(focusId: string, group?: string): boolean;
-  focusUnregister(focusId: string, options?: FocusSetOptions): boolean;
   focusUnregister(
     focusId: string,
     groupOrOptions?: string | FocusSetOptions,
@@ -945,8 +935,6 @@ export default class LayerManager<TComponent = unknown> {
    * engine.activateFocusGroup('tabs', 'nav');    // true  — the group was empty
    * ```
    */
-  activateFocusGroup(focusId: string, group?: string): boolean;
-  activateFocusGroup(focusId: string, options?: FocusSetOptions): boolean;
   activateFocusGroup(
     focusId: string,
     groupOrOptions?: string | FocusSetOptions,
@@ -1033,8 +1021,6 @@ export default class LayerManager<TComponent = unknown> {
    * engine.kickFocusGroup('field');  // false — group is no longer active (safe no-op)
    * ```
    */
-  kickFocusGroup(group?: string): boolean;
-  kickFocusGroup(options?: FocusSetOptions): boolean;
   kickFocusGroup(groupOrOptions?: string | FocusSetOptions): boolean {
     const owner = this.getCurrentOwner();
     if (!owner) return false;

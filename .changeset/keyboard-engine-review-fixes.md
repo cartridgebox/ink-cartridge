@@ -10,6 +10,7 @@ None
 - `handleTabNavigation` matches the auto-tab key instead of assuming `"tab"`. The page-layer form takes an optional `tabKey` parameter (default `"tab"`); the element-level form reads `ctx.autoTabKey`. Forward rotation matches the bare key name, reverse rotation matches `shift+<tabKey>`.
 - The `EngineProps.tabKey` JSDoc states the matching rule (`tabKey` forward, `shift+tabKey` backward) instead of the old `eventNames.includes(thisKey)` wording, which no longer described the code.
 - `allowModal()` outside a modal-layer element is a no-op with a development warning. It used to throw on a page and — inside a regular layer's element — silently register allow rules that nothing reads, since only the modal processor consults an allow list.
+- The focus-family wrappers on `KeyboardEngine` no longer branch on their argument type before delegating, and `LayerManager` declares one union signature per method instead of two identical overloads.
 - `currentScreenHasSequenceWaiting()` is owner-scoped all the way: a layer-id owner (an overlay or modal element) reports that layer's own pending sequence — including one armed by one of its elements — and a page owner reports the page's, whatever sits on top of the owner stack.
 - The `stopsWorkingAfterLayerAppearing` JSDoc states when the binding sleeps — while any layer or modal layer is open, waking up once all are closed — instead of claiming it is only active before the layer first renders, which contradicted the matcher.
 
