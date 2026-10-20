@@ -19,9 +19,11 @@ Add an in-place refresh to gotoScreen and stop it dropping params for on-path ta
 
 ### Fixed
 - `gotoScreen(target, params)` no longer silently ignores `params` when the target is already on the current path. `template + params` was only ever applied inside the suffix mapping, and the suffix is empty in exactly that case, so the target kept its previous props while the counter still advanced and remounted the screen — the caller got stale props on a freshly reset component.
+- `useMouseRegion` no longer drops its own registration after a screen-state change. The unmount cleanup listed the wrapped keyboard context — whose identity changes on every screen update — in its dependencies, so React ran the cleanup right after the render had registered the region, unregistering the live entry until the next layout commit. Clicks, hover and drag stopped working until the component re-rendered for another reason; a `clickOnRise` region hit this on the very click that raised its layer. The cleanup now depends only on the layer/region identity and reads the current unregister function through a ref.
 
 ### Breaking Changes
 None
 
 ### Tests
 - `tests/screens/base/gotoScreen.test.tsx` covers all three on-path cases: the default jump (params applied, screen remounted), `{ onlyAttribute: true }` (params applied to the live instance, mount count unchanged), and a jump to an ancestor (params applied, deeper pages dropped).
+- `tests/keyboard/mouse-region-cleanup.test.tsx` clicks a region through `processMouseEvent`, opens a layer (the page re-renders without remounting), clicks again, and then unmounts: the region keeps working across the screen-state change and is removed on unmount. Dropping the ref from the cleanup turns it red.

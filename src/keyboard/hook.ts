@@ -958,12 +958,18 @@ export function useMouseRegion(
 
   // Unmount cleanup: only runs when the component truly unmounts (or
   // layerId/regionId change), never on plain re-renders — those overwrite
-  // the registration above.
+  // the registration above. The wrapped context changes identity on every
+  // screen-system update, so it is read through a ref instead of being a
+  // dependency: depending on it ran this cleanup right after the render had
+  // registered the region, deleting the live entry until the next layout
+  // commit.
+  const unregisterRegionRef = useRef(ctx.unregisterMouseRegion);
+  unregisterRegionRef.current = ctx.unregisterMouseRegion;
   useEffect(() => {
     return () => {
-      ctx?.unregisterMouseRegion(layerId, regionId);
+      unregisterRegionRef.current(layerId, regionId);
     };
-  }, [ctx, layerId, regionId]);
+  }, [layerId, regionId]);
 
   return ref;
 }
