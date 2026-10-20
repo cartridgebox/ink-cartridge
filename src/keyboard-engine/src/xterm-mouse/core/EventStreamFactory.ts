@@ -149,6 +149,11 @@ export class EventStreamFactory {
       }
 
       timeoutId = setTimeout(() => {
+        // The timer is done: clear the handle so the loop's ready-event path
+        // can hand a parked event to the next pull. Without this, a move that
+        // arrives while the consumer is busy stays parked until another move
+        // replaces it, and the final move of a gesture is never yielded.
+        timeoutId = null;
         if (latestEvent !== null && resolveNext !== null) {
           const eventToYield = latestEvent;
           latestEvent = null;
