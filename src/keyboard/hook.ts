@@ -3,8 +3,8 @@ import {
   useEffect,
   useId,
   useMemo,
+  useReducer,
   useRef,
-  useState,
   type RefObject,
 } from "react";
 import {
@@ -504,17 +504,14 @@ export function useFocusState(
   groupOrOptions?: string | FocusSetOptions,
 ): boolean {
   const { focusCurrent, subscribeFocus } = useKeyboard();
-  const [isFocused, setIsFocused] = useState<boolean>(
-    () => focusCurrent(groupOrOptions).result?.id === focusId,
-  );
+  const [, forceRender] = useReducer((n: number) => n + 1, 0);
 
-  useEffect(() => {
-    return subscribeFocus(() => {
-      setIsFocused(focusCurrent(groupOrOptions).result?.id === focusId);
-    });
-  }, [focusId, focusCurrent, subscribeFocus, groupOrOptions]);
+  // The subscription only re-renders; the value is derived on every render.
+  // Caching it in state left the previous focusId's (or group's) answer in
+  // place when the parameters changed without a focus event.
+  useEffect(() => subscribeFocus(forceRender), [subscribeFocus]);
 
-  return isFocused;
+  return focusCurrent(groupOrOptions).result?.id === focusId;
 }
 
 /**
