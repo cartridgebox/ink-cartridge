@@ -30,7 +30,7 @@ The optional fields of `AllowModalOptions`:
 - `[focusId]` {string | FocusRef} Scopes the allow rule to a named focus target; the rule only takes effect within that target. A string refers to a focus id in the default focus layer; the object form `{ group, focusId }` scopes it to a named focus group.
 - `[when]` {(() => boolean) | string} A condition — a function or a registered condition id. When it's `false`, the allow rule is ignored and the key stays blocked by the barrier.
 
-`allowModal` must be called inside a modal layer's component. The `allowModal` from `useKeyboard()` attributes the rule to the current modal layer's element automatically — no need to pass `elementId` by hand:
+`allowModal` only works inside a modal layer's component — that is where the allowlist is read. Called on a page or on a regular layer's component it is a no-op: nothing is registered, and a warning is logged in development. The `allowModal` from `useKeyboard()` attributes the rule to the current modal layer's element automatically — no need to pass `elementId` by hand:
 
 ```tsx
 // Allow t: when the modal layer doesn't handle t, it passes through the barrier to the UI below
@@ -154,7 +154,7 @@ Letting keys through follows two rules:
 
 ## Caveats
 
-1. **`allowModal` must be called inside a modal layer's component.** Calling it elsewhere throws.
+1. **`allowModal` only works inside a modal layer's component.** Calling it elsewhere is a no-op — nothing is registered, and a warning is logged in development.
 2. **The modal layer's own handlers take priority over the allowlist.** A key handled by the modal layer won't pass through the barrier.
 3. **The `when` condition.** When `when` is provided, the allow rule only takes effect while the condition is `true`; when `false`, the key stays blocked by the barrier.
 4. **Allowing a key through doesn't skip the modal layer.** It means "when the modal layer doesn't handle this key, let it fall through to the UI below" — the key still passes through the modal layer first.

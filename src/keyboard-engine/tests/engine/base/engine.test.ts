@@ -233,11 +233,31 @@ describe("BindingService penetration/stop/allowModal/sequence", () => {
     expect(() => engine.stop(["quit"], { stopAction: true })).not.toThrow();
   });
 
-  it("allowModal only works inside a modal element", () => {
+  it("allowModal is a no-op outside a modal element", () => {
     const engine = createEngine();
-    engine.sync({ pagePath: [Page], layers: [], modalLayers: [] });
-    expect(() => engine.allowModal(["x"])).toThrow();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 
+    // A page owner has no allow list: the call only warns.
+    engine.sync({ pagePath: [Page], layers: [], modalLayers: [] });
+    expect(() => engine.allowModal(["x"])).not.toThrow();
+    expect(warn).toHaveBeenCalled();
+
+    // A regular layer's element is not a modal element: no rules are created.
+    warn.mockClear();
+    engine.sync({
+      pagePath: [Page],
+      layers: [makeSyncLayer("L", ["e1"])],
+      modalLayers: [],
+    });
+    engine.pushOwner("L");
+    const unbind = engine.allowModal(["x"], { elementId: "e1" });
+    engine.popOwner("L");
+    expect(warn).toHaveBeenCalled();
+    expect(engine.readLayer("L", "e1")).toBeUndefined();
+    unbind();
+
+    // A modal element still registers.
+    warn.mockClear();
     engine.sync({
       pagePath: [Page],
       layers: [],
@@ -246,6 +266,9 @@ describe("BindingService penetration/stop/allowModal/sequence", () => {
     engine.pushOwner("M");
     expect(() => engine.allowModal(["x"], { elementId: "m1" })).not.toThrow();
     engine.popOwner("M");
+    expect(warn).not.toHaveBeenCalled();
+    expect(engine.readLayer("M", "m1")?.allowedKeys).toHaveLength(1);
+    warn.mockRestore();
   });
 
   it("boundSequence starts pending and completes on next key", () => {
@@ -1099,9 +1122,12 @@ describe("BindingService edge cases", () => {
     engine.popOwner("L");
   });
 
-  it("requires an owner for allowModal", () => {
+  it("allowModal without an owner is a no-op", () => {
     const engine = createEngine();
-    expect(() => engine.allowModal(["x"])).toThrow();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    expect(() => engine.allowModal(["x"])).not.toThrow();
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
   });
 
   it("validates sequence actions and owners", () => {

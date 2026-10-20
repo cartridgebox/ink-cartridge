@@ -610,9 +610,6 @@ export default class KeyboardEngine<TComponent = unknown> {
     focusId: string,
     groupOrOptions?: string | FocusSetOptions,
   ): boolean {
-    if (typeof groupOrOptions === "string" || groupOrOptions === undefined) {
-      return this.layers.focusSet(focusId, groupOrOptions);
-    }
     return this.layers.focusSet(focusId, groupOrOptions);
   }
   /**
@@ -626,9 +623,6 @@ export default class KeyboardEngine<TComponent = unknown> {
    * @returns `true` if the active target moved, `false` on any no-op path.
    */
   focusNext(groupOrOptions?: string | FocusSetOptions): boolean {
-    if (typeof groupOrOptions === "string" || groupOrOptions === undefined) {
-      return this.layers.focusNext(groupOrOptions);
-    }
     return this.layers.focusNext(groupOrOptions);
   }
   /**
@@ -639,9 +633,6 @@ export default class KeyboardEngine<TComponent = unknown> {
    * @returns `true` if the active target moved, `false` on any no-op path.
    */
   focusPrev(groupOrOptions?: string | FocusSetOptions): boolean {
-    if (typeof groupOrOptions === "string" || groupOrOptions === undefined) {
-      return this.layers.focusPrev(groupOrOptions);
-    }
     return this.layers.focusPrev(groupOrOptions);
   }
   /**
@@ -655,9 +646,6 @@ export default class KeyboardEngine<TComponent = unknown> {
    * @param groupOrOptions Optional focus group name (or {@link FocusSetOptions}).
    */
   focusCurrent(groupOrOptions?: string | FocusSetOptions) {
-    if (typeof groupOrOptions === "string" || groupOrOptions === undefined) {
-      return this.layers.focusCurrent(groupOrOptions);
-    }
     return this.layers.focusCurrent(groupOrOptions);
   }
   /**
@@ -680,9 +668,6 @@ export default class KeyboardEngine<TComponent = unknown> {
     focusId: string,
     groupOrOptions?: string | FocusSetOptions,
   ): boolean {
-    if (typeof groupOrOptions === "string" || groupOrOptions === undefined) {
-      return this.layers.focusUnregister(focusId, groupOrOptions);
-    }
     return this.layers.focusUnregister(focusId, groupOrOptions);
   }
 
@@ -709,9 +694,6 @@ export default class KeyboardEngine<TComponent = unknown> {
     focusId: string,
     groupOrOptions?: string | FocusSetOptions,
   ) {
-    if (typeof groupOrOptions === "string" || groupOrOptions === undefined) {
-      return this.layers.activateFocusGroup(focusId, groupOrOptions);
-    }
     return this.layers.activateFocusGroup(focusId, groupOrOptions);
   }
 
@@ -732,9 +714,6 @@ export default class KeyboardEngine<TComponent = unknown> {
    *          `false` if the group was not active or could not be found.
    */
   kickFocusGroup(groupOrOptions?: string | FocusSetOptions) {
-    if (typeof groupOrOptions === "string" || groupOrOptions === undefined) {
-      return this.layers.kickFocusGroup(groupOrOptions);
-    }
     return this.layers.kickFocusGroup(groupOrOptions);
   }
 
@@ -1294,9 +1273,13 @@ export default class KeyboardEngine<TComponent = unknown> {
    * unhandled ("miss") for {@link useModalMissListener} when nothing else
    * consumes them.
    *
+   * Only a modal-layer element has an allow list — the modal processor is its
+   * only reader. Called on a page, on a regular layer element, or without an
+   * element id, the call is a no-op and logs a warning in development.
+   *
    * @returns A function that removes the allow entry, restoring the default
-   *          behavior (the modal blocks the key again).
-   * @throws If not called on a modal layer.
+   *          behavior (the modal blocks the key again); a no-op when the call
+   *          itself had no effect.
    *
    * @example
    * ```ts
