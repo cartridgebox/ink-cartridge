@@ -140,9 +140,12 @@ globalKeys([{ key: "r", operate: reload }], { mode: "add" })
 ## Reading the current registrations
 
 ```tsx
-const { getGlobalKeys, getGlobalSequences, getGlobalPendingSequence } = useKeyboard()
+const { getGlobalKeys, getGlobalSequences, getGlobalPendingSequence, thereGlobalQueueWaiting } = useKeyboard()
 
 getGlobalKeys()             // resolved global key entries
 getGlobalSequences()        // resolved global sequence entries
 getGlobalPendingSequence()  // the global sequence awaiting more keys, or null
+thereGlobalQueueWaiting()   // whether that queue still has pending work
 ```
+
+`thereGlobalQueueWaiting(sync?)` reports whether a global sequence is waiting. Pass a callback and the engine calls it after every key press, so a status line can re-render; see [Checking whether a sequence is waiting](/keyboard/boundSequence#checking-whether-a-sequence-is-waiting).

@@ -140,9 +140,12 @@ globalKeys([{ key: "r", operate: reload }], { mode: "add" })
 ## 读取当前注册项
 
 ```tsx
-const { getGlobalKeys, getGlobalSequences, getGlobalPendingSequence } = useKeyboard()
+const { getGlobalKeys, getGlobalSequences, getGlobalPendingSequence, thereGlobalQueueWaiting } = useKeyboard()
 
 getGlobalKeys()             // 已解析的全局键条目
 getGlobalSequences()        // 已解析的全局序列条目
 getGlobalPendingSequence()  // 正在等待后续键的全局序列，无则 null
+thereGlobalQueueWaiting()   // 全局序列队列是否仍有待续内容
 ```
+
+`thereGlobalQueueWaiting(sync?)` 报告是否有全局序列正在等待。传入回调后，引擎会在每次按键处理完毕后调用它，状态行据此重新渲染；见[判断序列是否在等待](/zh/keyboard/boundSequence#判断序列是否在等待)。

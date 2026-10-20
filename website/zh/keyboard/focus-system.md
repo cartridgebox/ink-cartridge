@@ -107,6 +107,10 @@ function SelectInput({ focusId }: { focusId: string }) {
 
 这保证了焦点顺序的确定性：它只受 `focusSet`、`focusNext`、`focusPrev`、`focusUnregister` 等显式操作影响，而不会因为某个绑定的临时解绑而悄悄变化。
 
+**可选行为：`releaseFocusWhenEmpty`**
+
+开启 `releaseFocusWhenEmpty` 引擎选项（`KeyboardProvider` 也有同名 prop）后，每个绑定都会为自己注册的焦点目标增加一个引用，最后一个引用释放时目标被移除。再次为同一个 `focusId` 注册绑定会重新创建它；焦点会交给组内第一个剩余目标，组里没有目标时清空该组的焦点槽。该选项默认关闭，所以大多数应用看到的就是上面描述的行为。
+
 ### 焦点在什么时候被注销
 
 焦点的注销只有两个来源：**显式注销**与**随屏幕销毁**。
@@ -195,7 +199,7 @@ boundKeyboard(["shift+tab"], () => focusPrev())
 </KeyboardProvider>
 ```
 
-> 注意：`autoTab` 会接管 Tab 键。如果你需要把 Tab 留给自定义逻辑，就不要开启它，而是像上面那样手动绑定。
+> 注意：`autoTab` 会同时接管 Tab 与 Shift+Tab。如果你需要把其中任一键留给自定义逻辑，就不要开启它，而是像上面那样手动绑定。引擎默认匹配 `tab` 与 `shift+tab`；直接使用引擎且键名规范化器产出别的名字时，用 `tabKey` 指定（见 [不使用 React 时](/zh/keyboard/non-react)）。
 
 ### 使用 `focusCurrent` 查询当前焦点
 
@@ -227,7 +231,7 @@ const focused = useFocusState("select-b")
 // select-b 持有焦点时 focused 为 true，否则为 false
 ```
 
-它的内部实现很简单：订阅引擎的焦点通知，一旦焦点发生任何变化（`focusSet`、`focusNext`、`focusPrev`、`focusUnregister` 都会触发通知），就重新读取当前焦点并与传入的 `focusId` 比较，再把结果写进组件的 state——所以你拿到的布尔值始终是最新的。
+它订阅引擎的焦点通知，任何焦点变化（`focusSet`、`focusNext`、`focusPrev`、`focusUnregister` 都会触发通知）都会让组件重新渲染。布尔值本身在渲染时根据当前焦点和你传入的参数读取，所以同一个组件换成另一个 `focusId` 或分组时，那一次渲染就能显示新目标的状态，不必等下一次焦点移动。
 
 它非常适合用来渲染"当前选中"的视觉反馈：
 

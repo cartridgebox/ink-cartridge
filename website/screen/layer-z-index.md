@@ -29,7 +29,7 @@ Sets `zIndex` back to its initial value and re-sorts; a no-op when it is already
 
 ## Example
 
-The `clickOnRise` / `enterOnRise` options of `useMouseRegion` call `bringLayerToFront` / `restoreLayerZIndex` internally.
+The `clickOnRise`, `dragOnRise`, `wheelOnRise` and `enterOnRise` options of `useMouseRegion` call `bringLayerToFront` on the matching gesture; `leaveOffRise` calls `restoreLayerZIndex` when the cursor leaves.
 
 ```tsx
 const { bringLayerToFront, restoreLayerZIndex } = useScreenSystem()

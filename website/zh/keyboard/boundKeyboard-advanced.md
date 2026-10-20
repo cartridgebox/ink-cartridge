@@ -13,6 +13,7 @@
 
 - `when` {() => boolean | string} 动态启用/禁用此绑定：返回 `true` 时绑定生效，返回 `false` 时绑定失效。
 - `observer` {(remaining: number) => void} 必须与 `times` 同时使用。在 `times` 计数归零之前，每次按键都会触发此回调，并传入剩余还需按下的次数。
+- `stopsWorkingAfterLayerAppearing` {boolean} 仅对页面级绑定生效：只要有图层或模态图层打开，该绑定就被跳过；全部关闭后恢复响应。
 
 ## 使用 `boundKeyboard` 配合 `when` 与条件系统
 
@@ -208,3 +209,18 @@ function Game() {
    ```
    [keyboard-engine] boundKeyboard() times option must be >= 1.
    ```
+
+## 使用 `boundKeyboard` 配合 `stopsWorkingAfterLayerAppearing`
+
+页面级绑定可以在图层出现时暂时失效。加上 `stopsWorkingAfterLayerAppearing: true` 后，只要有图层或模态图层打开，该绑定就会被跳过；全部关闭后，它重新响应。
+
+```tsx
+const { boundKeyboard } = useKeyboard()
+
+useEffect(
+  () => boundKeyboard(["x"], () => act(), { stopsWorkingAfterLayerAppearing: true }),
+  [boundKeyboard],
+)
+```
+
+该选项只对页面级绑定生效；写在图层元素的绑定上没有效果，因为那个元素的绑定本来就随图层一起失效。带 `focusId` 的页面级绑定与其他页面级绑定遵循同样的规则。

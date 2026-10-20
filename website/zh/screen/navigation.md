@@ -126,6 +126,7 @@ function Menu() {
 
 有时候，我们需要刷新当前屏幕并且更新一些属性状态，`skip` 提供了一个特殊的参数，让你可以更新屏幕内的状态。你可以使用 `skip` 方法的 `onlyAttribute` 选项来控制这一行为。前提是 `skip` 第一个参数的跳转目标必须为当前所在的屏幕。通常来说，你可以使用第二个参数传递新的属性来改变状态，而 `onlyAttribute` 选项只控制是否重新刷新屏幕。例如下例代码片段。
 
+`gotoScreen` 对已在当前路径上的目标也接受同样的选项，见[刷新已在路径上的屏幕](#刷新已在路径上的屏幕)。
 
 > **Note:** `skip` 在使用 `onlyAttribute` 的时候当前屏幕也必须为已注册的。
 
@@ -190,6 +191,17 @@ function Game() {
 ::: Note
 `gotoScreen` 的跳转目标必须已经注册过，否则会报出错误 **xxx is not registered. Please call registerComponent() first.**。
 :::
+
+### 刷新已在路径上的屏幕
+
+当目标已经在当前路径上时，`gotoScreen` 同样可用：目标可以是当前屏幕，也可以是它的某个祖先。参数会替换该条目已注册的模板，屏幕默认重新挂载。传入 `{ onlyAttribute: true }` 则只更新 props。
+
+```tsx
+// Settings 是当前屏幕
+gotoScreen(Settings, { theme: "light" }, { onlyAttribute: true })
+```
+
+只有目标是当前屏幕时，已挂载的实例才会保留。祖先在更深页面位于顶部时已经被卸载，所以两种情况都会重新挂载；`onlyAttribute` 在祖先上保留的是该页面的鼠标区域焦点映射。两种情况都会丢弃目标以下的页面，这与跳转到祖先的规则一致。
 
 ## 使用 `back` 方法切换屏幕
 

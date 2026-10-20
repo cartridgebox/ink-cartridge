@@ -149,6 +149,8 @@ return (
 <KeyboardProvider mouse mouseOptions={{ clickDistanceThreshold: 2 }}>
 ```
 
+选项按值比较，所以像 `setRawMode` 这样的内联函数没有问题：只有它的引用变化不会重建 Mouse。改动数值（`clickDistanceThreshold`、`pressStormThreshold` 等）或换掉某个流才会重建。
+
 `onDragMove` 通常配合 `event.x` / `event.y` 做绝对定位，例如拖动窗口：
 
 ```tsx
@@ -192,3 +194,22 @@ useMouseRegion({ onDragMove: (e) => move(e.x, e.y) }, { regionId: 'window-titleb
 ```
 
 `regionId` **不是**图层元素的 id。同一图层内复用同一个 id，后注册的区域会覆盖先注册的那个。
+
+## 原始鼠标事件流
+
+`useMouseRegion` 面向组件。如果宿主想直接拿解析后的事件流，可以使用 `@cartridge-engine/keyboard-engine` 导出的 `Mouse` 辅助类，Provider 内部驱动的也是它：
+
+```ts
+import { Mouse } from '@cartridge-engine/keyboard-engine'
+
+const mouse = new Mouse()
+mouse.enable()
+
+for await (const event of mouse.debouncedMoveEvents({ interval: 100 })) {
+  redraw(event.x, event.y)
+}
+```
+
+事件流会一直运行，直到你停止读取，或用 `signal` 选项中止它；结束后调用 `mouse.destroy()` 恢复终端状态。
+
+`debouncedMoveEvents` 在每个间隔之后交出最新的一次移动，所以一连串移动只会触发一次重绘。你的循环正忙的时候到达的移动不会丢失：下一次拉取仍会把它交出来，而不是继续等新的移动。

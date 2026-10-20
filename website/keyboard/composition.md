@@ -21,7 +21,7 @@ A `CompositionKey` describes what one key does.
 - `execute` {Function} The handler `(ctx) => ctx | null`; returning `null` ends the chain.
 - `isEndKey` {string[]} When the current flag is listed here, the chain is treated as ended.
 - `timeout` {number} Next-key timeout (ms). **Default:** the engine `defaultTimeout` (`400`).
-- `exclusive` {boolean} Whether a breaking key is swallowed silently or cancels the chain.
+- `exclusive` {boolean} On a key that matches no entry: `true` swallows it and keeps waiting, `false` cancels the chain. **Default:** `false`.
 - `undoAction` {Function} The inverse for undo, `(ctx) => ctx | null`; returning `null` stops the walk.
 - `when` / `mode` / `category` / `affectOverlay` / `executeWhenNoOverlay` behave as in other bindings.
 
@@ -67,11 +67,18 @@ Clears every composition entry. Does not abort a pending chain.
 
 - Returns: nothing.
 
+## When a chain ends
+
+A chain ends in one of two ways:
+
+- **Recorded.** The next-key timeout expires, an `isEndKey` matches, `execute` returns `null`, or you call `abortComposition()`. The chain's keys go into the undo buffer and subscribers receive `completed` (`aborted` for an explicit abort). A chain kept alive by an `exclusive` key also ends this way when its timeout finally expires.
+- **Dropped.** A key matches nothing, or a value guard rejects a key. The partial chain is discarded, never recorded, and cannot be undone.
+
 ## abortComposition()
 
-Immediately cancels the pending chain.
+Immediately cancels the pending chain and any pending mapping sequence.
 
-- Returns: nothing.
+- Returns: nothing. When nothing is pending, the call does nothing and emits no event.
 
 ## hasPendingComposition()
 

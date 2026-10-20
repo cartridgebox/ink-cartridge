@@ -127,6 +127,7 @@ You can use it to pass any data.
 
 Sometimes we need to refresh the current screen and update some prop state. `skip` provides a special option that lets you update state inside the screen. You can control this behavior with the `onlyAttribute` option of `skip`. The prerequisite is that the first argument of `skip` must be the screen you are currently on. In general, you use the second argument to pass new props to change state, while the `onlyAttribute` option only controls whether the screen is re-rendered fresh. See the snippet below.
 
+`gotoScreen` takes the same option for a target already on the current path; see [Refreshing a screen that is already on the path](#refreshing-a-screen-that-is-already-on-the-path).
 
 > **Note:** When using `onlyAttribute`, the current screen must also be registered.
 
@@ -191,6 +192,17 @@ The second argument of `gotoScreen` works like `skip`'s — it passes props to t
 ::: Note
 The target of `gotoScreen` must already be registered, otherwise it throws the error **xxx is not registered. Please call registerComponent() first.**.
 :::
+
+### Refreshing a screen that is already on the path
+
+`gotoScreen` also works when the target is already on the current path: the current screen, or one of its ancestors. The params replace that entry's registered template, and the screen is remounted by default. Pass `{ onlyAttribute: true }` to update only its props.
+
+```tsx
+// Settings is the current screen
+gotoScreen(Settings, { theme: "light" }, { onlyAttribute: true })
+```
+
+The mounted instance is kept only when the target is the current screen. An ancestor was unmounted while the deeper page was on top, so it mounts fresh either way; what `onlyAttribute` preserves there is the page's mouse-region focus map. Pages below the target are dropped in both cases, as with any jump to an ancestor.
 
 ## Using the `back` method to switch screens
 

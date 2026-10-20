@@ -71,6 +71,7 @@ useEffect(() => subscribeMapping(() => {
 ## Boundaries
 
 - When a single-key and a multi-key mapping share a first key, the **single-key one wins**, in registration order.
+- A mapping whose `base` is a prefix of another stays reachable. The engine waits for the longer one; if its key never arrives (the timeout expires, or a key matching no candidate is pressed), the completed shorter mapping runs. That unrelated key then continues to its own bindings. With `exclusive: true` the mismatched key is swallowed instead, so the shorter mapping runs at the timeout.
 - A pending mapping and a pending composition are mutually exclusive; mapping keys take priority.
 - A mapping started in one phase (`affectOverlay`) is not advanced by the other phase's processor.
 - Removing / clearing mapping keys does **not** abort a pending mapping — call `abortComposition()` yourself if needed.

@@ -21,7 +21,7 @@
 - `execute` {Function} 处理函数 `(ctx) => ctx | null`；返回 `null` 表示链在此终止。
 - `isEndKey` {string[]} 当前 flag 落在其中时，链视为结束。
 - `timeout` {number} 相邻键超时（毫秒）。 **默认值：** 引擎 `defaultTimeout`（`400`）。
-- `exclusive` {boolean} 打断键被静默吞掉还是取消链。
+- `exclusive` {boolean} 遇到没有匹配项的键时：`true` 吞掉该键继续等待，`false` 取消整条链。 **默认值：** `false`。
 - `undoAction` {Function} 撤销时的反操作 `(ctx) => ctx | null`；返回 `null` 停止回退。
 - `when` / `mode` / `category` / `affectOverlay` / `executeWhenNoOverlay` 与其它绑定一致。
 
@@ -67,11 +67,18 @@ useEffect(() => {
 
 - 返回：无。
 
+## 链如何结束
+
+一条链以两种方式之一结束：
+
+- **被记录。** 下一个键的超时到期、`isEndKey` 命中、`execute` 返回 `null`，或你调用 `abortComposition()`。链上的按键会进入撤销缓冲，订阅者收到 `completed`（显式中止时是 `aborted`）。被 `exclusive` 键续命的链，在超时最终到期时也这样结束。
+- **被丢弃。** 某个键没有匹配项，或某个值守卫拒绝了该键。这条未完成的链被丢弃，不会记录，也无法撤销。
+
 ## abortComposition()
 
-立即取消正在待续的链。
+立即取消正在待续的链，以及待续的映射序列。
 
-- 返回：无。
+- 返回：无。没有任何待续内容时，调用不做任何事，也不会发出事件。
 
 ## hasPendingComposition()
 

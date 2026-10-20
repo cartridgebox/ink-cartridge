@@ -29,7 +29,7 @@
 
 ## 示例
 
-`useMouseRegion` 的 `clickOnRise` / `enterOnRise` 等选项内部即调用 `bringLayerToFront` / `restoreLayerZIndex`。
+`useMouseRegion` 的 `clickOnRise`、`dragOnRise`、`wheelOnRise`、`enterOnRise` 选项会在对应手势发生时调用 `bringLayerToFront`；`leaveOffRise` 则在光标离开时调用 `restoreLayerZIndex`。
 
 ```tsx
 const { bringLayerToFront, restoreLayerZIndex } = useScreenSystem()
