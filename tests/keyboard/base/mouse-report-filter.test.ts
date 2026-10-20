@@ -53,4 +53,12 @@ describe("MouseReportFilter", () => {
 		expect(filter.consume(";5m")).toBe(true); // completes the release report
 		expect(filter.consume("a")).toBe(false);
 	});
+
+	test("releases an M/m keystroke while a fragment is buffered", () => {
+		const filter = new MouseReportFilter();
+		expect(filter.consume("[<3")).toBe(true); // looks like a report start
+		// `[<3M` is not a report — the terminator needs the two coordinates.
+		expect(filter.consume("M")).toBe(false);
+		expect(filter.consume("m")).toBe(false);
+	});
 });
