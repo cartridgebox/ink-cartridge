@@ -993,6 +993,9 @@ export default class CompositionEngine<TComponent = unknown> {
 	 * part of it. No-op when nothing is pending.
 	 */
 	abort(): void {
+		// Nothing pending: a chain that already broke or completed left nothing
+		// to cancel, and recording it here would make a dropped chain undoable.
+		if (!this.pendingEntry && !this.mappingPendingEntry) return;
 		this.recordHistory();
 		this.cancelMappingPending();
 		this.clearPending();
@@ -1042,6 +1045,9 @@ export default class CompositionEngine<TComponent = unknown> {
 		// chain (or pending mapping sequence) alive would keep startPending()
 		// from beginning a new chain until the stale timeout fires.
 		this.clearPending();
+		// A chain that is being dropped is not undoable: clearing its keys keeps
+		// a later abort() from recording them.
+		this.historyKeys = [];
 		this.cancelMappingPending();
 
 		if (this.buffers.length === 0) return null;
@@ -2120,6 +2126,10 @@ export default class CompositionEngine<TComponent = unknown> {
 					outcome.reason === "terminate" || outcome.reason === "endkey";
 				if (terminal) {
 					this.recordHistory();
+				} else {
+					// The chain is dropped without being recorded; clearing its keys
+					// keeps a later abort() from resurrecting them.
+					this.historyKeys = [];
 				}
 				this.clearPending();
 				// Subscribers must hear the chain end either way: a terminal
@@ -2171,8 +2181,11 @@ export default class CompositionEngine<TComponent = unknown> {
 			return true;
 		}
 
-		// Not exclusive — clear and let key fall through
+		// Not exclusive — clear and let key fall through. The broken chain is
+		// dropped, not recorded: clearing its keys keeps a later abort() from
+		// resurrecting them.
 		this.clearPending();
+		this.historyKeys = [];
 		this.notify({ type: "broken", key: this.currentKey[0] ?? "" });
 		return false;
 	}
