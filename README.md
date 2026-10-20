@@ -20,6 +20,7 @@
 - [Documentation](#documentation)
 - [For AI](#for-ai)
 - [Examples](#examples)
+- [Versioning](#versioning)
 - [License](#license)
 
 ## Design Philosophy
@@ -213,13 +214,13 @@ render(
 
 
 Not only that, it also supports full coordination between mouse and keyboard focus.
-This makes terminal interaction smoother. [Demo Example](./examples/xterm-mouse/MouseHoverFocus.demo.tsx)
+This makes terminal interaction smoother. [Demo Example](./examples/mouse-hover-focus.tsx)
 
 <div align="center">
 <img src="static/quickstart-mouse-focus.gif" width="2040" alt="mouse-focus" />
 </div>
 
-Drag: [Demo Example](./examples/xterm-mouse/MouseDrag.demo.tsx)
+Drag: [Demo Example](./examples/mouse-drag.tsx)
 
 <div align="center">
 <img src="static/quickstart-mouse-drag.gif" width="2040" alt="mouse-drag" />
@@ -227,7 +228,7 @@ Drag: [Demo Example](./examples/xterm-mouse/MouseDrag.demo.tsx)
 
 With Ink-cartridge, you can achieve buttery-smooth window raising, taking the interactivity and visual quality of React Ink apps to the next level. 
 On top of that, it keeps keyboard priority exactly aligned with window priority. As shown in the example below, when you press the X key, only the highest-priority window will respond.
-[Demo Example](./examples/core/bring-to-front.demo.tsx)
+[Demo Example](./examples/screen-bring-to-front.tsx)
 
 <div align="center">
 <img src="static/quickstart-windous-rise.gif" width="2040" alt="windous-rise" />
@@ -278,11 +279,25 @@ The guides are written by hand and live in [`website/`](website/); API reference
 
 AI-friendly project — see [AGENTS.md](AGENTS.md) for coding conventions, [agents/rules/](agents/rules/) for conditional rules, and [docs-agents/](docs-agents/) for reference material. AI writes, humans review and sign off.
 
-Skills live in [`skills/`](skills/) (SKILL.md per agent tool); install them for an agent with `script/install-skill/<agent>.sh`, e.g. `script/install-skill/claude-code.sh`.
+Skills live in [`skills/`](skills/) (one `SKILL.md` per agent tool); copy a skill's directory into your agent's skills folder to install it.
 
 ## Examples
 
 Runnable demos for every component. See [examples/README.md](examples/README.md) for the full list and run commands.
+
+## Versioning
+
+`ink-cartridge` does not follow semantic versioning strictly. A version is chosen by
+the size and the circumstances of a change rather than by API compatibility alone:
+
+- **major** — a large release or a large-scale refactor. A breaking change does not by
+  itself force a major bump.
+- **minor** / **patch** — the two are split by scale: a new capability or a sizeable
+  behavior change lands as a minor, a small fix or a narrow adjustment as a patch.
+
+In practice, read the [CHANGELOG](CHANGELOG.md) instead of inferring compatibility from
+the number — every change is listed there, grouped into Added, Changed, Fixed, Breaking
+Changes and Tests.
 
 ## License
 

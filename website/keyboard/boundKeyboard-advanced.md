@@ -13,6 +13,7 @@ Additionally, `boundKeyboard` has three overloads, but we only cover the most ba
 
 - `when` {() => boolean | string} Dynamically enable/disable the binding: active when it returns `true`, disabled when it returns `false`.
 - `observer` {(remaining: number) => void} Must be used with `times`. Before the `times` count reaches zero, every key press triggers this callback with the number of presses remaining.
+- `stopsWorkingAfterLayerAppearing` {boolean} Page bindings only: while any layer or modal layer is open the binding is skipped; it responds again once they all close.
 
 ## Using `boundKeyboard` with `when` and the condition system
 
@@ -211,3 +212,18 @@ How it runs: the first press of `b` calls `observer(2)` and the screen shows "2 
    ```
    [keyboard-engine] boundKeyboard() times option must be >= 1.
    ```
+
+## Using `boundKeyboard` with `stopsWorkingAfterLayerAppearing`
+
+Page-level bindings can go dormant while a layer is on screen. Add `stopsWorkingAfterLayerAppearing: true` and the binding is skipped while any layer or modal layer is open; once they all close, it responds again.
+
+```tsx
+const { boundKeyboard } = useKeyboard()
+
+useEffect(
+  () => boundKeyboard(["x"], () => act(), { stopsWorkingAfterLayerAppearing: true }),
+  [boundKeyboard],
+)
+```
+
+The option applies to page bindings only. On a layer element's binding it has no effect, since that element's bindings already stop when its layer is gone. A page binding registered with `focusId` follows the same rule as any other page binding.

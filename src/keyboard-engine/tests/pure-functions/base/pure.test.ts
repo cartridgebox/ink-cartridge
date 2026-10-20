@@ -462,6 +462,64 @@ describe("handleLayer", () => {
     expect(notify).toHaveBeenCalled();
   });
 
+  it("rotates backward on a shift+tab-only event", () => {
+    const layer = makePageLayer({
+      defaultFocusOrder: ["one", "two", "three"],
+      currentFocusIds: [{ id: "two", fromGroup: defaultTargetsSymbol }],
+    });
+    const notify = vi.fn();
+    // The bundled Ink adapter drops the bare name while Shift is held, so the
+    // reverse direction arrives as `["shift+tab"]` alone.
+    expect(handleTabNavigation(layer, ["shift+tab"], true, notify)).toBe(true);
+    expect(layer.currentFocusIds[0].id).toBe("one");
+  });
+
+  it("matches the configured tabKey and its shift variant", () => {
+    const layer = makePageLayer({
+      defaultFocusOrder: ["one", "two", "three"],
+      currentFocusIds: [{ id: "two", fromGroup: defaultTargetsSymbol }],
+    });
+    const notify = vi.fn();
+    expect(handleTabNavigation(layer, ["Tab"], false, notify, "Tab")).toBe(true);
+    expect(layer.currentFocusIds[0].id).toBe("three");
+    expect(
+      handleTabNavigation(layer, ["shift+Tab"], true, notify, "Tab"),
+    ).toBe(true);
+    expect(layer.currentFocusIds[0].id).toBe("two");
+    // The reverse direction is `shift+<tabKey>` exactly — a differently
+    // spelled variant is not an auto-tab event.
+    expect(
+      handleTabNavigation(layer, ["Shift+Tab"], true, notify, "Tab"),
+    ).toBe(false);
+  });
+
+  it("reads the auto-tab key from the pipeline context", () => {
+    const layer = makePageLayer({
+      defaultFocusOrder: ["one", "two", "three"],
+      currentFocusIds: [{ id: "two", fromGroup: defaultTargetsSymbol }],
+    });
+    expect(
+      handleLayer(
+        makeContext({ autoTab: true, eventNames: ["shift+tab"] }),
+        layer,
+        true,
+      ),
+    ).toBe(true);
+    expect(layer.currentFocusIds[0].id).toBe("one");
+    expect(
+      handleLayer(
+        makeContext({
+          autoTab: true,
+          autoTabKey: "Tab",
+          eventNames: ["Tab"],
+        }),
+        layer,
+        true,
+      ),
+    ).toBe(true);
+    expect(layer.currentFocusIds[0].id).toBe("two");
+  });
+
   it("skips missing targets inside an existing group", () => {
     const layer = makePageLayer({
       focusTargets: new Map([

@@ -4,6 +4,14 @@ import { createEngine, makeSyncLayer } from "../_helpers/factories.js";
 const Root = {};
 const Child = {};
 
+/**
+ * Narrow a host key descriptor the way the bundled Ink adapter does in
+ * `src/keyboard/keyNormalizer.ts`, so a test adapter can read `key.shift`.
+ */
+function isKeyDescriptor(key: unknown): key is Record<string, unknown> {
+  return typeof key === "object" && key !== null;
+}
+
 describe("full pipeline", () => {
   it("runs custom processors inserted into the pipeline", () => {
     const engine = createEngine();
@@ -74,6 +82,52 @@ describe("full pipeline", () => {
     engine.boundKeyboard(["a"], first, { focusId: "one" });
     engine.boundKeyboard(["b"], second, { focusId: "two" });
     expect(engine.focusCurrent().result?.id).toBe("one");
+    expect(engine.processKey("\t", {})).toBe(false);
+    expect(engine.focusCurrent().result?.id).toBe("two");
+  });
+
+  it("rotates focus backward on a shift+tab-only event", () => {
+    const engine = createEngine({
+      autoTab: true,
+      // Mirrors the bundled Ink adapter: a held modifier drops the bare name,
+      // so Shift+Tab normalizes to `["shift+tab"]` alone.
+      normalizeKeyNames: (input, key) => {
+        if (input !== "\t") return input ? [input] : [];
+        const shifted = isKeyDescriptor(key) && key.shift === true;
+        return shifted ? ["shift+tab"] : ["tab"];
+      },
+    });
+    engine.sync({ pagePath: [Root], layers: [], modalLayers: [] });
+    const noop = vi.fn();
+    engine.boundKeyboard(["a"], noop, { focusId: "one" });
+    engine.boundKeyboard(["b"], noop, { focusId: "two" });
+    engine.boundKeyboard(["c"], noop, { focusId: "three" });
+    expect(engine.focusCurrent().result?.id).toBe("one");
+
+    expect(engine.processKey("\t", {})).toBe(false);
+    expect(engine.focusCurrent().result?.id).toBe("two");
+
+    // Backward — forward from "two" would land on "three".
+    expect(engine.processKey("\t", { shift: true })).toBe(false);
+    expect(engine.focusCurrent().result?.id).toBe("one");
+
+    // Backward wraps around the other end too.
+    expect(engine.processKey("\t", { shift: true })).toBe(false);
+    expect(engine.focusCurrent().result?.id).toBe("three");
+  });
+
+  it("rotates focus with a custom tabKey", () => {
+    const engine = createEngine({
+      autoTab: true,
+      tabKey: "Tab",
+      normalizeKeyNames: (input) =>
+        input === "\t" ? ["Tab"] : input ? [input] : [],
+    });
+    engine.sync({ pagePath: [Root], layers: [], modalLayers: [] });
+    const noop = vi.fn();
+    engine.boundKeyboard(["a"], noop, { focusId: "one" });
+    engine.boundKeyboard(["b"], noop, { focusId: "two" });
+
     expect(engine.processKey("\t", {})).toBe(false);
     expect(engine.focusCurrent().result?.id).toBe("two");
   });

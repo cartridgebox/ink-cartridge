@@ -8,6 +8,11 @@ Cross-chapter pitfalls and error messages, grouped by symptom.
 - **Wrong ownership**: a binding is matched only while its owner (screen / layer element) is active, see [Binding Attribution & the Owner Stack](/screen/binding-attribution).
 - **Blocked by `mode` / `when`**: check the binding's `mode` and `when`, see [Modes](/keyboard/modes) and [Intermediate Binding](/keyboard/boundKeyboard-advanced).
 - **Modal takeover**: a modal layer intercepts every key by default; reopen the ones you need with `allowModal`, see [Passing Keys with allowModal](/screen/allow-modal).
+- **`allowModal` outside a modal layer**: the call is a no-op and logs a warning in development. An allow list only exists on a modal layer's element, so calling it on a page or on a regular layer's element registers nothing. See [Passing Keys with allowModal](/screen/allow-modal).
+
+## Focus
+
+- **A focus target disappeared after unbinding**: with `releaseFocusWhenEmpty` enabled, the last unbinding removes the target. Register a binding on the same `focusId` again to recreate it. See [Focus System](/keyboard/focus-system).
 
 ## Layers and propagation
 

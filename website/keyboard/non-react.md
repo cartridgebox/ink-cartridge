@@ -23,15 +23,16 @@ The core keyboard logic lives in the framework-agnostic `KeyboardEngine` class; 
 - `processors` {KeyboardProcessorProps[]} Processors injected into the pipeline at construction.
 - `defaultTimeout` {number} Composition-chain timeout in ms. **Default:** `400`.
 - `valueSchema` {ValueSchema} Value-type validation for composition.
-- `autoTab` {boolean} Whether the engine takes over Tab / Shift+Tab. **Default:** `false`.
-- `tabKey` {string} The key name used for focus rotation. **Default:** `"tab"`.
+- `autoTab` {boolean} Whether the engine takes over Tab / Shift+Tab for focus rotation. **Default:** `false`.
+- `tabKey` {string} The bare key name used for forward rotation; reverse rotation matches `shift+<tabKey>`. **Default:** `"tab"`.
+- `releaseFocusWhenEmpty` {boolean} Remove a focus target once its last binding unbinds; registering a binding on the same id again recreates it. **Default:** `false`.
 
 ## Driving the engine
 
 - `sync(state)` Pushes screen / layer state into the engine. Call it after every render or state update, before `processKey`; `state` is `{ pagePath, layers, modalLayers }`, with layers sorted by ascending `zIndex`.
 - `processKey(input, key)` Handles one key press.
   - Returns: {boolean} `true` when a processor consumed the event, otherwise `false`.
-- `pushOwner(owner)` / `popOwner(owner)` Maintain the owner stack by hand, for owner-scoped bindings (`boundKeyboard` / `boundSequence` / `stop` / `penetration` / `allowModal`).
+- `pushOwner(owner)` / `popOwner(owner)` Maintain the owner stack by hand, for owner-scoped bindings (`boundKeyboard` / `boundSequence` / `stop` / `penetration` / `allowModal`). Calls made inside a layer element also need `elementId`; the React adapter fills it in. `allowModal` only has an effect on a modal layer's element.
 - `boundKeyboard` / `globalKeys` / `addMapping` and the rest keep the same names and meanings as the React version.
 
 ```ts
@@ -53,7 +54,7 @@ engine.processKey(input, key);   // true = consumed
 
 ## Injecting an existing engine into React
 
-`KeyboardProvider`'s `engine` prop accepts a pre-built instance; when it is supplied, the `modes` / `defaultMode` / `processors` / `valueSchema` / `autoTab` props are ignored (`mouse` still wires up independently).
+`KeyboardProvider`'s `engine` prop accepts a pre-built instance; when it is supplied, the `modes` / `defaultMode` / `processors` / `valueSchema` / `autoTab` / `releaseFocusWhenEmpty` props are ignored (`mouse` still wires up independently).
 
 ```tsx
 const engine = useMemo(

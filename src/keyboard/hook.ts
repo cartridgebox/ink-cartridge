@@ -3,8 +3,8 @@ import {
   useEffect,
   useId,
   useMemo,
+  useReducer,
   useRef,
-  useState,
   type RefObject,
 } from "react";
 import {
@@ -438,6 +438,11 @@ export function useKeyboard(): KeyboardContextValue {
         withOwner(() =>
           ctx.useModalMissListener(cb, withElement(options)),
         ),
+      // Owner-scoped like the methods above: without the re-push, a call from a
+      // layer element reads whichever layer — or page — happens to sit on top
+      // of the owner stack, which is how sibling elements break each other.
+      currentScreenHasSequenceWaiting: (sync?: () => void) =>
+        withOwner(() => ctx.currentScreenHasSequenceWaiting(sync)),
       focusSet: (focusId: string, groupOrOptions?: string | FocusSetOptions) =>
         withOwner(() => ctx.focusSet(focusId, withFocusOptions(groupOrOptions))),
       focusNext: (groupOrOptions?: string | FocusSetOptions) =>
@@ -499,17 +504,14 @@ export function useFocusState(
   groupOrOptions?: string | FocusSetOptions,
 ): boolean {
   const { focusCurrent, subscribeFocus } = useKeyboard();
-  const [isFocused, setIsFocused] = useState<boolean>(
-    () => focusCurrent(groupOrOptions).result?.id === focusId,
-  );
+  const [, forceRender] = useReducer((n: number) => n + 1, 0);
 
-  useEffect(() => {
-    return subscribeFocus(() => {
-      setIsFocused(focusCurrent(groupOrOptions).result?.id === focusId);
-    });
-  }, [focusId, focusCurrent, subscribeFocus, groupOrOptions]);
+  // The subscription only re-renders; the value is derived on every render.
+  // Caching it in state left the previous focusId's (or group's) answer in
+  // place when the parameters changed without a focus event.
+  useEffect(() => subscribeFocus(forceRender), [subscribeFocus]);
 
-  return isFocused;
+  return focusCurrent(groupOrOptions).result?.id === focusId;
 }
 
 /**
@@ -953,12 +955,18 @@ export function useMouseRegion(
 
   // Unmount cleanup: only runs when the component truly unmounts (or
   // layerId/regionId change), never on plain re-renders — those overwrite
-  // the registration above.
+  // the registration above. The wrapped context changes identity on every
+  // screen-system update, so it is read through a ref instead of being a
+  // dependency: depending on it ran this cleanup right after the render had
+  // registered the region, deleting the live entry until the next layout
+  // commit.
+  const unregisterRegionRef = useRef(ctx.unregisterMouseRegion);
+  unregisterRegionRef.current = ctx.unregisterMouseRegion;
   useEffect(() => {
     return () => {
-      ctx?.unregisterMouseRegion(layerId, regionId);
+      unregisterRegionRef.current(layerId, regionId);
     };
-  }, [ctx, layerId, regionId]);
+  }, [layerId, regionId]);
 
   return ref;
 }

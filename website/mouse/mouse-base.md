@@ -149,6 +149,8 @@ Adjust the threshold on the provider:
 <KeyboardProvider mouse mouseOptions={{ clickDistanceThreshold: 2 }}>
 ```
 
+Option values are compared by value, so an inline function such as `setRawMode` is fine: changing only its identity does not rebuild the Mouse. Changing a number (`clickDistanceThreshold`, `pressStormThreshold`, …) or swapping a stream does rebuild it.
+
 `onDragMove` is usually paired with `event.x` / `event.y` for absolute positioning — dragging a window, for example:
 
 ```tsx
@@ -192,3 +194,22 @@ useMouseRegion({ onDragMove: (e) => move(e.x, e.y) }, { regionId: 'window-titleb
 ```
 
 `regionId` is **not** a layer element id. Reusing one inside the same layer makes the later registration overwrite the earlier one.
+
+## Raw mouse streams
+
+`useMouseRegion` covers components. A host that wants the parsed event stream directly can use the `Mouse` helper from `@cartridge-engine/keyboard-engine`, the same class the provider drives:
+
+```ts
+import { Mouse } from '@cartridge-engine/keyboard-engine'
+
+const mouse = new Mouse()
+mouse.enable()
+
+for await (const event of mouse.debouncedMoveEvents({ interval: 100 })) {
+  redraw(event.x, event.y)
+}
+```
+
+The stream runs until you stop reading or abort it with the `signal` option; call `mouse.destroy()` afterwards to restore the terminal.
+
+`debouncedMoveEvents` yields the latest move after each interval, so a burst of moves costs one redraw. If a move arrives while your loop is busy, the next pull still returns it instead of waiting for another move.

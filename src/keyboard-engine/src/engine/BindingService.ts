@@ -27,6 +27,13 @@ import { FocusTarget } from "../types/focus.js";
 import EngineState from "./EngineState.js";
 import LayerManager from "./LayerManager.js";
 
+/** Development-only warning; production builds stay silent. */
+function warnInDev(message: string): void {
+  if (process.env.NODE_ENV !== "production") {
+    console.warn(message);
+  }
+}
+
 /**
  * A focus target plus the identity it was registered under, so a binding
  * cleanup can release exactly the reference it took.
@@ -304,6 +311,16 @@ export default class BindingService<TComponent = unknown> {
       const entry = createBoundKeyEntry(keys, handler);
       entry.when = options?.when;
       entry.mode = options?.mode;
+      // A focused binding on a page is matched with the same
+      // `shouldSkipOnlyLayer` predicate as a page-level one, so the flag has
+      // to be stored here too or the option silently does nothing. Element
+      // layers never carry it, exactly like the non-focus branch below.
+      // (The assertion is safe: `PageBoundKeyEntry` only adds this optional
+      // flag to `BaseBoundKeyEntry`.)
+      if (!("associatedLayer" in layer)) {
+        (entry as PageBoundKeyEntry).stopsWorkingAfterLayerAppearing =
+          options?.stopsWorkingAfterLayerAppearing;
+      }
 
       // Attach and hold only once the entry is certain to be pushed: the two
       // calls above can throw, and a throw returns no cleanup that could
@@ -431,29 +448,40 @@ export default class BindingService<TComponent = unknown> {
     return this.withFocusRelease(layer, focus, cleanup);
   }
 
+  /**
+   * Allow keys through the modal barrier.
+   *
+   * Only a modal-layer element has an allow list: the modal processor is its
+   * only reader (`processors/modal.ts`). Called on a page, on a regular layer
+   * element, or without an element id, the call is a no-op with a development
+   * warning instead of throwing — or of registering rules nothing would read.
+   */
   allowModal(keys: string[], options?: AllowModalOptions): () => void {
     const owner = this.layers.getCurrentOwner();
-    if (!owner) {
-      throw new Error(
-        "[keyboard-engine] allowModal() must be called inside a modal component.",
-      );
-    }
-    const layer = this.getKeyboardInCurrentContext(owner, options?.elementId);
+    const modalLayerId =
+      typeof owner === "string" &&
+      this.state.synchronizedData.modalLayers.some(
+        (modal) => modal.layerId === owner,
+      )
+        ? owner
+        : null;
 
-    if ("pendingSequence" in layer) {
-      throw new Error(
-        "[keyboard-engine] allowModal() must be called inside a modal component.",
+    if (modalLayerId === null || !options?.elementId) {
+      warnInDev(
+        "[keyboard-engine] allowModal() has no effect outside a modal layer element; the call is a no-op.",
       );
+      return () => {};
     }
 
-    const focus = options?.focusId
+    const layer = this.layers.getLayer(modalLayerId, options.elementId);
+    const focus = options.focusId
       ? this.attachFocusTarget(layer, options.focusId)
       : undefined;
     const container: KeyRuleContainer = focus?.target ?? layer;
 
     const cleanup = pushKeyEntries(container, "allowedKeys", keys, (key) => ({
       key,
-      when: options?.when,
+      when: options.when,
     }));
     if (focus) this.layers.holdFocus(focus.target);
 

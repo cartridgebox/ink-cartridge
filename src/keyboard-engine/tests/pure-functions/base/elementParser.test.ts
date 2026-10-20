@@ -35,6 +35,26 @@ describe("elementParser tab navigation", () => {
     const ctx = makeContext({ eventNames: ["tab"] });
     expect(handleTabNavigation(element, ctx, false)).toBe(false);
   });
+
+  it("rotates backward on a shift+tab-only event", () => {
+    const element = makeElementKeyboard("e1", "L", {
+      defaultFocusOrder: ["one", "two", "three"],
+      currentFocusIds: [{ id: "two", fromGroup: defaultTargetsSymbol }],
+    });
+    const ctx = makeContext({ eventNames: ["shift+tab"] });
+    expect(handleTabNavigation(element, ctx, true)).toBe(true);
+    expect(element.currentFocusIds[0].id).toBe("one");
+  });
+
+  it("matches the autoTabKey from the context", () => {
+    const element = makeElementKeyboard("e1", "L", {
+      defaultFocusOrder: ["one", "two", "three"],
+      currentFocusIds: [{ id: "two", fromGroup: defaultTargetsSymbol }],
+    });
+    const ctx = makeContext({ eventNames: ["Tab"], autoTabKey: "Tab" });
+    expect(handleTabNavigation(element, ctx, false)).toBe(true);
+    expect(element.currentFocusIds[0].id).toBe("three");
+  });
 });
 
 describe("elementParser handlerElement", () => {

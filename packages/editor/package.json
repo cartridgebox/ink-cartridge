@@ -51,11 +51,11 @@
 		"react": ">=18"
 	},
 	"dependencies": {
-		"@cartridge-engine/i18n": "*",
+		"@cartridge-engine/i18n": "^1.0.2",
 		"cfonts": "^3.3.1",
 		"chalk": "^4.1.2",
 		"gradient-string": "^2.0.2",
-		"ink-cartridge": "*",
+		"ink-cartridge": "^6.2.0",
 		"oh-my-logo": "^0.5.0",
 		"string-width": "^8.2.2",
 		"zod": "^4.4.3"

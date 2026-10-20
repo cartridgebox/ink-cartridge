@@ -6,12 +6,13 @@ paths: ["examples/**/*"]
 
 ## Naming
 
-Every demo file must follow `{ComponentName}[.{variant}].demo.tsx`:
+Every demo lives directly in `examples/` as one flat file named `<group>-<name>.tsx`, where `<group>` is the subsystem it demonstrates:
 
-- `Badge.demo.tsx` — single demo for Badge component
-- `SearchBar.multi.demo.tsx` — "multi" variant of SearchBar demo
+- `keyboard-*` — keyboard engine demos (`keyboard-module-api.tsx`, `keyboard-dormant-key.tsx`)
+- `mouse-*` — mouse region demos (`mouse-hover-focus.tsx`, `mouse-sequence.tsx`)
+- `screen-*` — navigation and layer demos (`screen-goto-screen.tsx`, `screen-layer-persistence.tsx`)
 
-Each component lives in its own directory: `examples/<component-name>/<Demo>.demo.tsx`.
+No subdirectories: the prefix is what keeps the groups apart.
 
 ## Content
 
@@ -51,7 +52,7 @@ Every demo that uses overlays or modals must follow these rules:
 
 ## Imports
 
-Import from the public API (`../../src/index.js`) or from deep component paths. Either is acceptable as long as it's consistent within the file.
+Import from the public API (`../src/index.js`, one level up from `examples/`) or from deep component paths. Either is acceptable as long as it's consistent within the file.
 
 ## No tests in examples/
 
@@ -59,4 +60,4 @@ Files ending in `_test.ts(x)` do not belong in `examples/`. Tests go in `tests/`
 
 ## Entry in README
 
-Every new demo must be added to `examples/README.md` with its component name and run command.
+Every new demo must be added to `examples/README.md` — in the table for its group — with its run command.

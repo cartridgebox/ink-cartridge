@@ -10,7 +10,7 @@
  *   and closes with escape.
  *
  * Run:
- *   npx tsx examples/layer-system/LayerSystem.demo.tsx
+ *   npx tsx examples/screen-layer-system.tsx
  */
 import React, {
   useContext,
@@ -28,7 +28,7 @@ import {
   ScenarioManagementProvider,
   useKeyboard,
   useScreenSystem,
-} from '../../src/index.js';
+} from '../src/index.js';
 
 function ElementA1() {
   const ctx = useContext(LayerElementContext);

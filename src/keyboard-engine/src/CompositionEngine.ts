@@ -468,6 +468,19 @@ export interface MappingPendingEntry<TComponent> {
 	 * sequence.
 	 */
 	when?: (() => boolean) | string;
+	/**
+	 * The longest mapping the typed input has already completed while a longer
+	 * candidate is still possible. It runs when that ambiguity ends without the
+	 * longer key ever arriving — on the timeout, or on a key that matches no
+	 * candidate — so a mapping that is a prefix of another stays reachable.
+	 */
+	fallback?: MappingKeyEntry<TComponent>;
+	/**
+	 * Context of the most recent key event. Kept because the timeout fires
+	 * outside the pipeline and has no context of its own, yet running the
+	 * fallback needs one.
+	 */
+	lastContext?: PipelineContext<TComponent>;
 }
 
 /**
@@ -683,6 +696,11 @@ export default class CompositionEngine<TComponent = unknown> {
 	 * Mapping-key pending and ordinary composition pending are mutually
 	 * exclusive, and mapping keys take priority: they are checked inside
 	 * `startPending` before single-key composition startup.
+	 *
+	 * Overlapping sequences are allowed: a mapping whose `base` is a prefix of
+	 * another one still runs when the longer sequence does not arrive — its
+	 * target chain fires on the timeout, or on a key that matches no further
+	 * candidate (that key then continues as if nothing were pending).
 	 *
 	 * @param base   The external trigger key sequence (what the user presses).
 	 * @param target The internal composition key chain to execute in order.
@@ -975,6 +993,9 @@ export default class CompositionEngine<TComponent = unknown> {
 	 * part of it. No-op when nothing is pending.
 	 */
 	abort(): void {
+		// Nothing pending: a chain that already broke or completed left nothing
+		// to cancel, and recording it here would make a dropped chain undoable.
+		if (!this.pendingEntry && !this.mappingPendingEntry) return;
 		this.recordHistory();
 		this.cancelMappingPending();
 		this.clearPending();
@@ -1024,6 +1045,9 @@ export default class CompositionEngine<TComponent = unknown> {
 		// chain (or pending mapping sequence) alive would keep startPending()
 		// from beginning a new chain until the stale timeout fires.
 		this.clearPending();
+		// A chain that is being dropped is not undoable: clearing its keys keeps
+		// a later abort() from recording them.
+		this.historyKeys = [];
 		this.cancelMappingPending();
 
 		if (this.buffers.length === 0) return null;
@@ -1399,7 +1423,12 @@ export default class CompositionEngine<TComponent = unknown> {
 		if (!this.pendingEntry) return;
 		clearTimeout(this.pendingEntry.timer);
 		const timer = setTimeout(() => {
+			// This wait was restarted by a mismatched key in exclusive mode, and
+			// its expiry ends the chain exactly like the other two timers do: the
+			// keys are recorded for undo and subscribers learn it completed.
 			this.clearPending();
+			this.recordHistory();
+			this.notify({ type: "completed" });
 		}, timeout);
 		this.pendingEntry.timer = timer;
 		this.pendingEntry.timeout = timeout;
@@ -1439,10 +1468,41 @@ export default class CompositionEngine<TComponent = unknown> {
 		if (!this.mappingPendingEntry) return;
 		clearTimeout(this.mappingPendingEntry.timer);
 		const timer = setTimeout(() => {
-			this.cancelMappingPending();
+			this.expireMappingPending();
 		}, timeout);
 		this.mappingPendingEntry.timer = timer;
 		this.mappingPendingEntry.timeout = timeout;
+	}
+
+	/**
+	 * End a pending mapping whose wait expired.
+	 *
+	 * The ambiguity is over: if the typed input has completed a mapping, that
+	 * mapping runs now instead of being dropped; otherwise the sequence is
+	 * cancelled as before. The timer fires outside the pipeline, so the
+	 * fallback runs with the context saved on the last key event.
+	 */
+	private expireMappingPending(): void {
+		const pending = this.mappingPendingEntry;
+		if (!pending) return;
+		const fallback = pending.fallback;
+		const ctx = pending.lastContext;
+
+		if (!fallback || !ctx) {
+			this.clearMappingPending();
+			this.notifyMapping({ type: "cancelled" });
+			return;
+		}
+
+		const outcome = this.runTargetChain(fallback, ctx, pending.affectOverlay);
+		this.clearMappingPending();
+		if (outcome.ok) {
+			this.notifyMapping({ type: "completed" });
+			return;
+		}
+		// The input matched, but its target chain could not run. There is no
+		// breaking key to name, so this is reported as a cancellation.
+		this.notifyMapping({ type: "cancelled" });
 	}
 
 	/**
@@ -1755,10 +1815,11 @@ export default class CompositionEngine<TComponent = unknown> {
 			affectOverlay,
 			candidates,
 			when: selected.when,
+			lastContext: ctx,
 		};
 
 		const timer = setTimeout(() => {
-			this.cancelMappingPending();
+			this.expireMappingPending();
 		}, pending.timeout);
 		pending.timer = timer;
 		this.mappingPendingEntry = pending;
@@ -1829,6 +1890,10 @@ export default class CompositionEngine<TComponent = unknown> {
 			return false;
 		}
 
+		// Keep the latest context: the timeout fires outside the pipeline and
+		// needs one to run a completed fallback.
+		pending.lastContext = ctx;
+
 		// Determine the current input key name. Unlike tryStartMappingKeyPending
 		// (which looks up registered mapping head keys), here we need to match
 		// against the candidates' keys[nextIndex]. We try each name in
@@ -1853,6 +1918,23 @@ export default class CompositionEngine<TComponent = unknown> {
 				this.notifyMapping({ type: "consumed", key: this.currentKey[0] ?? "" });
 				return true;
 			}
+			// The input already completed a shorter mapping: run it, then let this
+			// unrelated key continue as if nothing had been pending. Without a
+			// completed fallback there is nothing to run, so the sequence breaks.
+			if (pending.fallback) {
+				const outcome = this.runTargetChain(
+					pending.fallback,
+					ctx,
+					pending.affectOverlay,
+				);
+				this.clearMappingPending();
+				if (outcome.ok) {
+					this.notifyMapping({ type: "completed" });
+					return false;
+				}
+				this.notifyMapping({ type: "broken", key: this.currentKey[0] ?? "" });
+				return outcome.swallow;
+			}
 			this.clearMappingPending();
 			this.notifyMapping({ type: "broken", key: this.currentKey[0] ?? "" });
 			return false;
@@ -1875,6 +1957,14 @@ export default class CompositionEngine<TComponent = unknown> {
 			this.notifyMapping({ type: "broken", key: this.currentKey[0] ?? "" });
 			return false;
 		}
+
+		// Remember the mapping the typed input has completed so far. While a
+		// longer candidate stays possible the wait continues; if that key never
+		// arrives, this fallback runs instead of dropping the completed input.
+		const completed = narrowed.find(
+			(entry) => entry.keys.length === nextIndex + 1,
+		);
+		if (completed) pending.fallback = completed;
 
 		if (narrowed.length > 1) {
 			// Still ambiguous — record progress and keep waiting for the next key.
@@ -2036,6 +2126,10 @@ export default class CompositionEngine<TComponent = unknown> {
 					outcome.reason === "terminate" || outcome.reason === "endkey";
 				if (terminal) {
 					this.recordHistory();
+				} else {
+					// The chain is dropped without being recorded; clearing its keys
+					// keeps a later abort() from resurrecting them.
+					this.historyKeys = [];
 				}
 				this.clearPending();
 				// Subscribers must hear the chain end either way: a terminal
@@ -2087,8 +2181,11 @@ export default class CompositionEngine<TComponent = unknown> {
 			return true;
 		}
 
-		// Not exclusive — clear and let key fall through
+		// Not exclusive — clear and let key fall through. The broken chain is
+		// dropped, not recorded: clearing its keys keeps a later abort() from
+		// resurrecting them.
 		this.clearPending();
+		this.historyKeys = [];
 		this.notify({ type: "broken", key: this.currentKey[0] ?? "" });
 		return false;
 	}

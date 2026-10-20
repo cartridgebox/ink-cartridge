@@ -255,6 +255,39 @@ describe('EventStreamFactory', () => {
       );
     });
 
+    test('yields a move parked while the consumer was busy', async () => {
+      // Arrange
+      const stream = factory.debouncedMoveEvents({ interval: 30 });
+      const iterator = stream[Symbol.asyncIterator]();
+
+      // Act — consume the first move, then let the consumer go "busy": the
+      // second move arrives and its debounce expires while nobody is pulling.
+      // The generator subscribes to `move` when the first pull resumes it, so
+      // the emit has to come after `next()` is called.
+      const firstPull = iterator.next();
+      mockEmitter.emit('move', { x: 1, y: 1, button: 'none', action: 'move' });
+      const first = await firstPull;
+      expect(first.value).toEqual(expect.objectContaining({ x: 1 }));
+
+      mockEmitter.emit('move', { x: 2, y: 2, button: 'none', action: 'move' });
+      await new Promise<void>((resolve) => setTimeout(resolve, 80));
+
+      // Assert — the parked move is handed to the next pull instead of being
+      // lost until another move arrives.
+      const second = await Promise.race([
+        iterator.next(),
+        new Promise<never>((_, reject) =>
+          setTimeout(
+            () => reject(new Error('the parked move was never yielded')),
+            200,
+          ),
+        ),
+      ]);
+      expect(second.value).toEqual(expect.objectContaining({ x: 2 }));
+
+      await iterator.return?.(undefined);
+    });
+
     test('ignores non-move events', async () => {
       // Arrange
       const events: MouseEvent[] = [];

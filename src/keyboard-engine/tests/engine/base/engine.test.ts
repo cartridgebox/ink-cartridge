@@ -165,6 +165,29 @@ describe("BindingService boundKeyboard", () => {
     expect(aHandler).not.toHaveBeenCalled();
     expect(bHandler).toHaveBeenCalled();
   });
+
+  it("keeps stopsWorkingAfterLayerAppearing on a focusId binding", () => {
+    const engine = createEngine();
+    const handler = vi.fn();
+    engine.sync({ pagePath: [Page], layers: [], modalLayers: [] });
+    engine.boundKeyboard(["x"], handler, {
+      focusId: "panel",
+      stopsWorkingAfterLayerAppearing: true,
+    });
+
+    engine.processKey("x", {});
+    expect(handler).toHaveBeenCalledTimes(1);
+
+    // With a layer on screen the page binding stops responding — the same rule
+    // a binding without focusId follows.
+    engine.sync({
+      pagePath: [Page],
+      layers: [makeSyncLayer("L", [])],
+      modalLayers: [],
+    });
+    engine.processKey("x", {});
+    expect(handler).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("BindingService penetration/stop/allowModal/sequence", () => {
@@ -210,11 +233,31 @@ describe("BindingService penetration/stop/allowModal/sequence", () => {
     expect(() => engine.stop(["quit"], { stopAction: true })).not.toThrow();
   });
 
-  it("allowModal only works inside a modal element", () => {
+  it("allowModal is a no-op outside a modal element", () => {
     const engine = createEngine();
-    engine.sync({ pagePath: [Page], layers: [], modalLayers: [] });
-    expect(() => engine.allowModal(["x"])).toThrow();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 
+    // A page owner has no allow list: the call only warns.
+    engine.sync({ pagePath: [Page], layers: [], modalLayers: [] });
+    expect(() => engine.allowModal(["x"])).not.toThrow();
+    expect(warn).toHaveBeenCalled();
+
+    // A regular layer's element is not a modal element: no rules are created.
+    warn.mockClear();
+    engine.sync({
+      pagePath: [Page],
+      layers: [makeSyncLayer("L", ["e1"])],
+      modalLayers: [],
+    });
+    engine.pushOwner("L");
+    const unbind = engine.allowModal(["x"], { elementId: "e1" });
+    engine.popOwner("L");
+    expect(warn).toHaveBeenCalled();
+    expect(engine.readLayer("L", "e1")).toBeUndefined();
+    unbind();
+
+    // A modal element still registers.
+    warn.mockClear();
     engine.sync({
       pagePath: [Page],
       layers: [],
@@ -223,6 +266,9 @@ describe("BindingService penetration/stop/allowModal/sequence", () => {
     engine.pushOwner("M");
     expect(() => engine.allowModal(["x"], { elementId: "m1" })).not.toThrow();
     engine.popOwner("M");
+    expect(warn).not.toHaveBeenCalled();
+    expect(engine.readLayer("M", "m1")?.allowedKeys).toHaveLength(1);
+    warn.mockRestore();
   });
 
   it("boundSequence starts pending and completes on next key", () => {
@@ -831,7 +877,7 @@ describe("OperationRegistry edge cases", () => {
     expect(engine.thereGlobalQueueWaiting(sync)).toBe(false);
   });
 
-  it("supports monitorLayer and missing owner branches", () => {
+  it("reports a layer owner's own pending sequence, page or no page", () => {
     const engine = createEngine();
     expect(() => engine.currentScreenHasSequenceWaiting()).toThrow();
 
@@ -844,20 +890,25 @@ describe("OperationRegistry edge cases", () => {
     engine.boundSequence(["x", "y"], () => {}, { elementId: "e1" });
     engine.popOwner("L");
     engine.processKey("x", {});
-    expect(
-      engine["registry"].currentScreenHasSequenceWaiting(() => {}, {
-        monitorLayer: true,
-      }),
-    ).toBe(true);
+    // The owner is the layer, so the element's pending sequence is reported
+    // through the public API — no option, no registry access.
+    expect(engine.currentScreenHasSequenceWaiting(() => {})).toBe(true);
+    // The page below it is not waiting, so a page owner answers false — the
+    // scope follows the owner, not the top layer.
+    engine.pushOwner(Page);
+    expect(engine.currentScreenHasSequenceWaiting()).toBe(false);
+    engine.popOwner(Page);
 
+    // A layer with no page below it behaves the same way instead of throwing.
     engine.sync({
       pagePath: [],
       layers: [makeSyncLayer("L", ["e1"])],
       modalLayers: [],
     });
-    expect(() =>
-      engine.currentScreenHasSequenceWaiting(() => {}),
-    ).toThrow();
+    expect(engine.currentScreenHasSequenceWaiting(() => {})).toBe(true);
+
+    engine.processKey("y", {});
+    expect(engine.currentScreenHasSequenceWaiting()).toBe(false);
   });
 });
 
@@ -1071,9 +1122,12 @@ describe("BindingService edge cases", () => {
     engine.popOwner("L");
   });
 
-  it("requires an owner for allowModal", () => {
+  it("allowModal without an owner is a no-op", () => {
     const engine = createEngine();
-    expect(() => engine.allowModal(["x"])).toThrow();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    expect(() => engine.allowModal(["x"])).not.toThrow();
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
   });
 
   it("validates sequence actions and owners", () => {

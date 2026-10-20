@@ -30,7 +30,9 @@ export function createEngine(
     tabKey?: string;
     releaseFocusWhenEmpty?: boolean;
     isNormalChar?: (key: unknown) => boolean;
-    normalizeKeyNames?: (input: string) => string[];
+    // Two parameters, like `EngineProps.normalizeKeyNames`: an adapter may need
+    // the host's key descriptor to tell a modified key from a bare one.
+    normalizeKeyNames?: (input: string, key: unknown) => string[];
   } = {},
 ): KeyboardEngine {
   return new KeyboardEngine({

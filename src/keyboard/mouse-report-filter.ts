@@ -20,6 +20,13 @@ export class MouseReportFilter {
 	private static readonly REPORT_PREFIX = /^\[<\d{0,4}(;\d{0,4}){0,2}$/;
 
 	/**
+	 * A whole SGR report: `[<button;column;row` plus the `M`/`m` terminator.
+	 * Mirrors the parser's `sgrPattern`. A bare terminator is not enough — a
+	 * real `M`/`m` keystroke after a buffered fragment (`[<3M`) is not a report.
+	 */
+	private static readonly COMPLETE_REPORT = /^\[<\d{1,3};\d{1,4};\d{1,4}[Mm]$/;
+
+	/**
 	 * @param input - The string Ink passed to `useInput` (ESC already stripped).
 	 * @returns `true` when the input is part of a mouse report and must be
 	 *          swallowed; `false` when it is normal keyboard input.
@@ -30,8 +37,9 @@ export class MouseReportFilter {
 		}
 
 		const next = this._buffer + input;
-		// A report ends with `M` (press/move) or `m` (release).
-		if (/[Mm]$/.test(next)) {
+		// Only a complete report is swallowed. Ending in `M`/`m` is not enough:
+		// that would eat a real `M`/`m` keystroke typed after a buffered fragment.
+		if (MouseReportFilter.COMPLETE_REPORT.test(next)) {
 			this._buffer = "";
 			return true;
 		}

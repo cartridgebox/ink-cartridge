@@ -15,7 +15,7 @@
  *   q — quit
  *
  * Run:
- *   npx tsx examples/xterm-mouse/MouseControls.demo.tsx
+ *   npx tsx examples/mouse-controls.tsx
  */
 import React, { useEffect, useState } from 'react';
 import { Box, Text, render } from 'ink';
@@ -26,7 +26,7 @@ import {
   ScenarioManagementProvider,
   useKeyboard,
   useMouseRegion,
-} from '../../src/index.js';
+} from '../src/index.js';
 
 function MouseButton({
   label,

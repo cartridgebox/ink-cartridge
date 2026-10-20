@@ -64,6 +64,28 @@ describe("CompositionEngine", () => {
     expect(engine.hasPendingComposition()).toBe(false);
   });
 
+  it("does not record a broken chain, and abort is a no-op with nothing pending", () => {
+    const engine = engineWithChain();
+    const subscriber = vi.fn();
+    engine.subscribeComposition(subscriber);
+
+    // Nothing pending: abort emits nothing at all.
+    engine.abortComposition();
+    expect(subscriber).not.toHaveBeenCalled();
+    expect(engine.getLastCompositionEvent()).toBeNull();
+
+    // A mismatched key breaks the chain and releases the key.
+    engine.processKey("3", {});
+    expect(engine.processKey("z", {})).toBe(false);
+    expect(engine.getLastCompositionEvent()?.type).toBe("broken");
+
+    // The dropped chain is not undoable, and aborting afterwards must not
+    // record it either.
+    engine.abortComposition();
+    expect(engine.bufferedCompositionCount()).toBe(0);
+    expect(engine.getLastCompositionEvent()?.type).toBe("broken");
+  });
+
   it("clears a pending chain when undo runs mid-composition", () => {
     vi.useFakeTimers();
     const engine = engineWithChain();

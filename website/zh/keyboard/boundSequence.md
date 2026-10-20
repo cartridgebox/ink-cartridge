@@ -67,7 +67,7 @@ useEffect(() => {
 - `mode` {string} 只在指定模式下生效（模式需预先注册）。
 - `focusId` {string | FocusRef} 把序列绑定到指定的焦点目标 / 焦点组，仅当该目标激活时匹配。
 - `elementId` {string} 把序列绑定到当前图层的指定元素。
-- `stopsWorkingAfterLayerAppearing` {boolean} 仅页面绑定：一旦任何图层出现，序列失效。
+- `stopsWorkingAfterLayerAppearing` {boolean} 仅页面绑定：只要有图层或模态图层打开，序列就被跳过；全部关闭后恢复响应。 **默认值：** `false`。
 
 ### `timeout` 与 `exclusive`
 
@@ -108,6 +108,25 @@ boundSequence(["e", "e"], () => edit(), { focusId: { group: "form", focusId: "na
 ### 关于 `times` / `once` / `observer`
 
 `SequenceOptions` 在类型上继承了 `boundKeyboard` 的 `times`、`once`、`observer`，但**序列的匹配机制不会处理它们**——这三个选项对 `boundSequence` 不生效，请只把它们用于 `boundKeyboard`。
+
+## 判断序列是否在等待
+
+想在序列等待下一个键时显示提示或状态行，直接向引擎查询，不必自己记录状态。
+
+- `currentScreenHasSequenceWaiting(sync?)` 读取调用方自己作用域内的待机序列：页面组件读到页面上的序列，图层或模态元素读到该图层的序列（包括由它的任一元素挂起的序列）。
+- `thereGlobalQueueWaiting(sync?)` 对 `globalSequence` 做同样的事，见 [全局按键](/zh/keyboard/global-keys)。
+
+两者都可以传入一个 `sync` 回调；引擎在每次按键处理后调用它，组件据此重新渲染。
+
+```tsx
+const { currentScreenHasSequenceWaiting } = useKeyboard()
+const [, setTick] = useState(0)
+const sync = useCallback(() => setTick(t => t + 1), [])
+
+const waiting = currentScreenHasSequenceWaiting(sync)
+```
+
+这两个函数都不会消费按键，只报告是否有待机序列。
 
 ## 完整例子
 

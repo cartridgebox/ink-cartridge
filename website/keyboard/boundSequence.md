@@ -67,7 +67,7 @@ So every rule you learned in *Binding Attribution & the Owner Stack*, *Focus Sys
 - `mode` {string} Only active in the given mode (modes must be registered first).
 - `focusId` {string | FocusRef} Scope the sequence to a focus target / focus group; only matches while that target is active.
 - `elementId` {string} Scope the sequence to a specific element on the current layer.
-- `stopsWorkingAfterLayerAppearing` {boolean} Page bindings only: the sequence stops working once any layer is present.
+- `stopsWorkingAfterLayerAppearing` {boolean} Page bindings only: while any layer or modal layer is open the sequence is skipped, and it responds again once they all close. **Default:** `false`.
 
 ### `timeout` and `exclusive`
 
@@ -108,6 +108,25 @@ boundSequence(["e", "e"], () => edit(), { focusId: { group: "form", focusId: "na
 ### About `times` / `once` / `observer`
 
 `SequenceOptions` inherits `times`, `once`, and `observer` from `boundKeyboard` in its type, but **the sequence matching machinery does not handle them** — those three options have no effect on `boundSequence`. Use them with `boundKeyboard` only.
+
+## Checking whether a sequence is waiting
+
+To show a hint or a status line while a sequence waits for its next key, ask the engine instead of tracking it yourself.
+
+- `currentScreenHasSequenceWaiting(sync?)` reads the pending sequence of the caller's own scope: a page component reports the page's sequence, a layer or modal element reports that layer's, including one armed by any of its elements.
+- `thereGlobalQueueWaiting(sync?)` does the same for `globalSequence`, see [Global Keys](/keyboard/global-keys).
+
+Both take an optional `sync` callback. The engine calls it after every key press, so a component can re-render while the sequence waits.
+
+```tsx
+const { currentScreenHasSequenceWaiting } = useKeyboard()
+const [, setTick] = useState(0)
+const sync = useCallback(() => setTick(t => t + 1), [])
+
+const waiting = currentScreenHasSequenceWaiting(sync)
+```
+
+Neither function consumes keys; they only report whether a sequence is pending.
 
 ## Complete example
 

@@ -23,15 +23,16 @@
 - `processors` {KeyboardProcessorProps[]} 构造期注入管线的处理器。
 - `defaultTimeout` {number} 组合链超时（毫秒）。 **默认值：** `400`。
 - `valueSchema` {ValueSchema} 组合值的类型校验。
-- `autoTab` {boolean} 引擎是否接管 Tab / Shift+Tab。 **默认值：** `false`。
-- `tabKey` {string} 焦点轮转使用的键名。 **默认值：** `"tab"`。
+- `autoTab` {boolean} 引擎是否接管 Tab / Shift+Tab 做焦点轮转。 **默认值：** `false`。
+- `tabKey` {string} 正向轮转使用的裸键名；反向轮转匹配 `shift+<tabKey>`。 **默认值：** `"tab"`。
+- `releaseFocusWhenEmpty` {boolean} 焦点目标上的最后一个绑定解绑后移除该目标；再次为同一 id 注册绑定会重新创建它。 **默认值：** `false`。
 
 ## 驱动引擎
 
 - `sync(state)` 把屏幕 / 图层状态推入引擎。每次渲染或状态更新后、`processKey` 之前调用；`state` 为 `{ pagePath, layers, modalLayers }`，图层按 `zIndex` 升序。
 - `processKey(input, key)` 处理一次按键。
   - 返回：{boolean} 事件被某处理器消费返回 `true`，否则 `false`。
-- `pushOwner(owner)` / `popOwner(owner)` 手动维护 owner 栈，供带归属的绑定（`boundKeyboard` / `boundSequence` / `stop` / `penetration` / `allowModal`）使用。
+- `pushOwner(owner)` / `popOwner(owner)` 手动维护 owner 栈，供带归属的绑定（`boundKeyboard` / `boundSequence` / `stop` / `penetration` / `allowModal`）使用。在图层元素内调用时还需要 `elementId`（React 适配层会自动填好）。`allowModal` 只对模态层的元素生效。
 - `boundKeyboard` / `globalKeys` / `addMapping` 等方法与 React 版同名同义。
 
 ```ts
@@ -53,7 +54,7 @@ engine.processKey(input, key);   // true 表示已消费
 
 ## 在 React 中注入既有引擎
 
-`KeyboardProvider` 的 `engine` prop 可传入预建实例；此时 `modes` / `defaultMode` / `processors` / `valueSchema` / `autoTab` 这些 prop 会被忽略（`mouse` 仍独立生效）。
+`KeyboardProvider` 的 `engine` prop 可传入预建实例；此时 `modes` / `defaultMode` / `processors` / `valueSchema` / `autoTab` / `releaseFocusWhenEmpty` 这些 prop 会被忽略（`mouse` 仍独立生效）。
 
 ```tsx
 const engine = useMemo(

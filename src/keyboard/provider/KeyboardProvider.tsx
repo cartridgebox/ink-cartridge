@@ -255,26 +255,49 @@ export interface KeyboardProviderProps {
 	engine?: KeyboardEngine<ComponentType<any>>;
 }
 
+/** Stand-in for a function-valued option: their identities never compare. */
+const FUNCTION_VALUE = Symbol("function");
+
 /**
- * Keep the same reference while `value`'s own properties are shallow-equal, so
- * an inline `mouseOptions={{ ... }}` prop does not tear down and rebuild the
- * Mouse on every render. A genuine value change still yields a new reference,
- * re-running the effect.
+ * Stable dependency for the mouse effect: its identity changes only when an
+ * option value the Mouse captures changes.
+ *
+ * Function values are compared as "a function is still a function" — an inline
+ * closure gets a new identity every render, and rebuilding tracking for it
+ * would disable and re-enable the terminal on every render, dropping in-flight
+ * clicks. The effect reads the latest options from a ref when it does rebuild,
+ * so the newest closure still takes effect.
  */
-function useStableOptions<T extends object>(value: T | undefined): T | undefined {
-	const ref = useRef<T | undefined>(value);
-	const previous = ref.current;
-	if (previous !== value) {
-		const same =
-			previous !== undefined &&
-			value !== undefined &&
-			Object.keys(previous).length === Object.keys(value).length &&
-			Object.keys(previous).every((key) =>
-				Object.is(Reflect.get(previous, key), Reflect.get(value, key))
-			);
-		if (!same) ref.current = value;
+function useStableMouseOptionsKey(
+	options: MouseOptions | undefined
+): unknown[] | undefined {
+	const ref = useRef<{ keys: string[]; values: unknown[] } | undefined>(
+		undefined
+	);
+	if (options === undefined) {
+		ref.current = undefined;
+		return undefined;
 	}
-	return ref.current;
+
+	const keys = Object.keys(options).sort();
+	const values = keys.map((key) => {
+		const value = Reflect.get(options, key);
+		return typeof value === "function" ? FUNCTION_VALUE : value;
+	});
+
+	const previous = ref.current;
+	if (
+		previous !== undefined &&
+		previous.keys.length === keys.length &&
+		keys.every((key, index) => previous.keys[index] === key) &&
+		values.every((value, index) => Object.is(previous.values[index], value))
+	) {
+		return previous.values;
+	}
+
+	const next = { keys, values };
+	ref.current = next;
+	return next.values;
 }
 
 /**
@@ -341,9 +364,12 @@ export function KeyboardProvider({
 		});
 	}
 	const engine = internalRef.current;
-	// An inline `mouseOptions={{ ... }}` prop is a new object every render; the
-	// effect below must react to the option VALUES, not the object identity.
-	const stableMouseOptions = useStableOptions(mouseOptions);
+	// An inline `mouseOptions={{ ... }}` prop — and every inline function inside
+	// it — is a new reference every render. The effect below reacts to the option
+	// values through a stable key and reads the latest object at rebuild time.
+	const mouseOptionsRef = useRef(mouseOptions);
+	mouseOptionsRef.current = mouseOptions;
+	const mouseOptionsKey = useStableMouseOptionsKey(mouseOptions);
 
 	// Register during render — not only in an effect — so a child effect that
 	// calls the module-level API resolves the engine: React runs child effects
@@ -385,7 +411,7 @@ export function KeyboardProvider({
 			);
 			return;
 		}
-		const mouseInstance = new Mouse(stableMouseOptions);
+		const mouseInstance = new Mouse(mouseOptionsRef.current);
 		try {
 			mouseInstance.enable();
 		} catch (err) {
@@ -413,7 +439,7 @@ export function KeyboardProvider({
 			mouseInstance.off("release", handle);
 			mouseInstance.destroy();
 		};
-	}, [mouse, engine, stableMouseOptions]);
+	}, [mouse, engine, mouseOptionsKey]);
 
 	const value: KeyboardContextValue = useMemo(
 		() => ({

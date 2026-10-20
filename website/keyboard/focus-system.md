@@ -107,6 +107,10 @@ The unbind function returned by `boundKeyboard` only removes the corresponding b
 
 This keeps the focus order deterministic: it's only affected by explicit operations like `focusSet`, `focusNext`, `focusPrev`, `focusUnregister` — never quietly changed by a binding being temporarily unbound.
 
+**Opt-in: `releaseFocusWhenEmpty`**
+
+With the `releaseFocusWhenEmpty` engine option (also a `KeyboardProvider` prop), every binding takes a reference on the focus target it registers into, and the target is removed when the last reference is released. Registering on the same `focusId` again recreates it; focus then goes to the group's first remaining target, or the group's slot is cleared when none is left. The option is off by default, so the behavior described above is what most apps see.
+
 ### When focus is unregistered
 
 Focus is unregistered through only two sources: **explicit unregistering** and **destroyed with the screen**.
@@ -195,7 +199,7 @@ If you'd rather not bind Tab manually, you can let the engine handle it. `Keyboa
 </KeyboardProvider>
 ```
 
-> Note: `autoTab` takes over the Tab key. If you need Tab for your own custom logic, don't enable it — bind it manually as above.
+> Note: `autoTab` takes over both Tab and Shift+Tab. If you need either key for your own logic, don't enable it — bind it manually as above. The engine matches `tab` and `shift+tab` by default; if you drive the engine directly and your key normalizer emits a different name, set `tabKey` (see [Using the engine without React](/keyboard/non-react)).
 
 ### `focusCurrent`: querying the current focus
 
@@ -227,7 +231,7 @@ const focused = useFocusState("select-b")
 // focused is true while select-b holds focus, false otherwise
 ```
 
-Its implementation is simple: it subscribes to the engine's focus notifications; whenever focus changes in any way (`focusSet`, `focusNext`, `focusPrev`, `focusUnregister` all trigger notifications), it re-reads the current focus, compares it with the given `focusId`, and writes the result into component state — so the boolean you get is always up to date.
+It subscribes to the engine's focus notifications, so any focus change (`focusSet`, `focusNext`, `focusPrev`, `focusUnregister`) re-renders the component. The boolean itself is read during render from the current focus and the arguments you pass, so a component reused with a different `focusId` or group shows the new target's state on that render, without waiting for the next focus move.
 
 It's a great fit for rendering "currently selected" visual feedback:
 

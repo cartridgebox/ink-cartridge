@@ -8,6 +8,11 @@
 - **归属不对**：绑定只在其 owner（屏幕 / 图层元素）活跃时命中，见[绑定方法的归属与所有者栈](/zh/screen/binding-attribution)。
 - **被 `mode` / `when` 挡住**：检查绑定的 `mode` 与 `when`，见[模式](/zh/keyboard/modes)与[中级绑定](/zh/keyboard/boundKeyboard-advanced)。
 - **模态层独占**：模态层默认拦截所有按键，需要时用 `allowModal` 放行，见[allowModal 放行键盘事件](/zh/screen/allow-modal)。
+- **在模态层之外调用 `allowModal`**：调用是 no-op，开发环境会打印警告。放行清单只存在于模态层的元素上，在页面或普通图层的元素上调用不会注册任何规则。见[allowModal 放行键盘事件](/zh/screen/allow-modal)。
+
+## 焦点
+
+- **解绑后焦点目标消失了**：开启 `releaseFocusWhenEmpty` 时，最后一次解绑会移除该目标。为同一个 `focusId` 重新注册绑定即可重建它。见[焦点系统](/zh/keyboard/focus-system)。
 
 ## 分层与传播
 
