@@ -32,8 +32,12 @@ jobs:
     env:
       SYNC_IDENTITY: 'aigao <3416238595@qq.com>'
     steps:
+      # Always regenerate from the default branch. `workflow_dispatch` can run
+      # from any ref, and a lock file built from a feature branch's manifests
+      # would then be merged into main, where the next `npm ci` would fail.
       - uses: actions/checkout@v6
         with:
+          ref: ${{ github.event.repository.default_branch }}
           fetch-depth: 0
 
       - uses: actions/setup-node@v4

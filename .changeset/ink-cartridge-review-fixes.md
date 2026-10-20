@@ -29,7 +29,8 @@ Add an in-place refresh to gotoScreen and stop it dropping params for on-path ta
 None
 
 ### Tests
-- `tests/screens/base/gotoScreen.test.tsx` covers all three on-path cases: the default jump (params applied, screen remounted), `{ onlyAttribute: true }` (params applied to the live instance, mount count unchanged), and a jump to an ancestor (params applied, deeper pages dropped).
+- `tests/screens/base/gotoScreen.test.tsx` covers the four on-path cases: the default jump (params applied, screen remounted), `{ onlyAttribute: true }` (params applied to the live instance, mount count unchanged), a jump to an ancestor (params applied, deeper pages dropped), and an ancestor jump with `{ onlyAttribute: true }` (params applied, the ancestor still mounts fresh).
+- `tests/keyboard/pending-scope.test.tsx` arms a layer element's sequence and asserts that a page element's `currentScreenHasSequenceWaiting()` call does not see it, then starts the page's own sequence and asserts the layer's call does not see that one either. Dropping the owner re-push from `useKeyboard()` turns it red.
 - `tests/keyboard/mouse-region-cleanup.test.tsx` clicks a region through `processMouseEvent`, opens a layer (the page re-renders without remounting), clicks again, and then unmounts: the region keeps working across the screen-state change and is removed on unmount. Dropping the ref from the cleanup turns it red.
 - `tests/keyboard/focus-state-params.test.tsx` switches a mounted probe's `focusId` without moving focus (the value must flip to `false`), moves focus (it flips back to `true`), and switches the parameter back. Caching the value in state turns it red.
 - `tests/keyboard/base/mouse-report-filter.test.ts` covers a buffered `[<3` followed by `M` and by `m`: both keystrokes are released. Reverting to the terminator-only check turns it red.

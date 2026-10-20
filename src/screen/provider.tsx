@@ -724,7 +724,7 @@ function reduceScreenAction(state: ScreenState, action: ScreenAction): ScreenSta
 					return {
 						component: each,
 						regionFocus: new Map(),
-					} as Page;
+					};
 				}),
 			];
 

@@ -17,7 +17,15 @@ async function flush(): Promise<void> {
 	await new Promise<void>((resolve) => setTimeout(resolve, 50));
 }
 
-/** Minimal streams so enabling mouse tracking never touches the real TTY. */
+/**
+ * Minimal streams so enabling mouse tracking never touches the real TTY. The
+ * casts at the `mouseOptions` call are safe because TTYController is the only
+ * consumer: it reads isTTY / isRaw / readableEncoding and calls setEncoding /
+ * on / off / pause / resume / setRawMode here, and isTTY / write on output.
+ * isRaw and readableEncoding are never set, so they read as undefined and the
+ * controller falls back to `false` / `null` — the same defaults as a real
+ * stream that has not entered raw mode.
+ */
 class FakeStdin extends EventEmitter {
 	isTTY = true;
 	setEncoding() {}
@@ -101,8 +109,10 @@ describe("mouseOptions stability", () => {
 		currentApp = null;
 		clearDispatchers();
 		vi.restoreAllMocks();
-		delete (process.stdin as { isTTY?: boolean }).isTTY;
-		delete (process.stdout as { isTTY?: boolean }).isTTY;
+		// isTTY is optional on the Node stream types, so delete is legal
+		// without casting; this removes what the beforeEach defined.
+		delete process.stdin.isTTY;
+		delete process.stdout.isTTY;
 	});
 
 	it("does not rebuild mouse tracking when only an inline function changes", async () => {
