@@ -1,256 +1,112 @@
-# Learning the basics of layers: `openLayer` and related methods
+# Regular layers
 
-In real apps there are plenty of tool panels, dashboards, toolbars, and dialogs floating over the screen. Ink V7 introduced absolute positioning and lets a `Box` leave the document flow, which gives ink-cartridge an entry point for building layers. On top of that, ink-cartridge ships a complete layer system.
+A layer floats above the current screen and takes no part in screen-tree navigation. It has two parts: an empty container opened with `openLayer`, and elements mounted into it with `applyElement`. Multiple layers stack by `zIndex`, which decides visual, keyboard, and mouse priority.
 
-A **layer** is a container that floats above the screen and is independent of the screen tree. It takes no part in navigation and always renders above the current screen. Multiple layers are stacked by `zIndex`: the higher the `zIndex`, the more visually on top it is, and the higher its keyboard and mouse priority.
-
-The layer system has two categories:
-
-- **Ordinary layers** — opened with `openLayer`, closed with `closeLayer`; suited for persistent overlays such as tool panels, dashboards, and toolbars;
-- **Modal layers** — opened with `openModalLayer`, closed with `closeModalLayer`; rendered above ordinary layers, and only the modal layer with the highest `zIndex` receives keyboard events. Suited for dialogs and confirm boxes that need to own the keyboard.
-
-After opening a layer you still need `applyElement` to mount an element into it and `eraseElement` to remove one; `activateElement` / `deactivateElement` control whether an element receives keyboard events; `closeAllLayer` closes all ordinary layers at once.
-
-This chapter focuses on **ordinary layers**: it first explains the basic concept of a layer, then walks through the core methods `openLayer`, `applyElement`, `closeLayer`, and more.
+Regular layers suit tool panels, toolbars, and dashboards. Dialogs that must own the keyboard use [modal layers](/screen/modal-layer-base).
 
 ## Prerequisites
 
 | Chapter | Why you need it |
 |---|---|
-| [Organize Your Screen](/screen/screen-registry) | Layers float above the screen, so know what a screen is first |
-| [Navigation](/screen/navigation) | Whether a layer survives a page switch is tied to navigation |
+| [Organizing Screens](/screen/screen-registry) | Layers float above the current screen |
+| [Navigation](/screen/navigation) | Page switches clear layers without `crossPage` |
 
-## The concept of a layer
+## Opening a layer
 
-Before we start, one key fact: **`openLayer` only opens an empty container — it renders nothing by itself**. To actually show a layer you need two steps:
-
-1. **Open the layer** — register it with the screen system via `openLayer`;
-2. **Mount an element** — mount a component into the layer with `applyElement`.
-
-A layer itself is an absolutely-positioned container that fills the terminal. `CurrentScreen` renders in the order **current screen → ordinary layers → modal layers**: each layer is first rendered as a full-screen container, and the elements inside it (the components you mounted with `applyElement`) position themselves anywhere on the screen using Ink V7's absolute positioning.
-
-A layer is **independent of the screen tree**. It doesn't participate in `skip` / `back` / `gotoScreen` navigation; it always floats above the current screen. Multiple layers are stacked and prioritized by `zIndex`: the higher the `zIndex`, the more visually on top it is, and the higher its keyboard and mouse priority.
-
-Here's a minimal runnable example: press `a` on the Home screen to open a tool-panel layer.
-
-```tsx
-import React, { useEffect } from 'react';
-import { Box, Text, render } from 'ink';
-import {
-  CurrentScreen,
-  KeyboardProvider,
-  ScenarioManagementProvider,
-  registerComponent,
-  useKeyboard,
-  useScreenSystem,
-} from 'ink-cartridge';
-
-function Home() {
-  const { openLayer, applyElement } = useScreenSystem();
-  const { boundKeyboard } = useKeyboard();
-
-  useEffect(() => {
-    // Press a to open a layer and mount an element into it
-    return boundKeyboard(['a'], () => {
-      openLayer('tool-panel', 10);
-      applyElement('tool-panel', {
-        element: ToolPanel,
-        elementId: 'tool-panel-body',
-      });
-    });
-  }, [boundKeyboard, openLayer, applyElement]);
-
-  return (
-    <Box flexDirection="column">
-      <Text bold>🏠 Home</Text>
-      <Text>Press a to open the tool panel</Text>
-    </Box>
-  );
-}
-registerComponent(Home, {});
-
-// An element inside a layer is also an ordinary React component that
-// floats itself into position with absolute positioning
-function ToolPanel() {
-  return (
-    <Box
-      position="absolute"
-      top={2}
-      left={30}
-      width={30}
-      height={8}
-      borderStyle="bold"
-      borderColor="yellow"
-    >
-      <Text>🧰 Tool Panel</Text>
-    </Box>
-  );
-}
-
-render(
-  <ScenarioManagementProvider defaultScreen={Home} fullScreen>
-    <KeyboardProvider>
-      <CurrentScreen />
-    </KeyboardProvider>
-  </ScenarioManagementProvider>
-);
-```
-
-After pressing `a`, a yellow-bordered floating panel appears in the top-right corner, floating above the Home screen. Here:
-
-- `openLayer('tool-panel', 10)` opens a layer named `tool-panel` with `zIndex` 10;
-- `applyElement('tool-panel', { element: ToolPanel, elementId: 'tool-panel-body' })` mounts the `ToolPanel` component into the layer;
-- `ToolPanel` never calls `registerComponent` — it's an ordinary component that positions itself in the top-right corner via absolute positioning.
-
-You can read all currently opened ordinary layers through `useScreenSystem()`'s `allLayers`, which is handy for checking whether a layer already exists.
-
-## Opening a layer with `openLayer`
-
-The signature of `openLayer`:
-
-```typescript
+```ts
 openLayer(layerId: string, zIndex: number, options?: LayerOptions): void
 ```
 
-- `layerId` {string} The layer's unique ID; the same ID can only be opened once.
-- `zIndex` {number} The layer's priority; a higher value puts it on top and gives it higher keyboard and mouse priority.
-- `[options]` {LayerOptions} Optional config, see below.
+- `layerId` {string} Unique ID; regular and modal layers share the namespace.
+- `zIndex` {number} Stacking and interaction priority; higher is in front.
+- `[options]` {LayerOptions}
+  - `[crossPage]` {boolean} Keep the layer across page switches. **Default:** `false`. See [Cross-page layers and keyboard takeover](/screen/layer-cross-page-takeover).
+  - `[automaticTakeoverKeyboard]` {boolean | ComponentType[]} Limit the pages on which the layer participates in key dispatch. **Default:** `false`. See [Cross-page layers and keyboard takeover](/screen/layer-cross-page-takeover).
 
-The optional fields of `LayerOptions`:
+`openLayer` registers an empty container; it renders nothing by itself.
 
-- `[crossPage]` {boolean} When `true`, the layer is not auto-cleared on page switches (`skip` / `back` / `gotoScreen`). **Default:** `false`.
-- `[automaticTakeoverKeyboard]` {boolean | ComponentType[]} Controls the scope of the layer's keyboard bindings (covered in a later article). **Default:** `false`.
+```ts
+const { openLayer } = useScreenSystem()
 
-> **Note:** `openLayer` only opens an empty container. You still need `applyElement` to mount elements, otherwise nothing shows on screen.
-
-## Mounting an element with `applyElement`
-
-`applyElement` mounts an element into an **already opened** layer:
-
-```typescript
-applyElement<C extends ComponentType<any>>(targetLayerId: string, layerElement: LayerElementInput<C>): void
+openLayer('tool-panel', 10)
 ```
 
-`layerElement` provides:
+## Mounting an element
 
-- `element` {ComponentType&lt;C&gt;} The component to mount into the layer.
-- `elementId` {string} The element's unique ID within the layer.
-- `[props]` {ComponentProps&lt;C&gt;} Props passed to the element, type-checked just like `skip()`'s `params`.
-- `[active]` {boolean} When `false`, the element stops receiving keyboard events. **Default:** `true`.
+```ts
+applyElement(targetLayerId: string, layerElement: LayerElementInput<C>): void
+```
 
-`props` is strictly type-checked: the props you pass must match the prop type declared by the `element` component, otherwise it's a compile error. For example:
+- `element` {ComponentType} The component to mount.
+- `elementId` {string} Unique element ID within the layer.
+- `[props]` {ComponentProps} Props passed to the component; type-checked against `element`.
+- `[active]` {boolean} Whether the element takes part in key dispatch. **Default:** `true`.
 
 ```tsx
 applyElement('tool-panel', {
   element: ToolPanel,
-  elementId: 'tool-panel-body',
-  props: { title: 'My Tools' }, // must match ToolPanel's props type
-});
+  elementId: 'panel-body',
+  props: { title: 'Tools' },
+})
 ```
+
+Elements usually position themselves with Ink's absolute layout:
 
 ```tsx
 function ToolPanel({ title }: { title: string }) {
   return (
-    <Box
-      position="absolute"
-      top={2}
-      left={30}
-      width={30}
-      height={8}
-      borderStyle="bold"
-      borderColor="yellow"
-    >
+    <Box position="absolute" top={2} left={30} width={30} height={8} borderStyle="round">
       <Text>{title}</Text>
     </Box>
-  );
+  )
 }
 ```
 
-## Reading layer info with `LayerElementContext`
+## Reading layer information
 
-A component mounted into a layer is wrapped in a `LayerElementContext` Provider. Inside the component you can read info about the layer it belongs to via `useContext(LayerElementContext)`, such as the layer's ID.
-
-```tsx
-import React, { useContext, useEffect } from 'react';
-import { Box, Text } from 'ink';
-import { LayerElementContext, useKeyboard, useScreenSystem } from 'ink-cartridge';
-
-function ToolPanel() {
-  const { closeLayer } = useScreenSystem();
-  const { boundKeyboard } = useKeyboard();
-  const layerCtx = useContext(LayerElementContext);
-
-  useEffect(() => {
-    // Press Escape to close the layer this element lives in
-    return boundKeyboard(['escape'], () => {
-      if (layerCtx?.layer) {
-        closeLayer(layerCtx.layer.layerId);
-      }
-    });
-  }, [boundKeyboard, closeLayer, layerCtx]);
-
-  return (
-    <Box
-      position="absolute"
-      top={2}
-      left={30}
-      width={30}
-      height={8}
-      borderStyle="bold"
-      borderColor="yellow"
-    >
-      <Text>🧰 Tool Panel (press Esc to close)</Text>
-    </Box>
-  );
-}
-```
-
-`layerCtx.layer` is the layer object the current element belongs to, and `layerCtx.layer.layerId` is its ID. With it, an element doesn't need to know in advance which layer it's in — it can grab its own layer in a callback and act on it.
-
-## Closing a layer with `closeLayer`
-
-`closeLayer` closes a layer and clears all the elements on it:
+Mounted elements are wrapped in `LayerElementContext`:
 
 ```tsx
-closeLayer('tool-panel');
+const ctx = useContext(LayerElementContext)
+ctx?.layer.layerId   // the layer this element belongs to
 ```
 
-Once closed, every element mounted on the layer disappears with it. Calling `closeLayer` on an ID that isn't registered is a no-op (a warning is shown in development).
+`ModalLayerElementContext` is the modal counterpart.
 
-## Removing elements with `eraseElement` and `closeAllLayer`
+## Closing and removing
 
-`eraseElement` removes only a single element from a layer; the layer itself stays open:
+| Method | Effect |
+|---|---|
+| `closeLayer(targetLayerId)` | Closes the layer and all its elements |
+| `eraseElement(targetLayerId, targetElementId)` | Removes one element; the layer stays open |
+| `closeAllLayer()` | Closes every regular layer |
+| `activateElement(layerId, elementId)` | Resumes the element's keyboard reception |
+| `deactivateElement(layerId, elementId)` | Pauses it; the element keeps rendering |
 
-```tsx
-// Remove the tool-panel-body element from the tool-panel layer; the layer stays open
-eraseElement('tool-panel', 'tool-panel-body');
+```ts
+closeLayer('tool-panel')
+eraseElement('tool-panel', 'panel-body')
+closeAllLayer()
 ```
 
-`closeAllLayer` closes all ordinary layers at once:
+Closing an unregistered ID is a no-op with a development warning.
 
-```tsx
-closeAllLayer();
+## Reading the current layers
+
+`useScreenSystem()` exposes `allLayers` and `allModalLayers`, both sorted by ascending `zIndex`:
+
+```ts
+const { allLayers } = useScreenSystem()
+const isOpen = allLayers.some((layer) => layer.layerId === 'tool-panel')
 ```
 
-When several layers are open at the same time, `closeAllLayer` quickly clears them all.
+The same hook also provides `bringLayerToFront`, `restoreLayerZIndex`, all modal-layer methods, and `currentPath` / `pageLayer`.
 
-## API reference
+## Boundaries
 
-| Method | Signature | Description |
-| --- | --- | --- |
-| `openLayer` | `openLayer(layerId, zIndex, options?)` | Opens an ordinary layer |
-| `applyElement` | `applyElement(targetLayerId, layerElement)` | Mounts an element into a layer |
-| `closeLayer` | `closeLayer(targetLayerId)` | Closes a layer and all its elements |
-| `eraseElement` | `eraseElement(targetLayerId, targetElementId)` | Removes a single element from a layer |
-| `closeAllLayer` | `closeAllLayer()` | Closes all ordinary layers |
-| `activateElement` | `activateElement(targetLayerId, targetElementId)` | Reactivates an element's keyboard events (see a later article) |
-| `deactivateElement` | `deactivateElement(targetLayerId, targetElementId)` | Suspends an element's keyboard events (see a later article) |
-
-## Caveats
-
-1. **`layerId` must be unique.** Re-opening the same ID is a no-op (a warning is shown in development); close the layer first to reopen it. Ordinary layers and modal layers share the same ID namespace, and reusing a modal layer's ID throws an error.
-2. **Call `openLayer` first, then `applyElement`.** Mounting an element into an unopened layer throws, and the error message tells you to register the layer with `openLayer` first.
-3. **`elementId` must be unique within a layer.** Re-applying the same `elementId` is a no-op (a warning is shown in development).
-4. **`openLayer` only opens an empty container.** Without any mounted element, a layer renders nothing.
-5. **Ordinary layers are cleared on page switches by default.** Running `skip` / `back` / `gotoScreen` clears every layer whose `crossPage` is `false`; set it to `true` to keep the layer across pages (covered in a later article).
-6. **Layer methods work both as hooks and as module-level imports.** The methods above come from `useScreenSystem()`, and can also be imported directly from `ink-cartridge`.
+- `layerId` must be unique. Reopening an open ID is a no-op with a warning; reusing a modal ID throws.
+- Call `openLayer` before `applyElement`; mounting into an unopened layer throws.
+- `elementId` must be unique within a layer; re-applying one is a no-op with a warning.
+- `CurrentScreen` renders in the order: current screen → regular layers → modal layers.
+- Every layer method is available both from `useScreenSystem()` and as a direct import from `ink-cartridge`.
+- Regular layers close on `skip` / `back` / `gotoScreen` by default; `crossPage: true` keeps them.

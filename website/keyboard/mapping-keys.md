@@ -22,6 +22,8 @@ Registers a mapping.
   - `mode` {string} Restrict to a mode.
   - `category` {unknown[] | string} Whitelist of top screens; `"*"` means all.
   - `affectOverlay` {boolean} Trigger phase; `true` before the layer broadcast, otherwise after. **Default:** `false`.
+  - `KeyReleaseWhenChainInterrupted` {boolean} Swallow the breaking key when the target chain is interrupted. **Default:** `false`.
+  - `executeWhenNoOverlay` {boolean} Only meaningful with `affectOverlay: true`: run the mapping with no layer open.
 - Returns: {boolean} `true` when registered; `false` (no throw) when `base` is empty, a target key is unregistered, or the same `base` already exists.
 
 ```tsx

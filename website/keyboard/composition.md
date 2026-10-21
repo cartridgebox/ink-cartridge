@@ -1,131 +1,217 @@
 # Composition engine
 
-The composition engine organizes several keys into a "chain": one key produces a value and sets a `flag`, the next key continues from that `flag`, until the chain ends. It suits compound input that carries intermediate state, such as `3 d` (count + action) or `d w` (operation + target). The undo history (`undoComposition`) is built on the same `flag` mechanism.
+The composition engine links several keys into a **chain**. Each key reads and rewrites a `CompositionContext` and passes the next state through `lastFlag`; a chain can carry arbitrary values and register undo actions. It suits input such as `3 d` (count + action) or `d w` (operator + target).
 
 ## Prerequisites
 
 | Chapter | Why you need it |
 |---|---|
-| [Multi-key Sequences](/keyboard/boundSequence) | Advancing a chain resembles "pending" sequences, but it carries state |
-| [Intermediate Binding](/keyboard/boundKeyboard-advanced) | The `when` named condition works on composition entries too |
+| [Multi-key Sequences](/keyboard/boundSequence) | Sequences match keys; composition also carries state |
+| [Intermediate Binding](/keyboard/boundKeyboard-advanced) | `when` and named conditions apply to composition entries |
 
-## CompositionKey
+## Model
 
-A `CompositionKey` describes what one key does.
+```ts
+type CompositionContext<T = unknown> = {
+  value: T
+  lastFlag: string | null
+  steps: string[]
+}
+```
 
-- `key` {string} The trigger key name.
-- `flags` {FlagTransition[]} The state transition table, each element `{ need, become }`: when the current flag is `need`, it becomes `become` after execution.
-- `needs` {string[]} The preceding flags this key expects; it responds only after one of them.
-- `alternativeFlag` {string} The fallback flag when there is no predecessor / no match.
-- `optional` {boolean} When `true`, the key can start a chain with no pending chain.
-- `execute` {Function} The handler `(ctx) => ctx | null`; returning `null` ends the chain.
-- `isEndKey` {string[]} When the current flag is listed here, the chain is treated as ended.
-- `timeout` {number} Next-key timeout (ms). **Default:** the engine `defaultTimeout` (`400`).
-- `exclusive` {boolean} On a key that matches no entry: `true` swallows it and keeps waiting, `false` cancels the chain. **Default:** `false`.
-- `undoAction` {Function} The inverse for undo, `(ctx) => ctx | null`; returning `null` stops the walk.
-- `when` / `mode` / `category` / `affectOverlay` / `executeWhenNoOverlay` behave as in other bindings.
+- `value` is any data carried through the chain.
+- `lastFlag` is the flag left by the previous key; `null` at the head.
+- `steps` lists executed keys for undo and debugging.
 
-State travels through the chain as a `CompositionContext`: `{ value, lastFlag, steps }`.
+A `CompositionKey`:
 
-## registryCompositionKey(entry)
+| Field | Type | Effect |
+|---|---|---|
+| `key` | `string` | Trigger key |
+| `flags` | `{ need, become }[]` | Transition table: when the previous flag is `need`, this key sets `become` |
+| `needs` | `string[]` | Which previous flags this key accepts |
+| `alternativeFlag` | `string` | Flag used at the head or when no transition matches |
+| `optional` | `boolean` | The key may start a chain with nothing pending |
+| `timeout` | `number` | Next-key timeout; defaults to the engine `defaultTimeout` (400ms) |
+| `exclusive` | `boolean` | Swallow a mismatched key and keep waiting instead of cancelling |
+| `execute` | `(ctx) => ctx \| null` | Rewrites the context; `null` terminates the chain |
+| `undoAction` | `(ctx) => ctx \| null` | Inverse operation; `null` stops the undo walk |
+| `isEndKey` | `string[]` | End the chain when the current `lastFlag` is listed |
+| `KeyReleaseWhenChainInterrupted` | `boolean` | Swallow the breaking key when `execute` returns `null` or validation fails |
+| `when` / `mode` / `category` / `affectOverlay` / `executeWhenNoOverlay` | — | Same as other bindings |
 
-Registers a composition key.
+`affectOverlay` is the phase field for composition and mapping entries; `globalKeys` / `globalSequence` use `affectLayer` instead. They are different options.
 
-- `entry` {CompositionKey} The composition key definition, as above.
-- Returns: nothing.
+### How the flag is chosen
+
+- Head (`lastFlag === null`): use `alternativeFlag`.
+- Continuation: if `lastFlag` matches a `need` in `flags`, use its `become`; otherwise use `alternativeFlag`.
+- If `execute` sets `lastFlag` explicitly, the engine does not override it.
+
+### How a key is selected
+
+Several entries may share a trigger key. Selection order:
+
+1. Entries whose `needs` match the current `lastFlag`; at the head, entries with `optional: true` or `needs: []`.
+2. More modifier segments win (`ctrl+s` over `s`).
+3. Longer `needs` lists win (stricter contract).
+
+## Registration
+
+```ts
+registryCompositionKey(entry: CompositionKey): void
+```
 
 ```tsx
 const { registryCompositionKey } = useKeyboard()
 
 useEffect(() => {
-  // Head: a digit writes the value and sets flag "times"
   registryCompositionKey({
-    key: "3", flags: [], needs: [], optional: true, alternativeFlag: "times",
-    execute: (ctx) => ({ ...ctx, value: 3, lastFlag: "times", steps: [...ctx.steps, "3"] }),
+    key: '3',
+    flags: [],
+    needs: [],
+    optional: true,
+    alternativeFlag: 'times',
+    execute: (ctx) => ({ ...ctx, value: 3, lastFlag: 'times', steps: [...ctx.steps, '3'] }),
   })
-  // Continuation: d responds after flag "times", reads the count, ends the chain
+
   registryCompositionKey({
-    key: "d", flags: [], needs: ["times"], alternativeFlag: "action",
+    key: 'd',
+    flags: [],
+    needs: ['times'],
+    alternativeFlag: 'action',
     execute: (ctx) => {
-      if (typeof ctx.value !== "number") return null;  // narrow, don't assert
-      deleteLines(ctx.value);
-      return null;
+      if (typeof ctx.value !== 'number') return null
+      deleteLines(ctx.value)
+      return null
     },
   })
-}, [])
+}, [registryCompositionKey])
 ```
 
-## removeCompositionKey(key)
+`removeCompositionKey(key)` removes every entry for that trigger key and returns whether any existed; it does not abort a pending chain. `clearAllCompositionKeys()` clears the table.
 
-- `key` {string} The trigger key to remove.
-- Returns: {boolean} `true` when it existed and was removed.
-- Note: does not abort a pending chain.
+`updateCompositionKey(key, flags, updates)` locates an entry by `key + flags` and merges fields, returning whether it found one. Several entries can share a key and be distinguished by `flags`:
 
-## clearAllCompositionKeys()
+```ts
+updateCompositionKey('d', [{ need: 'times', become: 'action' }], { timeout: 800 })
+```
 
-Clears every composition entry. Does not abort a pending chain.
+### A full chain: count, execute, undo
 
-- Returns: nothing.
+```ts
+registryCompositionKey({
+  key: '3',
+  flags: [],
+  needs: [],
+  optional: true,
+  alternativeFlag: 'count',
+  execute: (ctx) => ({
+    ...ctx,
+    value: 3,
+    steps: [...ctx.steps, '3'],
+  }),
+})
 
-## When a chain ends
+registryCompositionKey({
+  key: 'd',
+  flags: [{ need: 'count', become: 'deleted' }],
+  needs: ['count'],
+  alternativeFlag: 'deleted',
+  execute: (ctx) => {
+    if (typeof ctx.value !== 'number') return null
+    return {
+      ...ctx,
+      value: deleteLines(ctx.value),
+      steps: [...ctx.steps, 'd'],
+    }
+  },
+  undoAction: (ctx) => ({
+    ...ctx,
+    value: restoreLines(ctx.value),
+    steps: [],
+  }),
+})
+```
 
-A chain ends in one of two ways:
+Pressing `3` starts the chain and sets `lastFlag` to `count`; pressing `d` within the timeout advances it to `deleted` via `flags`. The timeout records the chain, and `undoComposition()` runs `d`'s `undoAction` in reverse, then the default no-op for `3`. A mismatched key before `d` drops the chain without recording it; add `exclusive: true` to keep waiting instead.
 
-- **Recorded.** The next-key timeout expires, an `isEndKey` matches, `execute` returns `null`, or you call `abortComposition()`. The chain's keys go into the undo buffer and subscribers receive `completed` (`aborted` for an explicit abort). A chain kept alive by an `exclusive` key also ends this way when its timeout finally expires.
-- **Dropped.** A key matches nothing, or a value guard rejects a key. The partial chain is discarded, never recorded, and cannot be undone.
+## How a chain ends
 
-## abortComposition()
+| Outcome | Trigger | Undo buffer | Event |
+|---|---|---|---|
+| Recorded | Timeout, `isEndKey`, `execute` returns `null`, `abortComposition()` | Yes | `completed`; explicit abort is `aborted` |
+| Dropped | A key matches no entry, or a value guard rejects it | No | `broken` |
 
-Immediately cancels the pending chain and any pending mapping sequence.
+- With `exclusive: true`, a mismatched key is swallowed and the chain keeps waiting; the eventual timeout records it.
+- When `isEndKey` matches, `execute` still runs (side effects are kept), but its returned context is discarded and the key itself is not recorded—only the keys before it are.
+- `execute` returning `null` terminates deliberately; the terminating key is likewise not recorded. The breaking key continues to lower stages by default; `KeyReleaseWhenChainInterrupted: true` swallows it.
+- A value-guard failure (input or output) clears the pending chain and warns outside production.
 
-- Returns: nothing. When nothing is pending, the call does nothing and emits no event.
+## Value validation
 
-## hasPendingComposition()
+```ts
+setValueSchema(schema: ValueSchema)
+```
 
-- Returns: {boolean} Whether a chain is currently pending.
+`ValueSchema` is `Record<flagName, (value) => boolean>`. The engine validates the input value under the current `lastFlag` before `execute`, and the output value under the new flag after it; flags without a guard pass.
 
-## getCompositionContext()
+```ts
+setValueSchema({
+  times: (v): v is number => typeof v === 'number',
+  action: (v) => typeof v === 'number',
+})
+```
 
-- Returns: {CompositionContext} A shallow copy of the current chain context.
+## Undo
 
-## setValueSchema(schema)
+```ts
+undoComposition(steps = 1, options?: { isolated?: boolean; byKey?: boolean })
+```
 
-Sets value-type validation for the chain.
+- `steps` counts chains by default; `byKey: true` counts individual keys.
+- `isolated: false` (default) passes the context across chains; `true` starts each chain from its own saved `ctx`.
+- Returns the context after undo, or `null` when nothing is buffered.
+- Requesting more than buffered throws: `Cannot undo N sequence(s): only M buffered.` (`key(s)` with `byKey`).
+- When an `undoAction` returns `null`, the walk stops; that entry and everything older stay buffered.
 
-- `schema` {ValueSchema} A `Record<flagName, (value) => boolean>`. The engine validates the input value before `execute` and the output value after; a flag with no guard passes.
-- Returns: nothing.
+```ts
+const { undoComposition, bufferedCompositionCount, clearCompositionBuffers } = useKeyboard()
 
-A failed check clears the pending chain and `console.warn`s only outside production.
+undoComposition()
+undoComposition(2, { byKey: true })
+bufferedCompositionCount()
+clearCompositionBuffers()
+```
 
-## undoComposition(steps?, options?)
+## Events
 
-Steps backward through completed chains, running each `undoAction`.
+```ts
+subscribeComposition(fn: () => void): () => void
+getLastCompositionEvent(): CompositionEvent | null
+```
 
-- `steps` {number} How many chains to undo. **Default:** `1`.
-- `options` {Object} Optional.
-  - `isolated` {boolean} `true` starts each chain from its own saved `ctx`. **Default:** `false`.
-  - `byKey` {boolean} Counts `steps` in **keys** rather than chains. **Default:** `false`.
-- Returns: {CompositionContext | null} The context after undo; `null` when nothing is buffered.
+| Event | When |
+|---|---|
+| `started` | A head key executed |
+| `continued` | A continuation key executed |
+| `completed` | The chain completed and was recorded |
+| `aborted` | `abortComposition()` |
+| `broken` | A key matched nothing; the chain was dropped |
+| `consumed` | An `exclusive` chain swallowed a mismatched key |
+| `undone` | `undoComposition()` finished; `steps` is the actual count |
+| `cleared` | `clearCompositionBuffers()` |
 
-Requesting more steps than buffered throws (`Cannot undo N sequence(s): only M buffered.`); when a chain's `undoAction` returns `null` the walk stops and later entries stay buffered.
+`getCompositionContext()` returns a shallow copy of the current context; `hasPendingComposition()` reports whether a chain is pending.
 
-## bufferedCompositionCount()
+## Interaction with mappings
 
-- Returns: {number} How many chains are currently undoable.
+Mappings run before composition. `addMapping(base, target)` redirects an external sequence `base` to a chain of registered composition keys `target`; the target chain goes through the same validation, termination, and undo logic as typed input. Pending mapping and composition states are mutually exclusive, and mappings win. See [Mapping keys](/keyboard/mapping-keys).
 
-## clearCompositionBuffers()
+## Boundaries
 
-Clears the undo history.
-
-- Returns: nothing.
-
-## subscribeComposition(fn)
-
-- `fn` {Function} Called on state changes.
-- Returns: {Function} An unsubscribe function.
-
-## getLastCompositionEvent()
-
-- Returns: {CompositionEvent | null} The most recent event.
-
-Event types: `started`, `continued`, `completed`, `aborted`, `broken`, `consumed`, `undone`, `cleared`.
+- Composition entries share `when` / `mode` / `category` / `affectOverlay` with other bindings; `affectOverlay: true` runs before the layer broadcast.
+- A key without a pending chain and without `optional` cannot start one.
+- A screen switch does not clear the undo buffer; call `clearCompositionBuffers()` when needed.
+- `abortComposition()` also cancels a pending mapping sequence.
+- One key can have several entries; `removeCompositionKey` removes all of them.

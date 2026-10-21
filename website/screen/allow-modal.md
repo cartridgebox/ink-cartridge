@@ -1,160 +1,44 @@
-# Passing keys through the modal barrier with `allowModal`
+# Passing keys with allowModal
 
-In the previous chapter, we learned how to deactivate and activate keyboard response of elements inside modal layers. In this chapter, we'll learn about `allowModal`: letting specific keys pass through the modal layer's keyboard barrier down to the ordinary layers or screen below.
+`allowModal` declares exceptions to a modal's keyboard barrier: a listed key that the modal does not handle may cross the barrier and reach lower regular layers or the screen.
 
 ## Prerequisites
 
 | Chapter | Why you need it |
 |---|---|
-| [Modal Layer Keyboard Events](/screen/modal-layer-keyboard) | `allowModal` opens the barrier that chapter describes |
+| [Modal Layer Keyboard Events](/screen/modal-layer-keyboard) | The barrier this option opens |
 
-## Why you need to let keys through
+## Signature
 
-While a modal layer is open, keys it doesn't handle are swallowed by the barrier. Most of the time that's the desired behavior — when a confirm box is open, the user shouldn't be able to operate the UI underneath. But some scenarios need exceptions: a help popup might want to let arrow keys scroll the page below; a settings popup might want a shortcut to reach the main UI directly.
-
-`allowModal` declares exactly these exceptions: **add specific keys to an allowlist so they pass through the barrier when the modal layer doesn't handle them**.
-
-## Using `allowModal`
-
-```typescript
+```ts
 allowModal(keys: string[], options?: AllowModalOptions): () => void
 ```
 
-- `keys` — the array of key names to allow through;
-- `options` — optional config, see the table below;
-- Return value — an unbind function that removes the allow rule when called.
-
-The optional fields of `AllowModalOptions`:
-
-- `[elementId]` {string} The element the allow rule applies to. Auto-injected by `useKeyboard()` when called inside a modal element; usually no need to pass it.
-- `[focusId]` {string | FocusRef} Scopes the allow rule to a named focus target; the rule only takes effect within that target. A string refers to a focus id in the default focus layer; the object form `{ group, focusId }` scopes it to a named focus group.
-- `[when]` {(() => boolean) | string} A condition — a function or a registered condition id. When it's `false`, the allow rule is ignored and the key stays blocked by the barrier.
-
-`allowModal` only works inside a modal layer's component — that is where the allowlist is read. Called on a page or on a regular layer's component it is a no-op: nothing is registered, and a warning is logged in development. The `allowModal` from `useKeyboard()` attributes the rule to the current modal layer's element automatically — no need to pass `elementId` by hand:
+- `keys` {string[]} Key names to allow through.
+- `options` {AllowModalOptions}
+  - `[elementId]` {string} The owning element; injected automatically inside a modal element.
+  - `[focusId]` {string | FocusRef} Scope the rule to a focus target. A string targets the default group; `{ group, focusId }` targets a named group.
+  - `[when]` {(() => boolean) | string} Condition callback or registered condition ID; the rule is inert while it is `false`.
+- Returns: an unbind function.
 
 ```tsx
-// Allow t: when the modal layer doesn't handle t, it passes through the barrier to the UI below
-const unallow = allowModal(['t']);
+const { allowModal } = useKeyboard()
+
+useEffect(() => allowModal(['tab']), [allowModal])
 ```
 
-Here's a minimal runnable example: Home binds `t` / `x` to log lines; press `1` to open a help popup that allows `t` through, while the barrier still blocks `x`.
+## Semantics
 
-```tsx
-import React, { useContext, useEffect, useState } from 'react';
-import { Box, Text, render } from 'ink';
-import {
-  CurrentScreen,
-  KeyboardProvider,
-  ModalLayerElementContext,
-  ScenarioManagementProvider,
-  registerComponent,
-  useKeyboard,
-  useScreenSystem,
-} from 'ink-cartridge';
+A key crosses the barrier only when both hold:
 
-function Home() {
-  const { openModalLayer, applyElementToModalLayer } = useScreenSystem();
-  const { boundKeyboard } = useKeyboard();
-  const [log, setLog] = useState<string[]>([]);
+1. The modal layer does not handle it.
+2. It is on the allowlist and its `when` condition is true.
 
-  useEffect(() => {
-    const open = boundKeyboard('1', () => {
-      openModalLayer('help', 100);
-      applyElementToModalLayer('help', {
-        element: HelpModal,
-        elementId: 'help-body',
-      });
-    });
-    const onT = boundKeyboard('t', () => setLog((l) => [...l, 'Page received t']));
-    const onX = boundKeyboard('x', () => setLog((l) => [...l, 'Page received x']));
-    return () => {
-      open();
-      onT();
-      onX();
-    };
-  }, [boundKeyboard, openModalLayer, applyElementToModalLayer]);
+The modal's own bindings always win. A key handled inside the modal does not pass through, even when listed.
 
-  return (
-    <Box flexDirection="column">
-      <Text bold>🏠 Home</Text>
-      <Text>Press 1 to open the help popup · t is allowed · x is swallowed</Text>
-      {log.map((line, i) => (
-        <Text key={i} dimColor>
-          {line}
-        </Text>
-      ))}
-    </Box>
-  );
-}
-registerComponent(Home, {});
+## Boundaries
 
-function HelpModal() {
-  const { closeModalLayer } = useScreenSystem();
-  const { boundKeyboard, allowModal } = useKeyboard();
-  const ctx = useContext(ModalLayerElementContext);
-
-  useEffect(() => {
-    if (!ctx) return;
-    // Allow t through the barrier to the screen below
-    const unallow = allowModal(['t']);
-    const close = boundKeyboard(['return'], () => {
-      closeModalLayer(ctx.modalLayer.layerId);
-    });
-    return () => {
-      unallow();
-      close();
-    };
-  }, [allowModal, boundKeyboard, closeModalLayer, ctx]);
-
-  return (
-    <Box
-      position="absolute"
-      top={4}
-      left={40}
-      width={40}
-      height={6}
-      borderStyle="round"
-      borderColor="magenta"
-      backgroundColor="black"
-    >
-      <Text>❓ Help (press return to close)</Text>
-    </Box>
-  );
-}
-
-render(
-  <ScenarioManagementProvider defaultScreen={Home} fullScreen>
-    <KeyboardProvider>
-      <CurrentScreen />
-    </KeyboardProvider>
-  </ScenarioManagementProvider>
-);
-```
-
-Run it:
-
-- Press `1` to open the help popup;
-- Press `t`: the popup doesn't handle `t`, but it's on the allowlist → passes through the barrier → Home receives `t` and the log shows "Page received t";
-- Press `x`: the popup doesn't handle `x` and it's not on the allowlist → swallowed by the barrier → Home never receives `x` and the log doesn't show "Page received x";
-- Press `return` to close the popup.
-
-## The semantics of letting keys through
-
-Letting keys through follows two rules:
-
-1. **The modal layer's own handlers take priority.** If an element inside the modal layer handles a key (for example, the popup binds `return`), the key is consumed by the modal layer and won't pass through even if it's on the allowlist.
-2. **Only "unhandled" allowed keys pass through.** For a key to cross the barrier, both conditions must hold: the modal layer didn't handle it, and it's on the allowlist.
-
-## Summary
-
-| Method | Purpose |
-| --- | --- |
-| `allowModal(keys, options?)` | Adds specific keys to the allowlist so they pass through the barrier when the modal layer doesn't handle them |
-| Returned unbind function | Call it to remove the allow rule |
-
-## Caveats
-
-1. **`allowModal` only works inside a modal layer's component.** Calling it elsewhere is a no-op — nothing is registered, and a warning is logged in development.
-2. **The modal layer's own handlers take priority over the allowlist.** A key handled by the modal layer won't pass through the barrier.
-3. **The `when` condition.** When `when` is provided, the allow rule only takes effect while the condition is `true`; when `false`, the key stays blocked by the barrier.
-4. **Allowing a key through doesn't skip the modal layer.** It means "when the modal layer doesn't handle this key, let it fall through to the UI below" — the key still passes through the modal layer first.
+- Works only inside a modal-layer component. Calling it on a page or regular layer is a no-op with a development warning.
+- Allowing a key does not skip the modal: the key still goes through the modal broadcast first.
+- Rules end when the returned unbind function runs; return it from `useEffect`.
+- Unlike [`useModalMissListener`](/screen/modal-miss-listener), allowing changes where the event ends up; listening only reports.

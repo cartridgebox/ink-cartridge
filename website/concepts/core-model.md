@@ -1,41 +1,56 @@
 # Core concepts
 
-A one-page map: ink-cartridge has three parts — the screen system, the keyboard engine, and the React adapter. Building this overall picture first makes the later chapters much easier.
+ink-cartridge has three parts: the screen system, the keyboard engine, and the React adapter. They share one attribution and state model.
 
 ## Prerequisites
 
 | Chapter | Why you need it |
 |---|---|
-| [Quick Start](/quick-start-1) | Get it running first, then read the structure |
+| [Quick Start](/quick-start-1) | Get a minimal app running first |
 
 ## The three parts
 
 | Part | Responsibility | Entry point |
 |---|---|---|
-| Screen system | Screen tree and stack, layers, modal layers, navigation | `registerComponent` / `useScreenSystem` |
-| Keyboard engine | The whole path from a key press to a matched binding (nine-stage pipeline) | `KeyboardEngine` |
-| React adapter | Wires both into React | `ScenarioManagementProvider` / `KeyboardProvider` |
+| Screen system | Screen tree and stack, navigation, layers, modal layers, mouse-region attribution | `registerComponent` / `useScreenSystem` |
+| Keyboard engine | Key normalization, the nine-stage pipeline, bindings and focus | `KeyboardEngine` |
+| React adapter | Wires both into React and keeps rendering in sync | `ScenarioManagementProvider` / `KeyboardProvider` |
 
 ## Screen tree and stack
 
-`registerComponent(Component, template, { parent })` builds a screen tree; the active one is a stack from root to leaf, whose top is the screen `CurrentScreen` renders. `skip` / `back` / `gotoScreen` navigate within it. See [Organize Your Screen](/screen/screen-registry) and [Navigation](/screen/navigation).
+`registerComponent(Component, template, { parent })` builds the tree. The active state is a root-to-leaf path whose top is rendered by `CurrentScreen`. `skip` moves down, `back` moves up, and `gotoScreen` jumps across branches via the lowest common ancestor.
 
 ## Layers and modal layers
 
-Layers float above the screen; modal layers float above the layers and, by default, take over the keyboard exclusively. Both are opened / closed through `useScreenSystem`. See [Layer Basics](/screen/layer-base) and [Modal Layer Basics](/screen/modal-layer-base).
+Layers are independent of the screen tree and float above the current screen; modal layers float above regular layers and take over the keyboard. Both stack by `zIndex`, which also decides visual, keyboard, and mouse priority. Cross-page retention and keyboard takeover are covered in [Cross-page layers and keyboard takeover](/screen/layer-cross-page-takeover).
 
 ## The keyboard pipeline
 
-A key press travels from the device to a matched binding through a nine-stage pipeline:
+```text
+modal → overlay phase (composition / global sequences / global keys)
+      → layer broadcast
+      → screen phase (composition / global sequences / global keys)
+      → screen stack
+```
 
-Modal → overlay phase (composition / global sequences / global keys) → layer broadcast → screen phase (composition / global sequences / global keys) → screen stack
+The first stage that consumes the event stops propagation. Inside a layer events are broadcast; between layers a hit stops propagation. The modal stage runs first and installs a barrier.
 
-The first stage that consumes the event ends propagation. See [Custom Processors](/keyboard/processors).
+## Attribution
 
-## Ownership
+Every binding belongs to the keyboard layer of its call site: a page, a layer element, or a modal-layer element. It matches only while that owner is active. The owner stack resolves attribution; see [Binding attribution and the owner stack](/screen/binding-attribution).
 
-Every binding carries an owner (the current screen or layer element); a key is matched only while that owner is active. See [Binding Attribution & the Owner Stack](/screen/binding-attribution).
+## Focus
+
+Focus groups bindings into named targets within a layer, with at most one active target per group. Focus decides *which* target receives a key; attribution decides *where* the binding lives.
 
 ## Provider nesting
 
-`KeyboardProvider` must sit inside `ScenarioManagementProvider`. Reversed, the keyboard **silently stops working**.
+```tsx
+<ScenarioManagementProvider defaultScreen={Home} fullScreen>
+  <KeyboardProvider>
+    <CurrentScreen />
+  </KeyboardProvider>
+</ScenarioManagementProvider>
+```
+
+`KeyboardProvider` must nest inside `ScenarioManagementProvider`; reversed, the keyboard silently stops working.

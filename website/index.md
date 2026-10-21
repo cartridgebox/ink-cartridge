@@ -5,7 +5,7 @@ layout: home
 hero:
   name: "ink-cartridge"
   text: "Guides"
-  tagline: "Enhances Ink without replacing it — the foundational interaction layer for interaction-dense terminal UIs: screen system, layered keyboard engine, and full mouse integration."
+  tagline: "A screen system and layered keyboard engine for interaction-dense, multi-page terminal UIs — built on Ink, not in place of it."
   actions:
     - theme: brand
       text: Quick Start
@@ -15,11 +15,10 @@ hero:
       link: https://cartridgebox.art/framework/
 
 features:
-  - title: Layered Keyboard Engine
-    details: A 9-stage pipeline resolves conflicts between modal layers, layers, global keys, and the screen stack. Each screen owns its bindings; the focus system partitions keys within a layer, with vim-style remapping and sequence composition.
-  - title: Full Mouse Integration
-    details: useMouseRegion provides click, hover, and drag. Mouse and keyboard focus work in full coordination — hovering raises the window, and keyboard priority stays exactly aligned with window z-order.
-  - title: Screen Routing
-    details: Any component can be a screen. Register it into a tree and navigate with skip / back / gotoScreen (LCA routing). Ordinary and modal layers support open/close, element application, and z-index management.
+  - title: Screen system
+    details: Any React component can be a screen. Register a tree and navigate with skip / back / gotoScreen; ordinary and modal layers stack by zIndex with matching keyboard and mouse priority.
+  - title: Layered keyboard engine
+    details: Bindings belong to the current screen or layer element. A nine-stage pipeline orders the modal barrier, layer broadcast, global keys, and the screen stack; focus groups route keys within a layer.
+  - title: Mouse and keyboard, one model
+    details: Mouse regions share z-order and focus with the keyboard. Hover or click can raise a layer or move focus, and the region table survives screen re-renders.
 ---
-

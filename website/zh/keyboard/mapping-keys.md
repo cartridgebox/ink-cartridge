@@ -22,6 +22,8 @@
   - `mode` {string} 限定生效模式。
   - `category` {unknown[] | string} 栈顶屏幕白名单；`"*"` 表示全部。
   - `affectOverlay` {boolean} 触发相；`true` 在层广播之前，否则之后。 **默认值：** `false`。
+  - `KeyReleaseWhenChainInterrupted` {boolean} 目标链被打断时吞掉打断键，而不是放行。 **默认值：** `false`。
+  - `executeWhenNoOverlay` {boolean} 仅 `affectOverlay: true` 时有意义：没有图层也执行映射。
 - 返回：{boolean} 注册成功返回 `true`；`base` 为空、目标键未注册、或同一 `base` 已存在时返回 `false`（**不抛错**）。
 
 ```tsx

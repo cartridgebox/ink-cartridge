@@ -1,251 +1,89 @@
-# Switching screens with `skip`, `gotoScreen`, and `back`
+# Navigation
 
-We already know how to organize screen structures with `registerComponent`, but to actually switch screens we need to combine it with binding methods, such as `boundKeyboard`.
+All three navigation methods come from `useScreenSystem()`, and can also be imported directly from `ink-cartridge`:
 
-There are three core navigation methods, all obtained through the `useScreenSystem` hook and usually used together with methods like `boundKeyboard`.
+| Method | Direction | Target |
+|---|---|---|
+| `skip` | Down | A direct child of the current screen |
+| `back` | Up | A parent screen, optionally several levels |
+| `gotoScreen` | Any | Any registered screen, rebuilding the path from the lowest common ancestor |
 
 ## Prerequisites
 
 | Chapter | Why you need it |
 |---|---|
-| [Organize Your Screen](/screen/screen-registry) | Navigation happens on the screen tree, so the parent/child relation comes first |
-| [Basic Binding](/keyboard/base-bind) | Navigation methods are driven by keys |
+| [Organizing Screens](/screen/screen-registry) | Navigation happens on the screen tree |
+| [Basic Binding](/keyboard/base-bind) | Navigation is usually driven by keys |
 
-## Using the `skip` method to switch screens
+## skip
 
-When you need to switch to a direct child of the current screen, you can use the `skip` method. For example, suppose the root screen of your app is Menu, and Game declares its `parent` as Menu — you can then use `skip` to jump to it.
-If for some reason you must jump to a screen that is not a direct child, `skip` is not suitable for that scenario. If you force it anyway, `skip` will throw the error **xxx is not a child of xxx. Use skip to navigate down the tree, or gotoScreen to jump across branches.**
-
-Here is the scenario where `skip` applies.
-```tsx
-// Assume Main is the root screen
-registerComponent(Main, {})
-
-// Game is now a direct child of Main
-registerComponent(Game, {}, { parent: Main })
-
+```ts
+skip(component, params?, options?)
 ```
 
-Therefore, inside the Main component you can directly use `skip` to jump to the Game screen.
-```tsx
-function Main() {
-	const { skip } = useScreenSystem()
-	const { boundKeyboard } = useKeyboard()
-
-	useEffect(() => {
-		// With this, pressing s while on the Main screen jumps to the Game screen
-		return boundKeyboard(["s"], () => skip(Game))
-	}, [boundKeyboard, skip])
-
-	return (
-		...
-	)
-}
-```
-
-In the following scenario you cannot use `skip` to switch screens.
-```tsx
-// Here, Main is the root screen
-registerComponent(Main, {})
-
-// Game is a direct child of Main
-registerComponent(Game, {}, { parent: Main })
-
-// Settings is also a direct child of Main, so Settings and Game are siblings rather than a direct parent-child pair
-registerComponent(Settings, {}, { parent: Main })
-```
-
-Calling `skip` inside the Game component to jump to Settings will throw an error (see the error message above).
-```tsx
-function Game() {
-	const { skip } = useScreenSystem()
-	const { boundKeyboard } = useKeyboard()
-
-	useEffect(() => {
-		// Error: skip can only jump to a direct child screen, not a sibling screen
-		return boundKeyboard(["s"], () => skip(Settings, {}))
-	}, [boundKeyboard, skip])
-
-	return (
-		...
-	)
-}
-```
-
-`skip` also cannot jump to the parent screen.
-```tsx
-function Game() {
-	const { skip } = useScreenSystem()
-	const { boundKeyboard } = useKeyboard()
-
-	useEffect(() => {
-		// Error: skip can only jump to a direct child screen
-		return boundKeyboard(["b"], () => skip(Main, {}))
-	}, [boundKeyboard, skip])
-
-	return (
-		...
-	)
-}
-```
-
-### Using `skip` to pass props
-
-The second argument of `skip` is used to pass props to the target screen. `skip` merges the passed props with the template registered for the screen. It is optional when the target screen declares no required props — omitting it is equivalent to passing `{}`. The snippet below shows how to pass props with `skip`.
-```tsx
-// Declare a Game component whose props require a playerName
-function Game({ playerName }: { playerName: string }) {
-	...
-	return (
-		<Box>
-			<Text>
-				{playerName}
-			</Text>
-		</Box>
-	)
-}
-```
-If we have a root screen Menu and Game is a direct child of Menu, we can use `skip` and pass props while jumping.
-```tsx
-function Menu() {
-	const { skip } = useScreenSystem()
-	const { boundKeyboard } = useKeyboard()
-
-	useEffect(() => {
-		// After pressing s, you enter the Game screen and it shows "default"; pass any other string and that string is shown instead
-		return boundKeyboard(["s"], () => skip(Game, { playerName: "default" }))
-	}, [boundKeyboard, skip])
-
-	return (
-		...
-	)
-}
-```
-You can use it to pass any data.
-
-### Using `skip` to refresh the current screen
-
-Sometimes we need to refresh the current screen and update some prop state. `skip` provides a special option that lets you update state inside the screen. You can control this behavior with the `onlyAttribute` option of `skip`. The prerequisite is that the first argument of `skip` must be the screen you are currently on. In general, you use the second argument to pass new props to change state, while the `onlyAttribute` option only controls whether the screen is re-rendered fresh. See the snippet below.
-
-`gotoScreen` takes the same option for a target already on the current path; see [Refreshing a screen that is already on the path](#refreshing-a-screen-that-is-already-on-the-path).
-
-> **Note:** When using `onlyAttribute`, the current screen must also be registered.
-
+- The target must be a direct child of the current screen, otherwise it throws:
+  `"<X>" is not a child of "<Y>". Use skip to navigate down the tree, or gotoScreen to jump across branches.`
+- `params` merges with the registered template: `{ ...template, ...params }`. It may be omitted when the target has no required props.
+- `options.onlyAttribute` is covered under in-place refresh below.
 
 ```tsx
-function Game({ text }: { text: string }) {
-	const { skip } = useScreenSystem()
-	const { boundKeyboard } = useKeyboard()
+const { skip } = useScreenSystem()
+const { boundKeyboard } = useKeyboard()
 
-	useEffect(() => {
-		// Press r and you will see the screen show "Game refreshed"
-		return boundKeyboard(["r"], () => skip(Game, { text: "Game refreshed" }, { onlyAttribute: true }))
-	}, [boundKeyboard, skip])
-
-	return (
-		<Box>
-			<Text>
-				{text}
-			</Text>
-		</Box>
-	)
-}
+useEffect(() => boundKeyboard('s', () => skip(Game, { level: 1 })), [boundKeyboard, skip])
 ```
 
-## Using the `gotoScreen` method to switch screens
+`skip(Current, params)` — where `Current` is the registered component of the current screen — refreshes it: the top entry is replaced and remounted by default. Path depth is unchanged, so `back` still returns to the real parent.
 
-As mentioned earlier, `skip` can only jump to a direct child of the current screen. When you need to jump to a sibling screen or a screen on another branch, `skip` is powerless — that is when you need the `gotoScreen` method.
+## back
 
-`gotoScreen` can jump to any registered screen, no matter how it relates to the current screen. For example, Main is the root screen, and Game and Settings are both direct children of Main. From inside Game, using `skip` to jump to Settings throws an error, but `gotoScreen` works fine.
+```ts
+back(levels = 1)
+```
+
+- `levels` must be at least 1, otherwise: `back() levels must be >= 1.`
+- At the root: `back() failed: already at the root node, cannot go back.`
 
 ```tsx
-// Here, Main is the root screen
-registerComponent(Main, {})
-
-// Game is a direct child of Main
-registerComponent(Game, {}, { parent: Main })
-
-// Settings is also a direct child of Main — siblings with Game rather than a direct parent-child pair
-registerComponent(Settings, {}, { parent: Main })
+back()    // parent
+back(2)   // two levels up
 ```
+
+## gotoScreen
+
+```ts
+gotoScreen(component, params?, options?)
+```
+
+`gotoScreen` can jump to any registered screen. It finds the lowest common ancestor of the current and target screens, then rebuilds the path; `back` afterwards returns to that ancestor, not to the screen you left.
 
 ```tsx
-function Game() {
-	const { gotoScreen } = useScreenSystem()
-	const { boundKeyboard } = useKeyboard()
+const { gotoScreen } = useScreenSystem()
 
-	useEffect(() => {
-		// Pressing s now jumps from the Game screen to the Settings screen, even though they are siblings
-		return boundKeyboard(["s"], () => gotoScreen(Settings, {}))
-	}, [boundKeyboard, gotoScreen])
-
-	return (
-		...
-	)
-}
+gotoScreen(Settings, { theme: 'light' })
 ```
 
-`gotoScreen` finds the **lowest common ancestor** of the current screen and the target screen, then rebuilds the path from that ancestor. Therefore, when you press `back` after jumping, you return to that common ancestor rather than back to the screen you jumped from. In the example above, after jumping from Game to Settings, calling `back` returns to the Main screen, not the Game screen.
+- Unregistered target: `"<X>" is not registered. Please call registerComponent() first.`
+- `params` merges exactly like `skip`.
+- When the target is the current screen or an ancestor, `params` replace that entry's template; the screen is remounted by default and pages below it are dropped, as with any jump to an ancestor.
 
-The second argument of `gotoScreen` works like `skip`'s — it passes props to the target screen, and they are merged with the template registered for the screen. Like `skip`, it is optional when the target screen declares no required props.
+## In-place refresh: onlyAttribute
 
-::: Note
-The target of `gotoScreen` must already be registered, otherwise it throws the error **xxx is not registered. Please call registerComponent() first.**.
-:::
-
-### Refreshing a screen that is already on the path
-
-`gotoScreen` also works when the target is already on the current path: the current screen, or one of its ancestors. The params replace that entry's registered template, and the screen is remounted by default. Pass `{ onlyAttribute: true }` to update only its props.
-
-```tsx
-// Settings is the current screen
-gotoScreen(Settings, { theme: "light" }, { onlyAttribute: true })
+```ts
+skip(Current, params, { onlyAttribute: true })
+gotoScreen(Current, params, { onlyAttribute: true })
 ```
 
-The mounted instance is kept only when the target is the current screen. An ancestor was unmounted while the deeper page was on top, so it mounts fresh either way; what `onlyAttribute` preserves there is the page's mouse-region focus map. Pages below the target are dropped in both cases, as with any jump to an ancestor.
+- Only meaningful when the target is already on the current path; otherwise it is silently ignored.
+- `false` (default): remount the target with the new props, resetting internal state.
+- `true`: update props only. For the current screen the mounted instance is kept, including internal state and the mouse `regionFocus` map.
+- An ancestor is not mounted while a deeper page is on top, so it remounts either way; what `onlyAttribute` preserves there is the page's stored `regionFocus` map.
+- Non-`crossPage` layers are filtered out in both modes.
 
-## Using the `back` method to switch screens
+## Boundaries
 
-The `back` method returns to the previous level — that is, the parent screen of the current screen. For example, Main is the root screen and Game is a direct child of Main. Calling `back` from inside the Game screen returns to the Main screen.
-
-```tsx
-function Game() {
-	const { back } = useScreenSystem()
-	const { boundKeyboard } = useKeyboard()
-
-	useEffect(() => {
-		// While on the Game screen, pressing b returns to the Main screen
-		return boundKeyboard(["b"], () => back())
-	}, [boundKeyboard, back])
-
-	return (
-		...
-	)
-}
-```
-
-`back` accepts a `levels` argument that specifies how many levels to go back; it defaults to 1. If your screens are nested deeply, e.g. Main > Game > Setting, you can call `back(2)` from the Setting screen to return straight to the Main screen, without calling `back()` twice.
-
-```tsx
-function Setting() {
-	const { back } = useScreenSystem()
-	const { boundKeyboard } = useKeyboard()
-
-	useEffect(() => {
-		// While on the Setting screen, pressing b returns directly to the Main screen (skipping the Game screen)
-		return boundKeyboard(["b"], () => back(2))
-	}, [boundKeyboard, back])
-
-	return (
-		...
-	)
-}
-```
-
-
-> **Note:** The `levels` argument of `back` must be >= 1, otherwise it throws the error **back() levels must be >= 1.**. Also, calling `back` on the root screen throws the error **back() failed: already at the root node, cannot go back.**, because the root screen has no parent to return to.
-
-
-## Best practices
-
-Use `skip` when you need to jump to a direct child screen; use `gotoScreen` when you need to jump across branches or levels — don't overuse `gotoScreen`.
+- `skip` cannot jump to siblings, ancestors, or unregistered screens.
+- `gotoScreen` drops the path below the target; use `onlyAttribute` to refresh the current screen without losing its state.
+- `params` merge into the registered template; the template itself is never modified.
+- Page switches close regular layers and modal layers with `crossPage: false`, see [Cross-page layers and keyboard takeover](/screen/layer-cross-page-takeover).
+- The module-level imports behave exactly like the hook versions; calling them without a mounted provider throws.
