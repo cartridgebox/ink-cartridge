@@ -22,13 +22,15 @@ boundKeyboard(['tab'], nextField, { focusId: { group: 'form', focusId: 'field-1'
 
 ## 组内操作
 
-```ts
+```tsx
 focusSet('field-2', 'form')       // 组内强制切换
 focusNext('form')                 // 组内前进
 focusPrev('form')                 // 组内后退
 focusCurrent('form')              // 读取组内当前目标
 focusUnregister('field-2', 'form')
-useFocusState('field-1', 'form')
+
+// 组件内调用
+const focused = useFocusState('field-1', 'form')
 ```
 
 缺省组名时作用于默认组。

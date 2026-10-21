@@ -22,13 +22,15 @@ A string `focusId` targets the default group; `{ group, focusId }` targets a nam
 
 ## Group-scoped operations
 
-```ts
+```tsx
 focusSet('field-2', 'form')
 focusNext('form')
 focusPrev('form')
 focusCurrent('form')
 focusUnregister('field-2', 'form')
-useFocusState('field-1', 'form')
+
+// Inside a component
+const focused = useFocusState('field-1', 'form')
 ```
 
 Omitting the group targets the default group.
