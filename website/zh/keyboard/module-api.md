@@ -65,6 +65,8 @@ owner-scoped 的方法需要从 context 解析图层 / 页面归属，因此**�
 
 这些操作各自的语义在对应章节展开——本表只是它们的模块级入口清单。
 
+`readLayer(ownerOrLayer, elementId?)` 读取页面或图层的键盘数据；`subscribeFocus(fn)` 订阅焦点变化并返回取消函数；`enableWildcardPriority()` 让 `'*'` 先于精确键匹配，返回一个释放引用的停用函数。
+
 ## 用法
 
 在模块顶层（组件之外）注册，启动即生效：

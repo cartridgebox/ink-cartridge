@@ -15,7 +15,7 @@ penetration(keys: string[], options?: PenetrationOptions): () => void
 | 文章 | 为什么需要 |
 |---|---|
 | [普通图层](/zh/screen/layer-base) | `penetration` 作用在「当前层」上 |
-| [图层间的键盘事件](/zh/screen/layer-keyboard) | 穿透改变的就是本章讲的层间传播 |
+| [图层间的键盘事件](/zh/screen/layer-keyboard) | 穿透改变的是层间传播 |
 
 ## 注册位置决定放行范围
 

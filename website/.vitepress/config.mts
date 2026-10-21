@@ -4,8 +4,8 @@ import { defineConfig } from 'vitepress'
 const base = process.env.DOCS_BASE ?? '/'
 
 // Typedoc publishes each API reference as a sibling section of this guide on GitHub Pages.
-const API_DOCS = 'https://baigaoa.github.io/ink-cartridge'
-const EDIT_PATTERN = 'https://github.com/BAIGAOa/ink-cartridge/edit/main/website/:path'
+const API_DOCS = 'https://cartridgebox.art'
+const EDIT_PATTERN = 'https://github.com/cartridgebox/ink-cartridge/edit/main/website/:path'
 
 const apiNavEn = [
   {
@@ -66,7 +66,8 @@ const sidebarEn = [
       { text: 'Passing Keys with allowModal', link: '/screen/allow-modal' },
       { text: 'Modal Missed Keys', link: '/screen/modal-miss-listener' },
       { text: 'Binding Attribution & the Owner Stack', link: '/screen/binding-attribution' },
-      { text: 'Layer z-index', link: '/screen/layer-z-index' }
+      { text: 'Layer Elevation & Stacking', link: '/screen/layer-z-index' },
+      { text: 'Cross-page Layers & Keyboard Takeover', link: '/screen/layer-cross-page-takeover' }
     ]
   },
   {
@@ -90,7 +91,8 @@ const sidebarEn = [
     text: 'Mouse',
     items: [
       { text: 'Mouse Region Basics', link: '/mouse/mouse-base' },
-      { text: 'Mouse-Driven Keyboard Focus', link: '/mouse/mouse-focus' }
+      { text: 'Mouse-Driven Keyboard Focus', link: '/mouse/mouse-focus' },
+      { text: 'Raw Mouse API', link: '/mouse/mouse-raw' }
     ]
   },
   {
@@ -131,7 +133,8 @@ const sidebarZh = [
       { text: 'allowModal 放行键盘事件', link: '/zh/screen/allow-modal' },
       { text: '监听模态层的丢失键', link: '/zh/screen/modal-miss-listener' },
       { text: '绑定方法的归属与所有者栈', link: '/zh/screen/binding-attribution' },
-      { text: '图层层级', link: '/zh/screen/layer-z-index' }
+      { text: '图层提升与层级', link: '/zh/screen/layer-z-index' },
+      { text: '跨页图层与键盘接管', link: '/zh/screen/layer-cross-page-takeover' }
     ]
   },
   {
@@ -155,7 +158,8 @@ const sidebarZh = [
     text: '鼠标',
     items: [
       { text: '鼠标区域基础', link: '/zh/mouse/mouse-base' },
-      { text: '鼠标与键盘焦点联动', link: '/zh/mouse/mouse-focus' }
+      { text: '鼠标与键盘焦点联动', link: '/zh/mouse/mouse-focus' },
+      { text: '原始鼠标 API', link: '/zh/mouse/mouse-raw' }
     ]
   },
   {
@@ -167,12 +171,12 @@ const sidebarZh = [
 export default defineConfig({
   base,
   title: 'ink-cartridge',
-  description: 'A React Ink component kit for building terminal UIs — layered keyboard engine, screen routing, and full mouse integration.',
+  description: 'A screen system and layered keyboard engine for interaction-dense, multi-page terminal UIs, built on Ink.',
   lastUpdated: true,
   themeConfig: {
     logo: '/logo.png',
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/BAIGAOa/ink-cartridge' }
+      { icon: 'github', link: 'https://github.com/cartridgebox/ink-cartridge' }
     ],
     outline: [2, 3],
     // Search must sit on the root themeConfig: the build-time index plugin reads
@@ -239,7 +243,7 @@ export default defineConfig({
     zh: {
       label: '简体中文',
       lang: 'zh-CN',
-      description: '基于 React Ink 的终端 UI 组件库——分层键盘引擎、屏幕路由与完整鼠标联动。',
+      description: '面向交互密集、多页面终端应用的屏幕系统与分层键盘引擎，构建于 Ink 之上。',
       themeConfig: {
         nav: [
           { text: '首页', link: '/zh/' },

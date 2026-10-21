@@ -65,6 +65,8 @@ Every function below is imported directly from `ink-cartridge` and behaves ident
 
 Each operation's semantics live in its own chapter — this table is just a list of their module-level entry points.
 
+`readLayer(ownerOrLayer, elementId?)` reads a page's or layer's keyboard data; `subscribeFocus(fn)` subscribes to focus changes and returns an unsubscribe function; `enableWildcardPriority()` makes `'*'` match before exact keys and returns a reference-releasing disable function.
+
 ## Usage
 
 Register at module top level (outside any component) so it is live on startup:

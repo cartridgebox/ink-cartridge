@@ -1,41 +1,68 @@
 # 故障排除
 
-跨章节的常见陷阱与错误信息，按症状归类。
+按症状归类。多数失效是静默的，先检查归属、Provider 顺序与图层状态。
 
 ## 按键无响应
 
-- **Provider 嵌套反了**：`KeyboardProvider` 必须在 `ScenarioManagementProvider` 内层，顺序反了会静默失效。
-- **归属不对**：绑定只在其 owner（屏幕 / 图层元素）活跃时命中，见[绑定方法的归属与所有者栈](/zh/screen/binding-attribution)。
-- **被 `mode` / `when` 挡住**：检查绑定的 `mode` 与 `when`，见[模式](/zh/keyboard/modes)与[中级绑定](/zh/keyboard/boundKeyboard-advanced)。
-- **模态层独占**：模态层默认拦截所有按键，需要时用 `allowModal` 放行，见[allowModal 放行键盘事件](/zh/screen/allow-modal)。
-- **在模态层之外调用 `allowModal`**：调用是 no-op，开发环境会打印警告。放行清单只存在于模态层的元素上，在页面或普通图层的元素上调用不会注册任何规则。见[allowModal 放行键盘事件](/zh/screen/allow-modal)。
+| 可能原因 | 检查 |
+|---|---|
+| Provider 嵌套反了 | `KeyboardProvider` 必须在 `ScenarioManagementProvider` 内层 |
+| 归属不活跃 | 屏幕是否在栈中、图层是否打开、元素是否 `active` |
+| 被条件挡住 | 检查 `mode`、`when`、命名条件是否注册 |
+| 焦点不在目标上 | 同层内只有激活焦点目标的绑定参与匹配；用 `focusCurrent()` 确认 |
+| 模态层独占 | 未处理的键被屏障吞掉；用 `allowModal` 放行 |
+| `stopsWorkingAfterLayerAppearing` | 任意图层打开时页面绑定休眠 |
+| 通配符被精确键抢先 | 需要 `'*'` 优先时调用 `enableWildcardPriority()` |
+
+## 幽灵按键
+
+离开屏幕后旧绑定仍然响应：绑定注册在 `useEffect` 中但没有返回解绑函数。让 effect 返回它，或手动调用。
 
 ## 焦点
 
-- **解绑后焦点目标消失了**：开启 `releaseFocusWhenEmpty` 时，最后一次解绑会移除该目标。为同一个 `focusId` 重新注册绑定即可重建它。见[焦点系统](/zh/keyboard/focus-system)。
+- **解绑后目标消失**：开启 `releaseFocusWhenEmpty` 时，最后一次解绑会移除目标；重新注册同一 `focusId` 可重建。
+- **`focusSet` 抛错**：目标尚未注册（惰性创建），先注册带 `focusId` 的绑定。
+- **命名组不响应**：组默认未激活，调用 `activateFocusGroup`；`autoTab` 只轮转默认组。
 
-## 分层与传播
+## 图层
 
-- **`penetration` 是放行不是拦截**（名字易误解）；要拦截用 `stop`。见[键的穿透](/zh/keyboard/penetration)与[停止键传播](/zh/keyboard/stop)。
-- **跨页图层被回收**：非持久图层与模态层（`crossPage: false`）在 `skip` / `back` / `gotoScreen` 时被移除（在 reducer 内处理）。
+- **打开后看不到内容**：`openLayer` 只创建空容器，需要 `applyElement`。
+- **图层被页面切换清掉**：`crossPage` 默认 `false`。
+- **跨页图层抢键盘**：设置 `automaticTakeoverKeyboard` 限定生效页面。
+- **`bringLayerToFront` 无效**：只作用于普通图层；模态层与未注册 ID 会被忽略并告警。
+- **`penetration` 名字容易误解**：它是放行；要拦截用 `stop`。
 
-## 错误边界
+## 鼠标
 
-- `_dispatch` 在 `useEffect` 中设置，`componentDidCatch` 期间不可用——错误边界里调用图层 / 模态函数会拿到 `null`。
+- **区域不响应**：确认 `<KeyboardProvider mouse>`、TTY 输入输出、ref 已挂到 Box、Box 不是 0×0。
+- **点击不切焦点**：`useMouseRegion` 与 `boundKeyboard` 必须收到同一个对象 ref；callback ref 会静默失效。
+- **`onDragMove` 中断**：拖拽目标在按下时捕获，理论上不会中断；检查组件是否在拖拽中卸载。
+- **重叠区域点错**：调高子控件的 `priority`。
 
-## 测试
+## 组合与序列
 
-- `ink-testing-library` 下 Escape（`\x1b`）不可靠；`stdin.write` 的转义序列行为不稳定。
-
-## 类型
-
-- TSX 中 `useRef<<T>` 会被当作 JSX——必须写成 `useRef<T>`。
+- **链没有记录撤销**：只有超时、`isEndKey`、`execute` 返回 `null` 才记录；无匹配键会丢弃。
+- **撤销抛错**：请求数量超过缓冲；用 `bufferedCompositionCount()` 先查询。
+- **序列不触发**：检查 `timeout`、是否按错键（`exclusive`）、以及焦点目标是否激活。
 
 ## 常见错误信息
 
 | 信息 | 原因 |
 |---|---|
-| `[ink-cartridge] No KeyboardEngine is mounted. …getEngine()…` | 未挂载 `KeyboardProvider` 就调用了模块级 API |
-| `[ink-cartridge] Condition "<id>" is not registered. …` | 使用了未注册的命名条件，先 `addCondition` |
-| `[keyboard-engine] <fn>() must be called inside a screen component or overlay.` | 无 owner 时调用了 `stop` / `penetration` 等 |
+| `[ink-cartridge] No KeyboardEngine is mounted. …getEngine()…` | 未挂载 `KeyboardProvider` 就调用模块级 API |
+| `[ink-cartridge] Condition "<id>" is not registered. …` | 使用了未注册的命名条件 |
+| `[keyboard-engine] <fn>() must be called inside a screen component or overlay.` | 无 owner 时调用了带归属的方法 |
 | `… declared in globalKeys with cover: false, so overriding is not allowed.` | 覆盖了 `cover: false` 的全局键 |
+| `Cannot undo N sequence(s): only M buffered.` | 撤销数量超过缓冲 |
+| `[keyboard-engine] focusSet("<id>"): focus target not found …` | 目标尚未创建 |
+| `[ink-cartridge] Mouse tracking requires a TTY input stream …` | 非 TTY 环境开启鼠标 |
+
+## 测试
+
+- `ink-testing-library` 下 Escape（`\x1b`）不可靠。
+- 副作用在 `flush()`（约 50ms）之后才稳定。
+- `clearRegistry()` 与 `clearDispatchers()` 用于测试隔离。
+
+## TypeScript
+
+- TSX 中 `useRef<<T>` 会被解析为 JSX，必须写 `useRef<T>`。
