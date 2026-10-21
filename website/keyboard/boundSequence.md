@@ -13,10 +13,13 @@
 
 ```ts
 boundSequence(keys: string[], handler: KeyHandler, options?: SequenceOptions): () => void
+boundSequence(sequenceActionId: string, options?: SequenceOptions): () => void
+boundSequence(keys: string[], sequenceActionId: string, options?: SequenceOptions): () => void
 ```
 
-- `keys` {string[]} The ordered keys; at least two.
+- `keys` {string[]} The ordered keys; at least two. Required in the explicit-keys forms; not used by the preset-keys form.
 - `handler` {() => void} Runs when the full sequence matches.
+- `sequenceActionId` {string} A registered `SequenceOperationEntry` ID; its `action` is the handler and its `keys` / `timeout` act as defaults. See [Shortcuts & Actions](/keyboard/shortcuts-actions#sequence-actions).
 - `options` {SequenceOptions} Adds `timeout` and `exclusive` to `BoundKeyboardOptions`.
 - Returns: an unbind function.
 
@@ -27,9 +30,13 @@ useEffect(
   () => boundSequence(['d', 'd'], () => deleteItem()),
   [boundSequence],
 )
+
+// With a registered sequence action
+boundSequence('goto-top')
+boundSequence(['ctrl+g', 'g'], 'goto-top', { timeout: 800 })
 ```
 
-`boundSequence(['a'], ...)` throws `requires at least 2 keys in the sequence`.
+`boundSequence(['a'], ...)` throws `requires at least 2 keys in the sequence`. An unknown `sequenceActionId` throws `Action "<id>" is not registered.`
 
 ## Options
 

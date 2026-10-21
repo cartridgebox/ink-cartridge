@@ -33,7 +33,7 @@ const { boundKeyboard } = useKeyboard()
 useEffect(() => boundKeyboard('s', () => skip(Game, { level: 1 })), [boundKeyboard, skip])
 ```
 
-`skip(CurrentScreen, params)` refreshes the current screen: it replaces the top entry and remounts by default. Path depth is unchanged, so `back` still returns to the real parent.
+`skip(Current, params)` — where `Current` is the registered component of the current screen — refreshes it: the top entry is replaced and remounted by default. Path depth is unchanged, so `back` still returns to the real parent.
 
 ## back
 

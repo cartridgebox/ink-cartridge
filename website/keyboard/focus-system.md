@@ -39,7 +39,7 @@ type FocusSetOptions = { group?: string; element?: string }
 ```
 
 ```tsx
-const { focusSet, focusNext, focusPrev, focusCurrent, focusUnregister, useFocusState } = useKeyboard()
+const { focusSet, focusNext, focusPrev, focusCurrent, focusUnregister } = useKeyboard()
 
 focusSet('select-b')
 focusNext()
@@ -47,6 +47,7 @@ focusPrev()
 const { result, noFound } = focusCurrent()
 focusUnregister('select-b')
 
+// Standalone hook, imported from 'ink-cartridge' rather than useKeyboard()
 const focused = useFocusState('select-b')
 ```
 

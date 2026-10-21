@@ -35,7 +35,7 @@ useFocusState('field-1', 'form')
 
 ## 点亮与熄灭
 
-命名组不会自动点亮，需要显式激活：
+组内第一个目标在组创建时自动激活，命名组也一样。之后的目标等待 `focusSet` / `focusNext` / `focusPrev`。`activateFocusGroup` 用于给没有激活目标的组设置初始焦点，例如 `kickFocusGroup` 之后：
 
 ```ts
 activateFocusGroup('field-1', 'form')
@@ -71,5 +71,6 @@ boundKeyboard('tab', () => focusNext('form'))
 - `focusNext` / `focusPrev` 在组内没有激活目标时什么也不做。
 - `activateFocusGroup` 不负责切换已有激活焦点；用 `focusSet`。
 - `kickFocusGroup` 清除的是整组的激活状态，不会恢复该组之前的目标。
+- 命名组的第一个目标与默认组一样会自动激活；只有后续目标需要显式切换。
 - 组随所在屏幕的键盘层一起销毁；离开屏幕后不会残留。
 - 命名组的焦点路由与默认组共用同一套 `focusId` 匹配规则，绑定归属仍由调用位置决定。

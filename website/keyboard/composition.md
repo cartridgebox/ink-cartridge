@@ -40,6 +40,8 @@ A `CompositionKey`:
 | `KeyReleaseWhenChainInterrupted` | `boolean` | Swallow the breaking key when `execute` returns `null` or validation fails |
 | `when` / `mode` / `category` / `affectOverlay` / `executeWhenNoOverlay` | — | Same as other bindings |
 
+`affectOverlay` is the phase field for composition and mapping entries; `globalKeys` / `globalSequence` use `affectLayer` instead. They are different options.
+
 ### How the flag is chosen
 
 - Head (`lastFlag === null`): use `alternativeFlag`.

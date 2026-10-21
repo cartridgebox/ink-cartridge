@@ -13,10 +13,13 @@
 
 ```ts
 boundSequence(keys: string[], handler: KeyHandler, options?: SequenceOptions): () => void
+boundSequence(sequenceActionId: string, options?: SequenceOptions): () => void
+boundSequence(keys: string[], sequenceActionId: string, options?: SequenceOptions): () => void
 ```
 
-- `keys` {string[]} 依次按下的键，至少两个。
+- `keys` {string[]} 依次按下的键，至少两个；显式键形式必需，预设键形式不使用。
 - `handler` {() => void} 完整匹配后执行。
+- `sequenceActionId` {string} 已注册的 `SequenceOperationEntry` ID；它的 `action` 作为回调，`keys` / `timeout` 作为默认值。见[快捷键与动作](/zh/keyboard/shortcuts-actions#序列动作)。
 - `options` {SequenceOptions} 在 `BoundKeyboardOptions` 上增加 `timeout` 与 `exclusive`。
 - 返回：解绑函数。
 
@@ -27,9 +30,13 @@ useEffect(
   () => boundSequence(['d', 'd'], () => deleteItem()),
   [boundSequence],
 )
+
+// 使用已注册的序列动作
+boundSequence('goto-top')
+boundSequence(['ctrl+g', 'g'], 'goto-top', { timeout: 800 })
 ```
 
-`boundSequence(['a'], ...)` 会抛错：`requires at least 2 keys in the sequence`。
+`boundSequence(['a'], ...)` 会抛错：`requires at least 2 keys in the sequence`。未注册的 `sequenceActionId` 会抛错：`Action "<id>" is not registered.`
 
 ## 选项
 

@@ -40,6 +40,8 @@ type CompositionContext<T = unknown> = {
 | `KeyReleaseWhenChainInterrupted` | `boolean` | `execute` 返回 `null` 或校验失败时，吞掉打断键 |
 | `when` / `mode` / `category` / `affectOverlay` / `executeWhenNoOverlay` | — | 与其它绑定一致 |
 
+`affectOverlay` 是组合与映射条目的阶段字段；`globalKeys` / `globalSequence` 使用的是 `affectLayer`，两者不是同一个选项。
+
 ### flag 如何确定
 
 - 链头（`lastFlag === null`）：使用 `alternativeFlag`。

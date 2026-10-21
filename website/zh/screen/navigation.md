@@ -33,7 +33,7 @@ const { boundKeyboard } = useKeyboard()
 useEffect(() => boundKeyboard('s', () => skip(Game, { level: 1 })), [boundKeyboard, skip])
 ```
 
-`skip(CurrentScreen, params)` 刷新当前屏幕：默认替换栈顶条目并重新挂载，路径深度不变，`back` 仍返回真正的父屏幕。
+`skip(Current, params)`（`Current` 指当前屏幕已注册的组件）刷新当前屏幕：默认替换栈顶条目并重新挂载，路径深度不变，`back` 仍返回真正的父屏幕。
 
 ## back
 

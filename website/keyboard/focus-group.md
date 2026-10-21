@@ -35,7 +35,7 @@ Omitting the group targets the default group.
 
 ## Activating and clearing
 
-Named groups do not activate automatically; call:
+A group's first target is activated automatically when the group is created—this applies to named groups too. Later targets wait for `focusSet` / `focusNext` / `focusPrev`. `activateFocusGroup` gives a group with no active target an initial one, for example after `kickFocusGroup`:
 
 ```ts
 activateFocusGroup('field-1', 'form')
@@ -71,5 +71,6 @@ boundKeyboard('tab', () => focusNext('form'))
 - `focusNext` / `focusPrev` do nothing when the group has no active target.
 - `activateFocusGroup` does not switch between existing active targets; use `focusSet`.
 - `kickFocusGroup` clears the whole group, not just one target.
+- A named group's first target is auto-activated like the default group's; only later targets need an explicit switch.
 - Groups are destroyed with the screen's keyboard layer and do not survive leaving the screen.
 - Named groups use the same `focusId` matching rules; attribution is still decided by the call site.
