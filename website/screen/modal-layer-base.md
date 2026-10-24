@@ -68,8 +68,8 @@ Closing an unregistered ID is a no-op with a development warning.
 
 ## Boundaries
 
-- `layerId` is shared with regular layers; reusing an ID across the two kinds throws.
-- Call `openModalLayer` before mounting elements.
+- `layerId` is shared with regular layers; reusing an ID across the two kinds is ignored with a development warning, not thrown.
+- Call `openModalLayer` before mounting elements. Mounting into an unopened modal layer is ignored: development warns, production is silent.
 - Only the modal with the highest `zIndex` receives keyboard and mouse events.
 - Unhandled keys are swallowed by the barrier; use [`allowModal`](/screen/allow-modal) for exceptions.
 - Modal layers close on page switches by default; `crossPage: true` keeps them.

@@ -68,8 +68,8 @@ ctx?.modalLayer.layerId
 
 ## 边界
 
-- `layerId` 与普通图层共用命名空间；跨类型复用会抛错。
-- 必须先 `openModalLayer`，再挂载元素。
+- `layerId` 与普通图层共用命名空间；跨类型复用只会产生开发警告并被忽略，不会抛错。
+- 必须先 `openModalLayer`，再挂载元素。向未打开的模态层挂载元素会被忽略：开发环境告警，生产环境静默。
 - 只有 `zIndex` 最高的模态层接收键盘和鼠标事件。
 - 未处理的按键被屏障吞掉；需要例外时用 [`allowModal`](/zh/screen/allow-modal)。
 - 模态层默认在页面切换时关闭；`crossPage: true` 可以保留。

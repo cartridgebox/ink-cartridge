@@ -53,12 +53,13 @@ Home
 ```
 
 - `defaultScreen` must be registered, otherwise it throws.
+- `defaultParams` supplies the initial screen's props and takes precedence over its registered template.
 - `fullScreen` makes the screen fill the terminal height.
 - `KeyboardProvider` must be nested inside `ScenarioManagementProvider`; reversed, the keyboard silently stops working.
 
 ## Boundaries
 
-- A component can be registered once. Re-registering throws: `[Ink-Cartridge] Component "xxx" is already registered. Duplicate registration is not allowed.`
+- A component can be registered once. Re-registering throws: `[ink-cartridge] Component "xxx" is already registered. Duplicate registration is not allowed.`
 - `parent` must be registered first, otherwise: `Register the parent first with registerComponent(...)`.
 - Every component without a parent is a root; several independent trees can coexist.
 - `template` is a default, not current state. Navigation `params` override its fields; the template itself is never modified.

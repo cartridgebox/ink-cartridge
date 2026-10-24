@@ -2,6 +2,17 @@
 
 按症状归类。多数失效是静默的，先检查归属、Provider 顺序与图层状态。
 
+## 排查顺序
+
+1. Provider 嵌套。
+2. 所有者是否活跃：屏幕在栈中、图层已打开、元素 `active`。
+3. 焦点：`focusCurrent()` 与组的激活目标。
+4. 模态屏障或 `allowModal`。
+5. `mode`、`when` 与命名条件。
+6. 精确键与通配符的先后顺序。
+
+大多数"按键没反应"在第 1 或第 2 步就能定位。
+
 ## 按键无响应
 
 | 可能原因 | 检查 |
@@ -21,8 +32,8 @@
 ## 焦点
 
 - **解绑后目标消失**：开启 `releaseFocusWhenEmpty` 时，最后一次解绑会移除目标；重新注册同一 `focusId` 可重建。
-- **`focusSet` 抛错**：目标尚未注册（惰性创建），先注册带 `focusId` 的绑定。
-- **命名组不响应**：组默认未激活，调用 `activateFocusGroup`；`autoTab` 只轮转默认组。
+- **`focusSet` 返回 `false`**：目标尚未注册（惰性创建），先注册带 `focusId` 的绑定。
+- **命名组不响应**：组的第一个目标会自动激活；只有被 `kickFocusGroup` 清空的组才需要 `activateFocusGroup`。`autoTab` 只轮转默认组。
 
 ## 图层
 
@@ -54,14 +65,13 @@
 | `[keyboard-engine] <fn>() must be called inside a screen component or overlay.` | 无 owner 时调用了带归属的方法 |
 | `… declared in globalKeys with cover: false, so overriding is not allowed.` | 覆盖了 `cover: false` 的全局键 |
 | `Cannot undo N sequence(s): only M buffered.` | 撤销数量超过缓冲 |
-| `[keyboard-engine] focusSet("<id>"): focus target not found …` | 目标尚未创建 |
 | `[ink-cartridge] Mouse tracking requires a TTY input stream …` | 非 TTY 环境开启鼠标 |
 
 ## 测试
 
 - `ink-testing-library` 下 Escape（`\x1b`）不可靠。
 - 副作用在 `flush()`（约 50ms）之后才稳定。
-- `clearRegistry()` 与 `clearDispatchers()` 用于测试隔离。
+- 在 `beforeEach` 中调用 `clearRegistry()` 做隔离。
 
 ## TypeScript
 

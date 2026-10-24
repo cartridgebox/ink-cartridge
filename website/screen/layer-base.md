@@ -4,6 +4,19 @@ A layer floats above the current screen and takes no part in screen-tree navigat
 
 Regular layers suit tool panels, toolbars, and dashboards. Dialogs that must own the keyboard use [modal layers](/screen/modal-layer-base).
 
+## Regular or modal?
+
+| Need | Regular layer | Modal layer |
+|---|---|---|
+| Tool panel, toolbar, dashboard | Yes | — |
+| Must stop keys reaching the page below | — | Yes |
+| Only one overlay owns the keyboard | — | Yes |
+| Stack above every regular layer | — | Yes |
+| Keep across pages | `crossPage: true` | `crossPage: true` |
+| Pause one element without closing | `deactivateElement` | `deactivateElementInModalLayer` |
+
+Start with a regular layer unless the overlay must own input. A modal barrier is much stronger than a high `zIndex`.
+
 ## Prerequisites
 
 | Chapter | Why you need it |
@@ -104,8 +117,8 @@ The same hook also provides `bringLayerToFront`, `restoreLayerZIndex`, all modal
 
 ## Boundaries
 
-- `layerId` must be unique. Reopening an open ID is a no-op with a warning; reusing a modal ID throws.
-- Call `openLayer` before `applyElement`; mounting into an unopened layer throws.
+- `layerId` must be unique. Reopening an open ID is a no-op with a warning; reusing a modal ID is also ignored with a development warning, not thrown.
+- Call `openLayer` before `applyElement`. Mounting into an unopened layer is ignored: development warns, production is silent, and the layer is not created.
 - `elementId` must be unique within a layer; re-applying one is a no-op with a warning.
 - `CurrentScreen` renders in the order: current screen → regular layers → modal layers.
 - Every layer method is available both from `useScreenSystem()` and as a direct import from `ink-cartridge`.

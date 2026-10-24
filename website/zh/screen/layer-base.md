@@ -4,6 +4,19 @@
 
 普通图层适合工具面板、工具栏、看板等常驻浮层。需要独占键盘的对话框使用[模态层](/zh/screen/modal-layer-base)。
 
+## 普通图层还是模态层？
+
+| 需求 | 普通图层 | 模态层 |
+|---|---|---|
+| 工具面板、工具栏、看板 | 是 | — |
+| 必须阻止按键落到下面的页面 | — | 是 |
+| 同一时刻只允许一个浮层接管键盘 | — | 是 |
+| 叠在所有普通图层之上 | — | 是 |
+| 跨页面保留 | `crossPage: true` | `crossPage: true` |
+| 暂停单个元素而不关闭整层 | `deactivateElement` | `deactivateElementInModalLayer` |
+
+除非浮层必须独占输入，否则先用普通图层。模态屏障比更高的 `zIndex` 强得多。
+
 ## 前置知识
 
 | 文章 | 为什么需要 |
@@ -104,8 +117,8 @@ const isOpen = allLayers.some((layer) => layer.layerId === 'tool-panel')
 
 ## 边界
 
-- `layerId` 必须唯一；重复打开同一 ID 是无操作并告警，复用模态层 ID 会抛错。
-- 必须先 `openLayer`，再 `applyElement`；向未打开的图层挂载元素会抛错。
+- `layerId` 必须唯一；重复打开同一 ID 是无操作并告警，复用模态层 ID 同样只会产生开发警告并被忽略，不会抛错。
+- 必须先 `openLayer`，再 `applyElement`。向未打开的图层挂载元素会被忽略：开发环境告警，生产环境静默，图层也不会被顺带创建。
 - `elementId` 在同一图层内必须唯一；重复挂载是无操作并告警。
 - `CurrentScreen` 的渲染顺序是：当前屏幕 → 普通图层 → 模态层。
 - 所有图层方法既可以从 `useScreenSystem()` 获取，也可以直接从 `ink-cartridge` 导入。

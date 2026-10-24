@@ -15,14 +15,26 @@
 | [组织屏幕](/zh/screen/screen-registry) | 导航发生在屏幕树上 |
 | [基本绑定](/zh/keyboard/base-bind) | 导航通常由按键触发 |
 
+## 选择哪个方法
+
+| 目标 | 调用 |
+|---|---|
+| 去直接子屏幕 | `skip(Child, params?)` |
+| 刷新当前屏幕 | `skip(Current, params?, { onlyAttribute: true })` |
+| 返回父屏幕 | `back()` |
+| 一次退多层 | `back(n)` |
+| 去兄弟屏幕或其他分支 | `gotoScreen(Target, params?)` |
+| 更新祖先屏幕的 props | `gotoScreen(Ancestor, params?, { onlyAttribute: true })` |
+
+`onlyAttribute` 只在目标已在当前路径上时有意义，否则会被忽略。
+
 ## skip
 
 ```ts
 skip(component, params?, options?)
 ```
 
-- 目标必须是当前屏幕的直接子屏幕，否则抛错：
-  `"<X>" is not a child of "<Y>". Use skip to navigate down the tree, or gotoScreen to jump across branches.`
+- 目标必须是当前屏幕的直接子屏幕。否则 reducer 会忽略该动作：开发环境打印 `"<X>" is not a child of "<Y>". Use skip to navigate down the tree, or gotoScreen to jump across branches.`，生产环境静默，路径保持不变。未注册的目标才会在调用点抛错。
 - `params` 与目标注册时的模板合并：`{ ...template, ...params }`。目标没有必填 props 时可以省略。
 - `options.onlyAttribute` 见下文「原地刷新」。
 
@@ -41,8 +53,8 @@ useEffect(() => boundKeyboard('s', () => skip(Game, { level: 1 })), [boundKeyboa
 back(levels = 1)
 ```
 
-- `levels` 必须 ≥ 1，否则抛错：`back() levels must be >= 1.`
-- 在根屏幕调用会抛错：`back() failed: already at the root node, cannot go back.`
+- `levels` 必须是大于等于 1 的整数；否则调用点抛错：`[ink-cartridge] back() levels must be an integer >= 1.`
+- 在根屏幕调用，或请求的层数超过当前路径深度：开发环境打印 `back() failed: already at the root node, cannot go back.`（或深度信息）并忽略该动作；生产环境保持路径不变。
 
 ```tsx
 back()    // 返回父屏幕

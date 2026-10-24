@@ -66,6 +66,8 @@ addProcessor(processor, options?)
 | `index` | Stage slot, 0-based, range `[0, stageCount]` |
 | `before` / `after` | Insert before or after the stage holding a processor, as its own stage |
 
+`addProcessor` returns `true` when the processor was inserted. A duplicate id or a missing `before`/`after` target returns `false` and leaves the pipeline unchanged; an out-of-range `index` throws.
+
 Without options the weight is `0`, so the processor joins the `screen-stack` stage after `screen-stack` itself. It only sees events `screen-stack` did not consume. For an independent stage after every built-in, pass a negative weight:
 
 ```ts
@@ -102,11 +104,11 @@ useEffect(
 
 ## Errors
 
+Duplicate ids and missing `before`/`after` targets do not throw; `addProcessor` returns `false`. Only an out-of-range `index` throws:
+
 | Case | Error |
 |---|---|
-| Duplicate id | `Cannot add processor "<id>": duplicate id` |
-| Out-of-range index | `Cannot insert processor "<id>" at index <n>: expected an integer in [0, <stageCount>]` |
-| Missing `before` / `after` target | `Cannot insert <before\|after> "<id>": processor not found` |
+| Out-of-range index | `[ink-cartridge] Cannot insert processor "<id>" at index <n>: expected an integer in [0, <stageCount>]` |
 
 ## Boundaries
 

@@ -66,6 +66,8 @@ addProcessor(processor, options?)
 | `index` | 第 n 个阶段槽位，范围 `[0, 阶段数]` |
 | `before` / `after` | 插到某处理器所在阶段之前或之后，自成阶段 |
 
+`addProcessor` 插入成功时返回 `true`。id 重复或 `before`/`after` 目标不存在时返回 `false`，管线保持不变；只有 `index` 越界会抛错。
+
 省略选项时权重为 `0`，并入 `screen-stack` 阶段，并在其中排在 `screen-stack` 之后。它只会看到 `screen-stack` 未消费的事件。要在所有内置阶段之后独立运行，传负权重：
 
 ```ts
@@ -102,11 +104,11 @@ useEffect(
 
 ## 错误
 
+id 重复或 `before`/`after` 目标不存在时不会抛错；`addProcessor` 返回 `false`。只有 `index` 越界会抛错：
+
 | 情况 | 错误 |
 |---|---|
-| id 重复 | `Cannot add processor "<id>": duplicate id` |
-| index 越界 | `Cannot insert processor "<id>" at index <n>: expected an integer in [0, <stageCount>]` |
-| `before` / `after` 目标不存在 | `Cannot insert <before\|after> "<id>": processor not found` |
+| index 越界 | `[ink-cartridge] Cannot insert processor "<id>" at index <n>: expected an integer in [0, <stageCount>]` |
 
 ## 边界
 

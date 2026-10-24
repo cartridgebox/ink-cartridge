@@ -32,13 +32,13 @@ defineShortcutAction([
 addAction({ actionId: 'quit', action: () => process.exit(0) })
 ```
 
-| 方法 | 作用 |
-|---|---|
-| `defineShortcutAction(entries)` | 一次注册多个；重复 `actionId` 抛错 |
-| `addAction(entry)` | 注册一个 |
-| `hasAction(actionId)` | 是否已注册 |
-| `removeAction(actionId)` | 移除；未注册时抛错 |
-| `modifyAction(actionId, keys)` | 修改预设键；只影响之后的绑定 |
+| 方法 | 返回 | 作用 |
+|---|---|---|
+| `defineShortcutAction(entries)` | `boolean` | 原子地一次注册多个；任一 id 已存在返回 `false`，什么也不注册 |
+| `addAction(entry)` | `boolean` | 注册一个；id 重复返回 `false` |
+| `hasAction(actionId)` | `boolean` | 是否已注册 |
+| `removeAction(actionId)` | `boolean` | 移除；未注册返回 `false` |
+| `modifyAction(actionId, keys)` | `boolean` | 修改预设键；动作不存在或没有 `keys` 时返回 `false`；只影响之后的绑定 |
 
 动作注册表属于当前引擎实例，`useKeyboard()` 拿到的是当前 `KeyboardProvider` 的那一份。
 
@@ -70,7 +70,28 @@ boundSequence('goto-top')                    // 使用预设键
 boundSequence(['ctrl+g', 'g'], 'goto-top')   // 显式键覆盖预设键
 ```
 
-对应方法为 `addSequenceAction`、`hasSequenceAction`、`removeSequenceAction`、`modifySequenceAction`，以及 `clearSequenceOperations`。动作 id 与序列动作 id 是两套独立的命名空间。
+| 方法 | 返回 | 说明 |
+|---|---|---|
+| `defineSequenceAction(entries)` | `boolean` | 原子操作；任一 id 已存在返回 `false` |
+| `addSequenceAction(entry)` | `boolean` | id 重复返回 `false` |
+| `hasSequenceAction(id)` | `boolean` | 是否已注册 |
+| `removeSequenceAction(id)` | `boolean` | 未注册返回 `false` |
+| `modifySequenceAction(id, keys, timeout?)` | `boolean` | 动作不存在或没有预设键返回 `false`；`timeout: 0` 会被采纳 |
+| `clearSequenceOperations()` | `void` | 清空所有序列动作 |
+
+动作 id 与序列动作 id 是两套独立的命名空间。
+
+## 快捷键动作还是序列动作？
+
+| 需求 | 快捷键动作 | 序列动作 |
+|---|---|---|
+| 单个按键触发回调 | 是 | — |
+| 按键序列触发回调 | — | 是 |
+| 预设键 | `keys` | `keys` + 可选 `timeout` |
+| 绑定方法 | `boundKeyboard` | `boundSequence` |
+| 注册方法 | `defineShortcutAction` | `defineSequenceAction` |
+
+两套注册表都按引擎实例隔离，互不相干。触发是一次按键就用快捷键动作；触发本身就是多键手势时用序列动作。
 
 ## 边界
 

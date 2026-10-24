@@ -36,6 +36,8 @@ A key crosses the barrier only when both hold:
 
 The modal's own bindings always win. A key handled inside the modal does not pass through, even when listed.
 
+Each allow list is evaluated on its own scope. A when-disabled rule blocks only its own focus target's — or the layer's — allow for that key; it does not veto another active target's allow rule for the same key.
+
 ## Boundaries
 
 - Works only inside a modal-layer component. Calling it on a page or regular layer is a no-op with a development warning.

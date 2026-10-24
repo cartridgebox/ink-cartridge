@@ -8,6 +8,15 @@ useMouseRegion(callbacks: MouseRegionCallbacks, options?: MouseRegionOptions): R
 
 把返回的 ref 挂到 `<Box>` 上即可，坐标由引擎测量。
 
+## 用哪套鼠标 API？
+
+| 需求 | API |
+|---|---|
+| 在渲染出的 Box 上处理点击、悬停、拖拽 | `useMouseRegion` |
+| 原始终端鼠标事件或自定义事件循环 | `Mouse` 类，见[原始鼠标 API](/zh/mouse/mouse-raw) |
+
+大多数应用只需要 `useMouseRegion`；原始 API 面向非 React 宿主或自定义命中测试。
+
 ## 前置知识
 
 | 文章 | 为什么需要 |
@@ -24,6 +33,8 @@ useMouseRegion(callbacks: MouseRegionCallbacks, options?: MouseRegionOptions): R
 ```
 
 开启后终端进入鼠标追踪模式，SGR 鼠标报文会从键盘流中过滤掉，不会进入 `useInput`。需要 TTY；否则打印 `[ink-cartridge] Mouse tracking requires a TTY input stream — mouse events disabled.` 并跳过鼠标能力。
+
+`useMouseRegion` 内部会调用 `useKeyboard`，因此必须有 `KeyboardProvider` 祖先；没有 Provider 时渲染区域会抛错。
 
 ## 回调
 

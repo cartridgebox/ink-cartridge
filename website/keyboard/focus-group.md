@@ -20,6 +20,23 @@ boundKeyboard(['tab'], nextField, { focusId: { group: 'form', focusId: 'field-1'
 
 A string `focusId` targets the default group; `{ group, focusId }` targets a named group.
 
+## When named groups help
+
+| Situation | Use |
+|---|---|
+| One list or form, one active control at a time | Default group |
+| Navigation and a form active at the same time | One named group per region |
+| Tab should cycle only inside a region | Bind Tab to `focusNext('region')` |
+| Tab should cycle every control | Default group + `autoTab` |
+
+Named groups only separate the "one active target" slot; ownership still comes from the call site.
+
+## Pitfalls
+
+- `autoTab` rotates the default group only.
+- Each group auto-activates its first target; later targets need `focusSet` / `focusNext`.
+- A group emptied by `kickFocusGroup` stays dormant until `activateFocusGroup` or a new target registers.
+
 ## Group-scoped operations
 
 ```tsx
