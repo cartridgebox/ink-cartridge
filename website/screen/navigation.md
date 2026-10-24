@@ -15,14 +15,26 @@ All three navigation methods come from `useScreenSystem()`, and can also be impo
 | [Organizing Screens](/screen/screen-registry) | Navigation happens on the screen tree |
 | [Basic Binding](/keyboard/base-bind) | Navigation is usually driven by keys |
 
+## Choosing a method
+
+| Goal | Call |
+|---|---|
+| Go to a direct child | `skip(Child, params?)` |
+| Refresh the current screen | `skip(Current, params?, { onlyAttribute: true })` |
+| Return to the parent | `back()` |
+| Go up several levels | `back(n)` |
+| Jump to a sibling or another branch | `gotoScreen(Target, params?)` |
+| Update an ancestor's props | `gotoScreen(Ancestor, params?, { onlyAttribute: true })` |
+
+`onlyAttribute` only matters when the target is already on the current path; otherwise it is ignored.
+
 ## skip
 
 ```ts
 skip(component, params?, options?)
 ```
 
-- The target must be a direct child of the current screen, otherwise it throws:
-  `"<X>" is not a child of "<Y>". Use skip to navigate down the tree, or gotoScreen to jump across branches.`
+- The target must be a direct child of the current screen. Otherwise the reducer ignores the action: development logs `"<X>" is not a child of "<Y>". Use skip to navigate down the tree, or gotoScreen to jump across branches.`, production is silent, and the path stays unchanged. An unregistered target throws at the call site.
 - `params` merges with the registered template: `{ ...template, ...params }`. It may be omitted when the target has no required props.
 - `options.onlyAttribute` is covered under in-place refresh below.
 
@@ -41,8 +53,8 @@ useEffect(() => boundKeyboard('s', () => skip(Game, { level: 1 })), [boundKeyboa
 back(levels = 1)
 ```
 
-- `levels` must be at least 1, otherwise: `back() levels must be >= 1.`
-- At the root: `back() failed: already at the root node, cannot go back.`
+- `levels` must be an integer >= 1; otherwise the call throws `[ink-cartridge] back() levels must be an integer >= 1.`
+- At the root, or with more levels than the current path: development logs `back() failed: already at the root node, cannot go back.` (or the depth message) and ignores the action; production leaves the path unchanged.
 
 ```tsx
 back()    // parent

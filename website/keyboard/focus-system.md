@@ -62,7 +62,21 @@ const focused = useFocusState('select-b')
 }
 ```
 
+`fromGroup` is the named group, or `defaultTargetsSymbol` for the default group; the symbol is exported from `ink-cartridge`.
+
 `focusNext` / `focusPrev` do nothing when a group has no active target; `focusSet` can activate any registered target directly. After `focusUnregister` removes the active target, focus moves to the first remaining target in registration order.
+
+`focusSet`, `focusNext`, and `focusPrev` return `true` when the active focus changed; `focusUnregister` returns `true` when a target was actually removed (it need not be the active one). Every no-op path returns `false`, and none of them throw.
+
+## Which method?
+
+| Goal | Method |
+|---|---|
+| Switch to a known target | `focusSet` |
+| Move one step, wrapping | `focusNext` / `focusPrev` |
+| Read the active target | `focusCurrent` |
+| Re-render on focus changes | `useFocusState` / `subscribeFocus` |
+| Remove a target | `focusUnregister` |
 
 ## autoTab
 
@@ -85,7 +99,7 @@ Non-React hosts can set `tabKey` to the bare forward key name; reverse rotation 
 <KeyboardProvider releaseFocusWhenEmpty>
 ```
 
-Off by default. When enabled, bindings hold a reference to their focus target and the last release removes it. Registering the same `focusId` again recreates it. Focus moves to the group's first remaining target, or the group slot is cleared when none remains.
+Off by default. When enabled, bindings hold a reference to their focus target and the last release removes it. Registering the same `focusId` again recreates it. Focus moves to the group's first remaining target, or the group slot is cleared when none remains. If the group was kicked, only a newly created target reclaims its focus; re-registering an existing target does not.
 
 ## Subscribing to focus changes
 
@@ -101,7 +115,7 @@ useEffect(() => subscribeFocus(() => {
 
 ## Boundaries
 
-- `focusSet` on an unknown target throws and lists the available targets in that group.
+- `focusSet` on an unknown target returns `false` and leaves the current focus unchanged.
 - `useFocusState` reads during render, so a component reused with a different `focusId` reflects the new target immediately.
 - Component unmount and screen leave differ: unmount only unbinds; the target stays on the screen. Call `focusUnregister` in the cleanup function to remove it.
 - Named groups and multi-group routing are covered in [Default and named groups](/keyboard/focus-group).

@@ -2,6 +2,17 @@
 
 Grouped by symptom. Most failures are silent; check attribution, provider order, and layer state first.
 
+## Diagnostic order
+
+1. Provider nesting.
+2. The owner is active: screen in the stack, layer open, element `active`.
+3. Focus: `focusCurrent()` and the group's active target.
+4. Modal barrier or `allowModal`.
+5. `mode`, `when`, and named conditions.
+6. Exact-key vs wildcard ordering.
+
+Most "keys do nothing" reports resolve at step 1 or 2.
+
 ## A key does nothing
 
 | Possible cause | Check |
@@ -21,8 +32,8 @@ Bindings from a screen you left still fire: the binding was registered in `useEf
 ## Focus
 
 - **Target disappears after unbinding**: with `releaseFocusWhenEmpty`, the last unbind removes it; re-register the same `focusId` to recreate it.
-- **`focusSet` throws**: the target is created lazily; register a binding with that `focusId` first.
-- **Named group does not respond**: groups start inactive; call `activateFocusGroup`. `autoTab` rotates the default group only.
+- **`focusSet` returns `false`**: the target is created lazily; register a binding with that `focusId` first.
+- **Named group does not respond**: the group's first target is auto-activated; call `activateFocusGroup` only when the group was emptied by `kickFocusGroup`. `autoTab` rotates the default group only.
 
 ## Layers
 
@@ -54,14 +65,13 @@ Bindings from a screen you left still fire: the binding was registered in `useEf
 | `[keyboard-engine] <fn>() must be called inside a screen component or overlay.` | An owner-scoped method with no owner |
 | `… declared in globalKeys with cover: false, so overriding is not allowed.` | Overriding a `cover: false` global key |
 | `Cannot undo N sequence(s): only M buffered.` | Undo exceeds the buffer |
-| `[keyboard-engine] focusSet("<id>"): focus target not found …` | The target has not been created |
 | `[ink-cartridge] Mouse tracking requires a TTY input stream …` | Mouse enabled without a TTY |
 
 ## Testing
 
 - Escape (`\x1b`) is unreliable with `ink-testing-library`.
 - Effects settle after `flush()` (about 50ms).
-- Use `clearRegistry()` and `clearDispatchers()` for isolation.
+- Use `clearRegistry()` in `beforeEach` for isolation.
 
 ## TypeScript
 

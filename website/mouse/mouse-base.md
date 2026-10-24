@@ -8,6 +8,15 @@ useMouseRegion(callbacks: MouseRegionCallbacks, options?: MouseRegionOptions): R
 
 Attach the returned ref to a `<Box>`; the engine measures the geometry.
 
+## Which mouse API?
+
+| Need | API |
+|---|---|
+| Click, hover, or drag on a rendered Box | `useMouseRegion` |
+| Raw terminal mouse events or a custom event loop | `Mouse` class, see [Raw mouse API](/mouse/mouse-raw) |
+
+Most apps only need `useMouseRegion`; the raw API is for non-React hosts or custom hit-testing.
+
 ## Prerequisites
 
 | Chapter | Why you need it |
@@ -24,6 +33,8 @@ Attach the returned ref to a `<Box>`; the engine measures the geometry.
 ```
 
 With it enabled, the terminal enters mouse tracking and SGR reports are filtered out of the keyboard stream. A TTY is required; otherwise the app logs `[ink-cartridge] Mouse tracking requires a TTY input stream — mouse events disabled.` and skips mouse support.
+
+`useMouseRegion` calls `useKeyboard` internally, so a `KeyboardProvider` ancestor is required; rendering a region without one throws.
 
 ## Callbacks
 

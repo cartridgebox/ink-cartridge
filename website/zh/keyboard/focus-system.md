@@ -62,7 +62,21 @@ const focused = useFocusState('select-b')
 }
 ```
 
+`fromGroup` 是命名组名；默认组则是 `defaultTargetsSymbol`，该 symbol 从 `ink-cartridge` 导出。
+
 `focusNext` / `focusPrev` 在没有激活目标时什么也不做；`focusSet` 可以直接激活任意已注册目标。`focusUnregister` 注销当前目标后，焦点移交给组内注册顺序中的第一个剩余目标。
+
+`focusSet`、`focusNext`、`focusPrev` 在激活焦点确实变化时返回 `true`；`focusUnregister` 在确实移除目标时返回 `true`（移除的不一定是激活目标）。任何 no-op 路径都返回 `false`，它们都不会抛错。
+
+## 用哪个方法？
+
+| 目标 | 方法 |
+|---|---|
+| 切到已知目标 | `focusSet` |
+| 前进/后退一格（循环） | `focusNext` / `focusPrev` |
+| 读取当前激活目标 | `focusCurrent` |
+| 焦点变化时重新渲染 | `useFocusState` / `subscribeFocus` |
+| 移除目标 | `focusUnregister` |
 
 ## autoTab
 
@@ -85,7 +99,7 @@ boundKeyboard('shift+tab', () => focusPrev())
 <KeyboardProvider releaseFocusWhenEmpty>
 ```
 
-默认关闭。开启后绑定对焦点目标持有引用，最后一个绑定解绑时移除目标；再次注册同一 `focusId` 会重新创建。焦点交给组内第一个剩余目标，组内为空时清空该组槽位。
+默认关闭。开启后绑定对焦点目标持有引用，最后一个绑定解绑时移除目标；再次注册同一 `focusId` 会重新创建。焦点交给组内第一个剩余目标，组内为空时清空该组槽位。如果该组被 kick 过，只有新建目标才能夺回焦点；重新注册已有目标不会。
 
 ## 订阅焦点变化
 
@@ -101,7 +115,7 @@ useEffect(() => subscribeFocus(() => {
 
 ## 边界
 
-- `focusSet` 指向未注册的目标会抛错，并列出该组可用目标。
+- `focusSet` 指向未注册的目标会返回 `false`，当前焦点保持不变。
 - `useFocusState` 的值在渲染时读取，组件换成另一个 `focusId` 会立即反映，不必等下一次焦点移动。
 - 组件卸载与屏幕离开不同：卸载只解绑，焦点仍留在屏幕上；需要移除时在清理函数里调用 `focusUnregister`。
 - 命名组与多组路由见[默认组与命名组](/zh/keyboard/focus-group)。

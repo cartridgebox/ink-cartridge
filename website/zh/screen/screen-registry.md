@@ -53,12 +53,13 @@ Home
 ```
 
 - `defaultScreen` 必须是已注册组件，否则抛错。
+- `defaultParams` 提供初始屏幕的 props，优先于注册时的 template。
 - `fullScreen` 让屏幕占满终端高度。
 - `KeyboardProvider` 必须嵌在 `ScenarioManagementProvider` 内部；顺序反了键盘会静默失效。
 
 ## 边界
 
-- 一个组件只能注册一次；重复注册抛错：`[Ink-Cartridge] Component "xxx" is already registered. Duplicate registration is not allowed.`
+- 一个组件只能注册一次；重复注册抛错：`[ink-cartridge] Component "xxx" is already registered. Duplicate registration is not allowed.`
 - `parent` 必须先注册，否则抛错：`Register the parent first with registerComponent(...)`。
 - 不声明 `parent` 的组件都是根屏幕；可以有多个互相独立的树。
 - `template` 是默认值，不是当前状态；导航时传入的 `params` 覆盖同名字段，模板本身不变。

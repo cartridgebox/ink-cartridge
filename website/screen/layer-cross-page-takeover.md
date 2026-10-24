@@ -79,6 +79,6 @@ The layer is dormant on `Preview` and `Settings`, and active elsewhere.
 | `hostPage` is `null` | The path was empty when the layer opened; `true` never makes it dormant |
 | The layer is closed and reopened | `hostPage` and the scope are recomputed at the new open time |
 | An element is paused with `deactivateElement` | Unrelated; pausing is per element, takeover is per layer |
-| Every element of a dormant modal is inactive | The barrier remains; unhandled keys are still swallowed |
+| Every element of a dormant modal is inactive | The barrier remains; unhandled keys are still swallowed, and `allowModal` rules on those inactive elements do not run |
 
 Takeover changes key dispatch only. Rendering, mouse hit-testing, and `zIndex` are unchanged.

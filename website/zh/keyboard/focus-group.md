@@ -20,6 +20,23 @@ boundKeyboard(['tab'], nextField, { focusId: { group: 'form', focusId: 'field-1'
 
 `focusId` 为字符串时进默认组；`{ group, focusId }` 进指定命名组。
 
+## 什么时候需要命名组？
+
+| 场景 | 用法 |
+|---|---|
+| 单个列表或表单，同一时刻只有一个控件激活 | 默认组 |
+| 导航栏与表单需要同时激活 | 每个区域一个命名组 |
+| Tab 只在某个区域内循环 | 把 Tab 绑到 `focusNext('区域名')` |
+| Tab 在所有控件间循环 | 默认组 + `autoTab` |
+
+命名组只分离"一个激活目标"这个槽位；归属仍由调用点决定。
+
+## 注意事项
+
+- `autoTab` 只轮转默认组。
+- 每个组都会自动激活自己的第一个目标；之后的目标需要 `focusSet` / `focusNext`。
+- 被 `kickFocusGroup` 清空的组会一直休眠，直到 `activateFocusGroup` 或有新目标注册。
+
 ## 组内操作
 
 ```tsx
