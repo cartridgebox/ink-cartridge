@@ -1,7 +1,7 @@
 ---
 "@cartridge-engine/keyboard-engine": minor
 ---
-Rename the composition swallow option and stop a settled key from restarting its own chain.
+Rename the composition swallow option, fix settled-chain restarts, and keep screen-scoped entries distinct.
 
 ### Added
 None
@@ -14,10 +14,11 @@ None
 ### Fixed
 - A key that settles a pending composition chain — `execute` returned `null`, `isEndKey` matched, or a value guard rejected it — is now only released to lower pipeline stages and is no longer re-read as a chain head. When the same physical key was also registered as a head (`optional: true` or `needs: []`), that re-read ran a second callback, emitted `completed` followed immediately by `started`, and left a phantom chain pending until its timeout. With an `exclusive` head the phantom chain also swallowed every later key until that timeout, and the timeout added a second entry to the undo buffer.
 - A key that completed a mapping sequence whose target chain was interrupted is likewise released instead of being re-read as a composition head.
+- Composition entries that differ only by `category` are no longer treated as duplicates. `JSON.stringify` serialized function components as `[null]` and object components as `[{}]`, so the second screen's registration was silently dropped and its key did nothing. Components now receive a stable engine-local id for the fingerprint.
 
 ### Breaking Changes
 - `KeyReleaseWhenChainInterrupted` is no longer read. Rename every occurrence to `SwallowKeyWhenChainInterrupted`; the value semantics are unchanged (`true` = swallow the breaking key).
 
 ### Tests
 - `src/keyboard-engine/tests/composition/base/composition-edge.test.ts` and `composition-regression.test.ts` use the new option name.
-- `composition-regression.test.ts` covers a same-key head/terminator (`execute` and `isEndKey`), the undo buffer recording the chain once, an `exclusive` head no longer swallowing later keys, unrelated keys still starting their own chain, and an interrupted mapping target not starting a composition head.
+- `composition-regression.test.ts` covers a same-key head/terminator (`execute` and `isEndKey`), the undo buffer recording the chain once, an `exclusive` head no longer swallowing later keys, unrelated keys still starting their own chain, an interrupted mapping target not starting a composition head, and function- and object-component `category` entries surviving registration side by side.

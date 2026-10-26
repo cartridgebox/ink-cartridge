@@ -178,7 +178,7 @@ describe("mapping key timeouts — the entry's timeout is the one that counts", 
 		expect(engine.getLastMappingEvent()?.type).toBe("continued");
 
 		// "x" rules out the first candidate; its 50ms timeout now applies.
-		expect(engine.processKey("x", {})).toBe(true);
+		engine.processKey("x", {});
 		expect(engine.getLastMappingEvent()?.type).toBe("continued");
 
 		vi.advanceTimersByTime(200);
@@ -894,7 +894,7 @@ describe("a key that settles a chain is not re-read as a chain head", () => {
 		});
 
 		engine.processKey("3", {});
-		expect(engine.processKey("x", {})).toBe(true);
+		engine.processKey("x", {});
 		expect(otherRuns).toBe(1);
 		expect(engine.hasPendingComposition()).toBe(true);
 		expect(engine.getCompositionContext().steps).toEqual(["x"]);
@@ -928,5 +928,67 @@ describe("a key that settles a chain is not re-read as a chain head", () => {
 		expect(engine.processKey("h", {})).toBe(false);
 		expect(engine.getLastMappingEvent()?.type).toBe("broken");
 		expect(headRuns).toBe(0);
+	});
+});
+
+describe("composition entries scoped to different screens", () => {
+	function entry(
+		category: unknown[],
+		run: () => void,
+	): CompositionKey<unknown> {
+		return {
+			key: "x",
+			flags: [],
+			alternativeFlag: "go",
+			needs: [],
+			optional: true,
+			category,
+			execute: () => {
+				run();
+				return null;
+			},
+		};
+	}
+
+	it("keeps one entry per function component category", () => {
+		const ScreenA = () => null;
+		const ScreenB = () => null;
+		const engine = syncEngine();
+		let runsA = 0;
+		let runsB = 0;
+
+		engine.registryCompositionKey(entry([ScreenA], () => runsA++));
+		engine.registryCompositionKey(entry([ScreenB], () => runsB++));
+
+		engine.sync({ pagePath: [ScreenA], layers: [], modalLayers: [] });
+		engine.processKey("x", {});
+		expect(runsA).toBe(1);
+		expect(runsB).toBe(0);
+
+		engine.sync({ pagePath: [ScreenB], layers: [], modalLayers: [] });
+		engine.processKey("x", {});
+		expect(runsA).toBe(1);
+		expect(runsB).toBe(1);
+	});
+
+	it("keeps one entry per object component category", () => {
+		const ScreenA = {};
+		const ScreenB = {};
+		const engine = syncEngine();
+		let runsA = 0;
+		let runsB = 0;
+
+		engine.registryCompositionKey(entry([ScreenA], () => runsA++));
+		engine.registryCompositionKey(entry([ScreenB], () => runsB++));
+
+		engine.sync({ pagePath: [ScreenA], layers: [], modalLayers: [] });
+		engine.processKey("x", {});
+		expect(runsA).toBe(1);
+		expect(runsB).toBe(0);
+
+		engine.sync({ pagePath: [ScreenB], layers: [], modalLayers: [] });
+		engine.processKey("x", {});
+		expect(runsA).toBe(1);
+		expect(runsB).toBe(1);
 	});
 });

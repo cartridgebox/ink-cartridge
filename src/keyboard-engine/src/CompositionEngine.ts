@@ -566,32 +566,6 @@ export interface PrimitiveTypeKeys<TComponent> {
 	executeWhenNoOverlay?: boolean;
 }
 
-function compositionFingerprint<TComponent>(
-	entry: CompositionKey<TComponent>,
-): string {
-	return JSON.stringify({
-		key: entry.key,
-		flags: entry.flags,
-		needs: entry.needs,
-		alternativeFlag: entry.alternativeFlag,
-		optional: entry.optional,
-		category: entry.category,
-		affectOverlay: entry.affectOverlay,
-		exclusive: entry.exclusive,
-		executeWhenNoOverlay: entry.executeWhenNoOverlay,
-		SwallowKeyWhenChainInterrupted: entry.SwallowKeyWhenChainInterrupted,
-		isEndKey: entry.isEndKey,
-		mode: entry.mode,
-		timeout: entry.timeout,
-		// A string `when` is a stable condition id and part of the entry's
-		// identity — otherwise two entries that differ only by their gate
-		// would collide. A function `when` is a fresh reference every React
-		// render and must stay out of the fingerprint (undefined keys are
-		// dropped by JSON.stringify).
-		when: typeof entry.when === "string" ? entry.when : undefined,
-	});
-}
-
 /**
  * State machine for multi-key composition chains (vim-style key sequences).
  *
@@ -649,6 +623,9 @@ export default class CompositionEngine<TComponent = unknown> {
 		steps: [],
 	};
 
+	private componentIds = new WeakMap<object, number>();
+	private componentSerialNumber = 0;
+
 	constructor(
 		private state: EngineState<TComponent>,
 		defaultTimeout?: number,
@@ -673,6 +650,62 @@ export default class CompositionEngine<TComponent = unknown> {
 	 */
 	setValueSchema(schema: ValueSchema): void {
 		this.valueSchema = schema;
+	}
+
+	/**
+	 * Stable identity for a component reference inside a fingerprint.
+	 *
+	 * `JSON.stringify` cannot represent functions or plain objects: an array of
+	 * function components serializes as `[null]` and an array of object
+	 * components as `[{}]`, so entries scoped to different screens would share
+	 * one fingerprint and the second registration would be dropped as a
+	 * duplicate. The WeakMap keeps the id stable across React renders without
+	 * retaining the component.
+	 */
+	private generateComponentIdentifiers(component: unknown): string {
+		if (
+			typeof component === "function" ||
+			(typeof component === "object" && component !== null)
+		) {
+			const id = this.componentIds.get(component);
+			if (id === undefined) {
+				this.componentSerialNumber = this.componentSerialNumber + 1;
+				this.componentIds.set(component, this.componentSerialNumber);
+				return `#${this.componentSerialNumber}`;
+			}
+
+			return `#${id}`;
+		}
+
+		return String(component);
+	}
+
+	private compositionFingerprint(entry: CompositionKey<TComponent>): string {
+		return JSON.stringify({
+			key: entry.key,
+			flags: entry.flags,
+			needs: entry.needs,
+			alternativeFlag: entry.alternativeFlag,
+			optional: entry.optional,
+			category: Array.isArray(entry.category)
+				? entry.category.map((component) =>
+						this.generateComponentIdentifiers(component),
+					)
+				: entry.category,
+			affectOverlay: entry.affectOverlay,
+			exclusive: entry.exclusive,
+			executeWhenNoOverlay: entry.executeWhenNoOverlay,
+			SwallowKeyWhenChainInterrupted: entry.SwallowKeyWhenChainInterrupted,
+			isEndKey: entry.isEndKey,
+			mode: entry.mode,
+			timeout: entry.timeout,
+			// A string `when` is a stable condition id and part of the entry's
+			// identity — otherwise two entries that differ only by their gate
+			// would collide. A function `when` is a fresh reference every React
+			// render and must stay out of the fingerprint (undefined keys are
+			// dropped by JSON.stringify).
+			when: typeof entry.when === "string" ? entry.when : undefined,
+		});
 	}
 
 	private checkMapping(
@@ -779,10 +812,7 @@ export default class CompositionEngine<TComponent = unknown> {
 
 			mapKey.add(entry);
 		} else {
-			this.mapping.set(
-				firstKey,
-				new Set([entry]),
-			);
+			this.mapping.set(firstKey, new Set([entry]));
 		}
 
 		return true;
@@ -940,9 +970,9 @@ export default class CompositionEngine<TComponent = unknown> {
 		// Fingerprint excludes callbacks (execute / undoAction / when)
 		// because those are new references on every React render and
 		// don't define the entry's identity in the chain.
-		const fp = compositionFingerprint(entry);
+		const fp = this.compositionFingerprint(entry);
 		for (const existing of set) {
-			if (compositionFingerprint(existing) === fp) return;
+			if (this.compositionFingerprint(existing) === fp) return;
 		}
 
 		set.add(entry);
@@ -1386,7 +1416,10 @@ export default class CompositionEngine<TComponent = unknown> {
 	 * `runTargetChain`'s local context while it runs, so reading
 	 * `this.context` here would check the engine's idle value instead.
 	 */
-	private validateInput(currentCtx: CompositionContext, entryKey: string): boolean {
+	private validateInput(
+		currentCtx: CompositionContext,
+		entryKey: string,
+	): boolean {
 		if (!this.valueSchema || !currentCtx.lastFlag) return true;
 		const guard = this.valueSchema[currentCtx.lastFlag];
 		if (!guard) return true;
@@ -1536,7 +1569,11 @@ export default class CompositionEngine<TComponent = unknown> {
 			if (!checkWhen(entry.when, ctx.conditions)) return false;
 			if (!ctx.topComponent) return false;
 
-			if (affectOverlay && ctx.allLayers.length === 0 && !entry.executeWhenNoOverlay)
+			if (
+				affectOverlay &&
+				ctx.allLayers.length === 0 &&
+				!entry.executeWhenNoOverlay
+			)
 				return false;
 
 			const cat = entry.category;
@@ -1723,10 +1760,7 @@ export default class CompositionEngine<TComponent = unknown> {
 				// `execute` returned `null` — records the keys executed so
 				// far, exactly as typing them would; gate rejections and
 				// resolve failures drop the partial chain.
-				if (
-					outcome.reason === "terminate" ||
-					outcome.reason === "endkey"
-				) {
+				if (outcome.reason === "terminate" || outcome.reason === "endkey") {
 					if (executed.length > 0) {
 						this.buffers.push(executed);
 					}
@@ -1777,7 +1811,11 @@ export default class CompositionEngine<TComponent = unknown> {
 		// and leaves the bare key free for the composition chain and lower
 		// pipeline stages — the same behaviour as globalSequence skipping a
 		// `when`-gated entry.
-		const filtered = this.filterEntries([...allCandidateKeys], ctx, affectOverlay);
+		const filtered = this.filterEntries(
+			[...allCandidateKeys],
+			ctx,
+			affectOverlay,
+		);
 
 		// Single-key mappings (keys.length === 1) are executed immediately on
 		// the head key — they have no subsequent keys to wait for. When both
