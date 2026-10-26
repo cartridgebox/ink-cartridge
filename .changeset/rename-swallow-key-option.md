@@ -21,4 +21,4 @@ None
 
 ### Tests
 - `src/keyboard-engine/tests/composition/base/composition-edge.test.ts` and `composition-regression.test.ts` use the new option name.
-- `composition-regression.test.ts` covers a same-key head/terminator (`execute` and `isEndKey`), the undo buffer recording the chain once, an `exclusive` head no longer swallowing later keys, unrelated keys still starting their own chain, an interrupted mapping target not starting a composition head, and function- and object-component `category` entries surviving registration side by side.
+- `composition-regression.test.ts` covers a same-key head/terminator (`execute` and `isEndKey`), the undo buffer recording the chain once, an `exclusive` head no longer swallowing later keys, unrelated keys still starting their own chain, an interrupted mapping target not starting a composition head, function- and object-component `category` entries surviving registration side by side, and the `category` filter itself (omitted / `"*"`, listed screens, `[]`, and no top screen).

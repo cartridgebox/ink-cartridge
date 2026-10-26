@@ -97,6 +97,8 @@ useEffect(() => {
 updateCompositionKey('d', [{ need: 'times', become: 'action' }], { timeout: 800 })
 ```
 
+重复注册语义相同的条目会被跳过；仅 `category` 不同的条目视为不同注册，各自只在自己的屏幕生效。
+
 ### 完整链：计数、执行、撤销
 
 ```ts
@@ -146,6 +148,7 @@ registryCompositionKey({
 - `exclusive: true` 时，没有匹配的键被吞掉，链继续等待；超时最终到期时按「记录」结束。
 - `isEndKey` 命中时 `execute` 仍会执行（副作用保留），但它返回的上下文被丢弃，该键本身不进入撤销缓冲，只有它之前的键被记录。
 - `execute` 返回 `null` 表示主动终止，终止键本身同样不进入缓冲。默认打断键会继续流向更低阶段；设置 `SwallowKeyWhenChainInterrupted: true` 则吞掉它。
+- 无论是否吞掉，结算链的按键都不会被再次当作链头解析：即使同一物理键也注册了链头条目，它的回调也只执行一次。
 - 值守卫失败（输入或输出）会清空待续链，非 production 环境打印警告。
 
 ## 值校验
@@ -211,6 +214,7 @@ getLastCompositionEvent(): CompositionEvent | null
 ## 边界
 
 - 组合条目与绑定共用 `when` / `mode` / `category` / `affectOverlay`；`affectOverlay: true` 的链在图层广播之前处理。
+- `category` 与当前栈顶屏幕按引用比较：省略或 `"*"` 表示全部屏幕，`[]` 表示任何屏幕都不生效。仅 `category` 不同的条目是彼此独立的注册，不会互相去重。
 - 没有待续链、也没有 `optional` 的键不会成为链头。
 - 屏幕切换不会自动清空撤销缓冲；需要时手动调用 `clearCompositionBuffers()`。
 - `abortComposition()` 同时取消待续的映射序列。

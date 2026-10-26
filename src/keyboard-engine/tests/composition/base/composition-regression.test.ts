@@ -992,3 +992,52 @@ describe("composition entries scoped to different screens", () => {
 		expect(runsB).toBe(1);
 	});
 });
+
+describe("composition category filtering follows the current screen", () => {
+	const ScreenA = {};
+	const ScreenB = {};
+
+	function runsOn(
+		top: unknown | null,
+		category: unknown[] | "*" | undefined,
+	): number {
+		const engine = createEngine();
+		let runs = 0;
+		engine.sync({
+			pagePath: top === null ? [] : [top],
+			layers: [],
+			modalLayers: [],
+		});
+		engine.registryCompositionKey({
+			key: "x",
+			flags: [],
+			alternativeFlag: "go",
+			needs: [],
+			optional: true,
+			...(category === undefined ? {} : { category }),
+			execute: () => {
+				runs++;
+				return null;
+			},
+		});
+		engine.processKey("x", {});
+		return runs;
+	}
+
+	it("treats an omitted category and '*' as every screen", () => {
+		expect(runsOn(ScreenA, undefined)).toBe(1);
+		expect(runsOn(ScreenA, "*")).toBe(1);
+	});
+
+	it("only fires on the listed screens", () => {
+		expect(runsOn(ScreenA, [ScreenA])).toBe(1);
+		expect(runsOn(ScreenB, [ScreenA])).toBe(0);
+		expect(runsOn(ScreenB, [ScreenA, ScreenB])).toBe(1);
+	});
+
+	it("never fires with an empty category or no current screen", () => {
+		expect(runsOn(ScreenA, [])).toBe(0);
+		expect(runsOn(null, "*")).toBe(0);
+		expect(runsOn(null, undefined)).toBe(0);
+	});
+});

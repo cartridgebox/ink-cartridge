@@ -554,7 +554,8 @@ export interface PrimitiveTypeKeys<TComponent> {
 	/**
 	 * Top-component whitelist: `"*"` or omitted = all screens; `[]` =
 	 * no screens (effectively disabled); `[A, B]` = only when the
-	 * stack top is exactly A or B.
+	 * stack top is exactly A or B. Components are compared by reference
+	 * against the current top screen.
 	 */
 	category?: TComponent[] | "*";
 	/**
@@ -919,7 +920,9 @@ export default class CompositionEngine<TComponent = unknown> {
 
 	/**
 	 * Register a composition key entry. Semantically equivalent duplicates
-	 * (same fingerprint) are skipped.
+	 * (same fingerprint) are skipped. Entries that differ only by
+	 * `category` are not duplicates — each screen-scoped registration is
+	 * kept and fires only while one of its screens is on top.
 	 *
 	 * Each entry is a node in a composition chain: when the entry's `key`
 	 * is pressed, the engine either continues the pending chain (if the
