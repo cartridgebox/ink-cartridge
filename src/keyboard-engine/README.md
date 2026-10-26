@@ -160,7 +160,7 @@ interface CompositionKey<TComponent = unknown, TValue = unknown> {
   category?: TComponent[] | "*";
   affectOverlay?: boolean;       // Layer phase (true) or page phase (false)
   executeWhenNoOverlay?: boolean;
-  KeyReleaseWhenChainInterrupted?: boolean;
+  SwallowKeyWhenChainInterrupted?: boolean;
   undoAction?: undo<TValue>;
   isEndKey?: string[];
 }

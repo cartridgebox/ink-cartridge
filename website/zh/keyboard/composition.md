@@ -37,7 +37,7 @@ type CompositionContext<T = unknown> = {
 | `execute` | `(ctx) => ctx \| null` | 改写上下文；返回 `null` 终止链 |
 | `undoAction` | `(ctx) => ctx \| null` | 撤销时的反操作；返回 `null` 停止回退 |
 | `isEndKey` | `string[]` | 当前 `lastFlag` 命中时结束链 |
-| `KeyReleaseWhenChainInterrupted` | `boolean` | `execute` 返回 `null` 或校验失败时，吞掉打断键 |
+| `SwallowKeyWhenChainInterrupted` | `boolean` | `execute` 返回 `null` 或校验失败时，吞掉打断键 |
 | `when` / `mode` / `category` / `affectOverlay` / `executeWhenNoOverlay` | — | 与其它绑定一致 |
 
 `affectOverlay` 是组合与映射条目的阶段字段；`globalKeys` / `globalSequence` 使用的是 `affectLayer`，两者不是同一个选项。
@@ -145,7 +145,7 @@ registryCompositionKey({
 
 - `exclusive: true` 时，没有匹配的键被吞掉，链继续等待；超时最终到期时按「记录」结束。
 - `isEndKey` 命中时 `execute` 仍会执行（副作用保留），但它返回的上下文被丢弃，该键本身不进入撤销缓冲，只有它之前的键被记录。
-- `execute` 返回 `null` 表示主动终止，终止键本身同样不进入缓冲。默认打断键会继续流向更低阶段；设置 `KeyReleaseWhenChainInterrupted: true` 则吞掉它。
+- `execute` 返回 `null` 表示主动终止，终止键本身同样不进入缓冲。默认打断键会继续流向更低阶段；设置 `SwallowKeyWhenChainInterrupted: true` 则吞掉它。
 - 值守卫失败（输入或输出）会清空待续链，非 production 环境打印警告。
 
 ## 值校验

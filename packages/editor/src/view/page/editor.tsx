@@ -350,7 +350,7 @@ export function Editor({
 				mode: "normal",
 				// The count is spent here and the chain ends, so swallow the key —
 				// otherwise the plain binding below would move one extra line.
-				KeyReleaseWhenChainInterrupted: true,
+				SwallowKeyWhenChainInterrupted: true,
 				execute: (ctx) => {
 					controller.execute(command, { count: ctx.value });
 					return null;

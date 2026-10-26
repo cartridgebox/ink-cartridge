@@ -374,7 +374,7 @@ export interface CompositionKey<
 	 * current chain context and returns the modified context passed to the
 	 * next key in the chain, or `null` to terminate the chain — the key is
 	 * then released to lower pipeline stages, or silently swallowed when
-	 * `KeyReleaseWhenChainInterrupted` is set.
+	 * `SwallowKeyWhenChainInterrupted` is set.
 	 */
 	execute?: (
 		ctx: CompositionContext<TValue>,
@@ -385,7 +385,7 @@ export interface CompositionKey<
 	 * swallowed after the chain terminates instead of being released to lower
 	 * pipeline stages.
 	 */
-	KeyReleaseWhenChainInterrupted?: boolean;
+	SwallowKeyWhenChainInterrupted?: boolean;
 
 	/**
 	 * The inverse of `execute`, run when the sequence is undone. Returning
@@ -435,7 +435,7 @@ type KeyOutcome =
 	| {
 			ok: false;
 			reason: "input" | "terminate" | "endkey" | "output";
-			release: boolean;
+			swallow: boolean;
 	  };
 
 /**
@@ -511,9 +511,9 @@ export interface MappingKeyEntry<
 	 * When `true`, if the target composition chain is interrupted (any
 	 * target key fails to resolve / execute), the final key that broke
 	 * the sequence is swallowed silently instead of being released to
-	 * lower pipeline stages. Mirrors {@link CompositionKey.KeyReleaseWhenChainInterrupted}.
+	 * lower pipeline stages. Mirrors {@link CompositionKey.SwallowKeyWhenChainInterrupted}.
 	 */
-	KeyReleaseWhenChainInterrupted?: boolean;
+	SwallowKeyWhenChainInterrupted?: boolean;
 }
 
 /**
@@ -566,7 +566,7 @@ function compositionFingerprint<TComponent>(
 		affectOverlay: entry.affectOverlay,
 		exclusive: entry.exclusive,
 		executeWhenNoOverlay: entry.executeWhenNoOverlay,
-		KeyReleaseWhenChainInterrupted: entry.KeyReleaseWhenChainInterrupted,
+		SwallowKeyWhenChainInterrupted: entry.SwallowKeyWhenChainInterrupted,
 		isEndKey: entry.isEndKey,
 		mode: entry.mode,
 		timeout: entry.timeout,
@@ -705,7 +705,7 @@ export default class CompositionEngine<TComponent = unknown> {
 	 * @param base   The external trigger key sequence (what the user presses).
 	 * @param target The internal composition key chain to execute in order.
 	 * @param options Optional fields forwarded to the stored {@link MappingKeyEntry}:
-	 *   `exclusive`, `KeyReleaseWhenChainInterrupted`, `when`, `affectOverlay`,
+	 *   `exclusive`, `SwallowKeyWhenChainInterrupted`, `when`, `affectOverlay`,
 	 *   `mode`, `category`, `executeWhenNoOverlay`.
 	 * @returns `true` if registered, `false` if `base` is empty, any `target`
 	 *          key is not registered in `keyMappingTable`, or an identical
@@ -1579,10 +1579,10 @@ export default class CompositionEngine<TComponent = unknown> {
 	 * a sibling match instead of aborting the key.)
 	 *
 	 * @returns `{ ok: true, ctx }` with the transformed context, or
-	 *          `{ ok: false, reason, release }`. `reason` tells the caller
+	 *          `{ ok: false, reason, swallow }`. `reason` tells the caller
 	 *          whether to record history (`"terminate"` / `"endkey"` do;
-	 *          the rest do not); `release` mirrors
-	 *          {@link CompositionKey.KeyReleaseWhenChainInterrupted} —
+	 *          the rest do not); `swallow` mirrors
+	 *          {@link CompositionKey.SwallowKeyWhenChainInterrupted} —
 	 *          `true` swallows the breaking key, `false` releases it.
 	 */
 	private executeResolvedKey(
@@ -1593,7 +1593,7 @@ export default class CompositionEngine<TComponent = unknown> {
 			return {
 				ok: false,
 				reason: "input",
-				release: result.KeyReleaseWhenChainInterrupted ?? false,
+				swallow: result.SwallowKeyWhenChainInterrupted ?? false,
 			};
 		}
 
@@ -1602,7 +1602,7 @@ export default class CompositionEngine<TComponent = unknown> {
 			return {
 				ok: false,
 				reason: "terminate",
-				release: result.KeyReleaseWhenChainInterrupted ?? false,
+				swallow: result.SwallowKeyWhenChainInterrupted ?? false,
 			};
 		}
 
@@ -1614,7 +1614,7 @@ export default class CompositionEngine<TComponent = unknown> {
 			return {
 				ok: false,
 				reason: "endkey",
-				release: result.KeyReleaseWhenChainInterrupted ?? false,
+				swallow: result.SwallowKeyWhenChainInterrupted ?? false,
 			};
 		}
 
@@ -1634,7 +1634,7 @@ export default class CompositionEngine<TComponent = unknown> {
 			return {
 				ok: false,
 				reason: "output",
-				release: result.KeyReleaseWhenChainInterrupted ?? false,
+				swallow: result.SwallowKeyWhenChainInterrupted ?? false,
 			};
 		}
 
@@ -1654,7 +1654,7 @@ export default class CompositionEngine<TComponent = unknown> {
 	 *
 	 * On any failure (no entries after filter, resolve returns null, a gate
 	 * rejects the key) the chain is interrupted. The returned `swallow` flag
-	 * mirrors {@link MappingKeyEntry.KeyReleaseWhenChainInterrupted}: when
+	 * mirrors {@link MappingKeyEntry.SwallowKeyWhenChainInterrupted}: when
 	 * true, the breaking key is silently consumed rather than released to
 	 * lower pipeline stages.
 	 *
@@ -1686,7 +1686,7 @@ export default class CompositionEngine<TComponent = unknown> {
 
 		const interrupted: { ok: false; swallow: boolean } = {
 			ok: false,
-			swallow: entry.KeyReleaseWhenChainInterrupted ?? false,
+			swallow: entry.SwallowKeyWhenChainInterrupted ?? false,
 		};
 
 		for (let i = 0; i < target.length; i++) {
@@ -2140,7 +2140,7 @@ export default class CompositionEngine<TComponent = unknown> {
 						? { type: "completed" }
 						: { type: "broken", key: this.currentKey[0] ?? result.key },
 				);
-				return outcome.release;
+				return outcome.swallow;
 			}
 
 			const nextCtx = outcome.ctx;

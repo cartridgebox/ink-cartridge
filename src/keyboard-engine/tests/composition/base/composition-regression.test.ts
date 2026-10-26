@@ -528,7 +528,7 @@ describe("a released single-key mapping does not fall through to composition", (
 	it("runs only the mapping, never a composition key sharing the head", () => {
 		const engine = syncEngine();
 		// A target that terminates immediately, so the mapping is released
-		// (KeyReleaseWhenChainInterrupted defaults to false).
+		// (SwallowKeyWhenChainInterrupted defaults to false).
 		engine.registryCompositionKey({
 			key: "bad",
 			flags: [],
