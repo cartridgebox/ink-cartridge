@@ -360,8 +360,9 @@ export function Editor({
 
 		unbinds.push(() => removeCompositionKey("g"));
 		unbinds.push(() => countKeys.forEach((key) => removeCompositionKey(key)));
-		// Ink marks "G" as shift+g, so the normalized key name is "shift+G".
-		bind(["shift+G"], () => controller.execute("cursor.documentEnd"), { mode: "normal" });
+		// Ink reports "G" as shift:true; modifier variants use the lower-case
+		// character in their normalized key name.
+		bind(["shift+g"], () => controller.execute("cursor.documentEnd"), { mode: "normal" });
 		bind(["i"], () => switchMode("insert"), { mode: "normal" });
 		bind([":"], () => openCommandBar(), { mode: "normal" });
 		// Ctrl+S saves in normal mode (Vim-style; insert stays untouched).
