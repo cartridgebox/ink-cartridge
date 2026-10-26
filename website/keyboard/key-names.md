@@ -16,11 +16,12 @@ Normalizes Ink's native key info into an ordered array of key names.
 - `key` {unknown} Ink's modifier descriptor object.
 - Returns: {string[]} The normalized key names, in match-priority order.
 
-Rules: a special-key table is checked first (`return`, `escape`, `backspace`, `delete`, `up`, `down`, `left`, `right`, `tab`, `pagedown`, `pageup`, `home`, `end`) and returned on a hit. When the descriptor carries any modifier (`ctrl` / `shift` / `meta`), the bare name is dropped and the modifier variants are emitted instead, plus `ctrl+shift+<name>`; otherwise the raw `input` is used with the same modifier variants. An empty `input` with no match yields an empty array.
+Rules: a special-key table is checked first (`return`, `escape`, `backspace`, `delete`, `up`, `down`, `left`, `right`, `tab`, `pagedown`, `pageup`, `home`, `end`) and returned on a hit. For printable characters the character part is lower-cased before a modifier prefix is added: Ink reports a shifted key as the form it produces, so Shift+S arrives as `"S"` and normalizes to `shift+s`. When the descriptor carries any modifier (`ctrl` / `shift` / `meta`), the bare name is dropped and the modifier variants are emitted instead, plus `ctrl+shift+<name>`; otherwise the raw `input` is used as-is. An empty `input` with no match yields an empty array.
 
 ```ts
 normalizeKeyNames("s", {})                            // ["s"]
 normalizeKeyNames("s", { ctrl: true })                // ["ctrl+s"]
+normalizeKeyNames("S", { shift: true })               // ["shift+s"] — how Ink reports Shift+S
 normalizeKeyNames("", { return: true })               // ["return"]
 normalizeKeyNames("", { return: true, shift: true })  // ["shift+return"]
 normalizeKeyNames("", { tab: true, shift: true })     // ["shift+tab"]
