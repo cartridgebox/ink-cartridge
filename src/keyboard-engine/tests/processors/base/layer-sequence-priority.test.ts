@@ -88,4 +88,47 @@ describe("layer sequence priority across sibling elements", () => {
 		engine.processKey("c", {});
 		expect(calls).toEqual(["sequence-qc"]);
 	});
+
+	it("does not run the same element's plain binding after its sequence starts", () => {
+		const engine = createEngine();
+		engine.sync({
+			pagePath: [Page],
+			layers: [makeSyncLayer("L", ["e"])],
+			modalLayers: [],
+		});
+		const calls: string[] = [];
+		engine.pushOwner("L");
+		engine.boundKeyboard(["q"], () => calls.push("plain-q"), {
+			elementId: "e",
+		});
+		engine.boundSequence(["q", "c"], () => calls.push("sequence-qc"), {
+			elementId: "e",
+		});
+		engine.popOwner("L");
+
+		engine.processKey("q", {});
+		expect(calls).toEqual([]);
+	});
+
+	it("does not run a plain binding after the same element's wildcard handler", () => {
+		const engine = createEngine();
+		engine.sync({
+			pagePath: [Page],
+			layers: [makeSyncLayer("L", ["e"])],
+			modalLayers: [],
+		});
+		engine.enableWildcardPriority();
+		const calls: string[] = [];
+		engine.pushOwner("L");
+		engine.boundKeyboard(["x"], () => calls.push("plain-x"), {
+			elementId: "e",
+		});
+		engine.boundKeyboard(["*"], () => calls.push("wildcard"), {
+			elementId: "e",
+		});
+		engine.popOwner("L");
+
+		engine.processKey("x", {});
+		expect(calls).toEqual(["wildcard"]);
+	});
 });

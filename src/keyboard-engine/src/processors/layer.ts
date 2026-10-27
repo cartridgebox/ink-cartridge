@@ -84,6 +84,7 @@ export function createLayerProcessor<TComponent>(): ProcessorInput<TComponent> {
         }
 
         let handled = false;
+        const priorityHandled = new Set<string>();
         // Priority handlers (auto-tab, wildcard, sequences) see the key before
         // any element's ordinary bindings, so a sequence owned by one element
         // cannot be preempted by a sibling's plain binding.
@@ -97,9 +98,15 @@ export function createLayerProcessor<TComponent>(): ProcessorInput<TComponent> {
             available,
           );
           if (result === "sequence") return true;
-          if (result) handled = true;
+          if (result) {
+            handled = true;
+            priorityHandled.add(id);
+          }
         }
-        for (const { keyboard } of activeElements) {
+        for (const { id, keyboard } of activeElements) {
+          // An element that already handled the key in the priority phase must
+          // not run its own bindings again for the same event.
+          if (priorityHandled.has(id)) continue;
           if (handlerElementBindings(ctx, keyboard, available)) handled = true;
         }
         if (handled) return true;

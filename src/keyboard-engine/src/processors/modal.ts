@@ -215,6 +215,7 @@ export function createModalProcessor<TComponent>(): ProcessorInput<TComponent> {
 
       let handled = false;
       let sequenceConsumed = false;
+      const priorityHandled = new Set<string>();
       // Priority handlers across every element first; ordinary bindings only
       // when no sequence consumed the key (see the layer processor).
       for (const { id, keyboard } of elements) {
@@ -231,10 +232,14 @@ export function createModalProcessor<TComponent>(): ProcessorInput<TComponent> {
           sequenceConsumed = true;
           break;
         }
-        if (result) handled = true;
+        if (result) {
+          handled = true;
+          priorityHandled.add(id);
+        }
       }
       if (!sequenceConsumed) {
-        for (const { keyboard } of elements) {
+        for (const { id, keyboard } of elements) {
+          if (priorityHandled.has(id)) continue;
           if (handlerElementBindings(ctx, keyboard, available)) handled = true;
         }
       }
