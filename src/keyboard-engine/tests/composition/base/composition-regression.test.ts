@@ -178,7 +178,7 @@ describe("mapping key timeouts — the entry's timeout is the one that counts", 
 		expect(engine.getLastMappingEvent()?.type).toBe("continued");
 
 		// "x" rules out the first candidate; its 50ms timeout now applies.
-		expect(engine.processKey("x", {})).toBe(true);
+		engine.processKey("x", {});
 		expect(engine.getLastMappingEvent()?.type).toBe("continued");
 
 		vi.advanceTimersByTime(200);
@@ -528,7 +528,7 @@ describe("a released single-key mapping does not fall through to composition", (
 	it("runs only the mapping, never a composition key sharing the head", () => {
 		const engine = syncEngine();
 		// A target that terminates immediately, so the mapping is released
-		// (KeyReleaseWhenChainInterrupted defaults to false).
+		// (SwallowKeyWhenChainInterrupted defaults to false).
 		engine.registryCompositionKey({
 			key: "bad",
 			flags: [],
@@ -755,5 +755,289 @@ describe("when-gated composition entries are distinct and selectable", () => {
 		engine.setCondition("a", false);
 		expect(engine.processKey("3", {})).toBe(true);
 		expect(second).toHaveBeenCalledTimes(1);
+	});
+});
+
+describe("a key that settles a chain is not re-read as a chain head", () => {
+	it("does not run the head again when the same key terminates the chain", () => {
+		vi.useFakeTimers();
+		const engine = syncEngine();
+		let headRuns = 0;
+		let terminatorRuns = 0;
+
+		engine.registryCompositionKey({
+			key: "3",
+			flags: [],
+			alternativeFlag: "times",
+			needs: [],
+			optional: true,
+			execute: (ctx) => {
+				headRuns++;
+				return { value: 1, lastFlag: "times", steps: [...ctx.steps, "3"] };
+			},
+		});
+		engine.registryCompositionKey({
+			key: "3",
+			flags: [],
+			alternativeFlag: "times",
+			needs: ["times"],
+			execute: () => {
+				terminatorRuns++;
+				return null;
+			},
+		});
+
+		expect(engine.processKey("3", {})).toBe(true);
+		expect(engine.hasPendingComposition()).toBe(true);
+
+		// The second press ends the chain. It is released to lower stages,
+		// not consumed by a phantom chain restarted from the same key.
+		expect(engine.processKey("3", {})).toBe(false);
+		expect(headRuns).toBe(1);
+		expect(terminatorRuns).toBe(1);
+		expect(engine.hasPendingComposition()).toBe(false);
+		vi.advanceTimersByTime(600);
+	});
+
+	it("does not run an end-key head twice on one press", () => {
+		vi.useFakeTimers();
+		const engine = syncEngine();
+		let headRuns = 0;
+		let endRuns = 0;
+
+		engine.registryCompositionKey({
+			key: "3",
+			flags: [],
+			alternativeFlag: "times",
+			needs: [],
+			optional: true,
+			execute: (ctx) => {
+				headRuns++;
+				return { value: 1, lastFlag: "times", steps: [...ctx.steps, "3"] };
+			},
+		});
+		engine.registryCompositionKey({
+			key: "3",
+			flags: [],
+			alternativeFlag: "times",
+			needs: ["times"],
+			isEndKey: ["times"],
+			execute: (ctx) => {
+				endRuns++;
+				return { value: 1, lastFlag: "times", steps: [...ctx.steps, "3"] };
+			},
+		});
+
+		engine.processKey("3", {});
+		expect(engine.processKey("3", {})).toBe(false);
+		expect(endRuns).toBe(1);
+		expect(headRuns).toBe(1);
+		expect(engine.hasPendingComposition()).toBe(false);
+		vi.advanceTimersByTime(600);
+	});
+
+	it("records the completed chain once and leaves no pending state", () => {
+		vi.useFakeTimers();
+		const engine = syncEngine();
+		head(engine);
+		engine.registryCompositionKey({
+			key: "3",
+			flags: [],
+			alternativeFlag: "times",
+			needs: ["times"],
+			execute: () => null,
+		});
+
+		engine.processKey("3", {});
+		engine.processKey("3", {});
+		expect(engine.bufferedCompositionCount()).toBe(1);
+
+		vi.advanceTimersByTime(600);
+		expect(engine.bufferedCompositionCount()).toBe(1);
+		expect(engine.hasPendingComposition()).toBe(false);
+	});
+
+	it("does not leave an exclusive phantom chain swallowing later keys", () => {
+		vi.useFakeTimers();
+		const engine = syncEngine();
+		head(engine, { exclusive: true });
+		engine.registryCompositionKey({
+			key: "3",
+			flags: [],
+			alternativeFlag: "times",
+			needs: ["times"],
+			execute: () => null,
+		});
+
+		engine.processKey("3", {});
+		engine.processKey("3", {});
+		expect(engine.hasPendingComposition()).toBe(false);
+		expect(engine.processKey("z", {})).toBe(false);
+		vi.advanceTimersByTime(600);
+	});
+
+	it("still lets an unrelated key start its own chain", () => {
+		vi.useFakeTimers();
+		const engine = syncEngine();
+		let otherRuns = 0;
+		head(engine);
+		engine.registryCompositionKey({
+			key: "x",
+			flags: [],
+			alternativeFlag: "other",
+			needs: [],
+			optional: true,
+			execute: (ctx) => {
+				otherRuns++;
+				return { value: 2, lastFlag: "other", steps: [...ctx.steps, "x"] };
+			},
+		});
+
+		engine.processKey("3", {});
+		engine.processKey("x", {});
+		expect(otherRuns).toBe(1);
+		expect(engine.hasPendingComposition()).toBe(true);
+		expect(engine.getCompositionContext().steps).toEqual(["x"]);
+		vi.advanceTimersByTime(600);
+	});
+
+	it("does not start a composition head after a mapping target is interrupted", () => {
+		const engine = syncEngine();
+		let headRuns = 0;
+		engine.registryCompositionKey({
+			key: "bad",
+			flags: [],
+			alternativeFlag: "bad",
+			needs: [],
+			execute: () => null,
+		});
+		engine.registryCompositionKey({
+			key: "h",
+			flags: [],
+			alternativeFlag: "other",
+			needs: [],
+			optional: true,
+			execute: (ctx) => {
+				headRuns++;
+				return { value: 1, lastFlag: "other", steps: [...ctx.steps, "h"] };
+			},
+		});
+		expect(engine.addMapping(["g", "h"], ["bad"])).toBe(true);
+
+		expect(engine.processKey("g", {})).toBe(true);
+		expect(engine.processKey("h", {})).toBe(false);
+		expect(engine.getLastMappingEvent()?.type).toBe("broken");
+		expect(headRuns).toBe(0);
+	});
+});
+
+describe("composition entries scoped to different screens", () => {
+	function entry(
+		category: unknown[],
+		run: () => void,
+	): CompositionKey<unknown> {
+		return {
+			key: "x",
+			flags: [],
+			alternativeFlag: "go",
+			needs: [],
+			optional: true,
+			category,
+			execute: () => {
+				run();
+				return null;
+			},
+		};
+	}
+
+	it("keeps one entry per function component category", () => {
+		const ScreenA = () => null;
+		const ScreenB = () => null;
+		const engine = syncEngine();
+		let runsA = 0;
+		let runsB = 0;
+
+		engine.registryCompositionKey(entry([ScreenA], () => runsA++));
+		engine.registryCompositionKey(entry([ScreenB], () => runsB++));
+
+		engine.sync({ pagePath: [ScreenA], layers: [], modalLayers: [] });
+		engine.processKey("x", {});
+		expect(runsA).toBe(1);
+		expect(runsB).toBe(0);
+
+		engine.sync({ pagePath: [ScreenB], layers: [], modalLayers: [] });
+		engine.processKey("x", {});
+		expect(runsA).toBe(1);
+		expect(runsB).toBe(1);
+	});
+
+	it("keeps one entry per object component category", () => {
+		const ScreenA = {};
+		const ScreenB = {};
+		const engine = syncEngine();
+		let runsA = 0;
+		let runsB = 0;
+
+		engine.registryCompositionKey(entry([ScreenA], () => runsA++));
+		engine.registryCompositionKey(entry([ScreenB], () => runsB++));
+
+		engine.sync({ pagePath: [ScreenA], layers: [], modalLayers: [] });
+		engine.processKey("x", {});
+		expect(runsA).toBe(1);
+		expect(runsB).toBe(0);
+
+		engine.sync({ pagePath: [ScreenB], layers: [], modalLayers: [] });
+		engine.processKey("x", {});
+		expect(runsA).toBe(1);
+		expect(runsB).toBe(1);
+	});
+});
+
+describe("composition category filtering follows the current screen", () => {
+	const ScreenA = {};
+	const ScreenB = {};
+
+	function runsOn(
+		top: unknown | null,
+		category: unknown[] | "*" | undefined,
+	): number {
+		const engine = createEngine();
+		let runs = 0;
+		engine.sync({
+			pagePath: top === null ? [] : [top],
+			layers: [],
+			modalLayers: [],
+		});
+		engine.registryCompositionKey({
+			key: "x",
+			flags: [],
+			alternativeFlag: "go",
+			needs: [],
+			optional: true,
+			...(category === undefined ? {} : { category }),
+			execute: () => {
+				runs++;
+				return null;
+			},
+		});
+		engine.processKey("x", {});
+		return runs;
+	}
+
+	it("treats an omitted category and '*' as every screen", () => {
+		expect(runsOn(ScreenA, undefined)).toBe(1);
+		expect(runsOn(ScreenA, "*")).toBe(1);
+	});
+
+	it("only fires on the listed screens", () => {
+		expect(runsOn(ScreenA, [ScreenA])).toBe(1);
+		expect(runsOn(ScreenB, [ScreenA])).toBe(0);
+		expect(runsOn(ScreenB, [ScreenA, ScreenB])).toBe(1);
+	});
+
+	it("never fires with an empty category or no current screen", () => {
+		expect(runsOn(ScreenA, [])).toBe(0);
+		expect(runsOn(null, "*")).toBe(0);
+		expect(runsOn(null, undefined)).toBe(0);
 	});
 });

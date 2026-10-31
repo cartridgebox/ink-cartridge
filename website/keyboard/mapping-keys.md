@@ -20,9 +20,9 @@ Registers a mapping.
   - `exclusive` {boolean} Whether a breaking key is swallowed silently (`true`) or cancels the mapping (`false`). **Default:** `false`.
   - `when` {Function | string} Condition, re-evaluated on every key; the mapping breaks when it is false.
   - `mode` {string} Restrict to a mode.
-  - `category` {unknown[] | string} Whitelist of top screens; `"*"` means all.
+  - `category` {unknown[] | string} Whitelist of top screens (compared by reference); `"*"` or omitted means all, `[]` means none.
   - `affectOverlay` {boolean} Trigger phase; `true` before the layer broadcast, otherwise after. **Default:** `false`.
-  - `KeyReleaseWhenChainInterrupted` {boolean} Swallow the breaking key when the target chain is interrupted. **Default:** `false`.
+  - `SwallowKeyWhenChainInterrupted` {boolean} Swallow the breaking key when the target chain is interrupted. **Default:** `false`.
   - `executeWhenNoOverlay` {boolean} Only meaningful with `affectOverlay: true`: run the mapping with no layer open.
 - Returns: {boolean} `true` when registered; `false` (no throw) when `base` is empty, a target key is unregistered, or the same `base` already exists.
 

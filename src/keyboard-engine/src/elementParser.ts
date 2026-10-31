@@ -113,16 +113,19 @@ function setPending(
 }
 
 /**
- * Handle one keyboard event against a single element inside a layer.
+ * Run the priority handlers of one element: auto-tab, wildcard fallback, and
+ * multi-key sequences.
  *
- * This is the element-level counterpart of {@link handleLayer}. The layer
- * processor calls it for every active element of a layer, so multiple
- * elements can consume the same event (broadcast semantics inside a layer).
+ * These run before any element's ordinary bindings so that a sequence owned by
+ * one element cannot be preempted by a sibling's plain binding — the layer
+ * processor calls this phase for every active element first, then calls
+ * {@link handlerElementBindings} only when no sequence consumed the key.
  *
  * `available` has already been filtered by the layer-wide penetration rules;
- * element-level and focus-target-level penetration are handled here.
+ * element-level and focus-target-level penetration are handled by the binding
+ * phase.
  */
-export function handlerElement<TC>(
+export function handlerElementPriority<TC>(
 	ctx: PipelineContext<TC>,
 	elementId: string,
 	layer: ElementKeyboard,
@@ -344,6 +347,21 @@ export function handlerElement<TC>(
 		}
 	}
 
+	return false;
+}
+
+/**
+ * Run one element's ordinary bindings: focus-target bindings, layer bindings,
+ * and stop rules.
+ *
+ * `available` has already been filtered by the layer-wide penetration rules;
+ * focus-target penetration is handled here.
+ */
+export function handlerElementBindings<TC>(
+	ctx: PipelineContext<TC>,
+	layer: ElementKeyboard,
+	available: string[],
+): boolean {
 	const focusTargets = collectElementFocusTargets(layer);
 	if (focusTargets.length > 0) {
 		const allBindings = [
@@ -403,4 +421,31 @@ export function handlerElement<TC>(
 	}
 
 	return false;
+}
+
+/**
+ * Handle one keyboard event against a single element inside a layer.
+ *
+ * Priority handlers run first (auto-tab, wildcard, sequences), then ordinary
+ * bindings. Layer and modal processors call the two phases separately so a
+ * sequence takes priority across sibling elements, not only within its own.
+ */
+export function handlerElement<TC>(
+	ctx: PipelineContext<TC>,
+	elementId: string,
+	layer: ElementKeyboard,
+	ownerLayer: LayerKeyboardLayer,
+	isTop: boolean,
+	available: string[],
+): ElementHandleResult {
+	const priority = handlerElementPriority(
+		ctx,
+		elementId,
+		layer,
+		ownerLayer,
+		isTop,
+		available,
+	);
+	if (priority) return priority;
+	return handlerElementBindings(ctx, layer, available);
 }

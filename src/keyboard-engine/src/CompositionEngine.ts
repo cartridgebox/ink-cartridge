@@ -374,7 +374,7 @@ export interface CompositionKey<
 	 * current chain context and returns the modified context passed to the
 	 * next key in the chain, or `null` to terminate the chain — the key is
 	 * then released to lower pipeline stages, or silently swallowed when
-	 * `KeyReleaseWhenChainInterrupted` is set.
+	 * `SwallowKeyWhenChainInterrupted` is set.
 	 */
 	execute?: (
 		ctx: CompositionContext<TValue>,
@@ -385,7 +385,7 @@ export interface CompositionKey<
 	 * swallowed after the chain terminates instead of being released to lower
 	 * pipeline stages.
 	 */
-	KeyReleaseWhenChainInterrupted?: boolean;
+	SwallowKeyWhenChainInterrupted?: boolean;
 
 	/**
 	 * The inverse of `execute`, run when the sequence is undone. Returning
@@ -435,7 +435,7 @@ type KeyOutcome =
 	| {
 			ok: false;
 			reason: "input" | "terminate" | "endkey" | "output";
-			release: boolean;
+			swallow: boolean;
 	  };
 
 /**
@@ -449,6 +449,19 @@ type KeyOutcome =
  *                  run the composition chain on the same key.
  */
 type MappingStartOutcome = "none" | "consumed" | "released";
+
+/**
+ * Result of advancing the subsystems that already own a pending chain:
+ * - `"none"`     — nothing was pending, the phase did not match, or the key is
+ *                  unrelated to the pending chain. The caller may still start
+ *                  a new chain with this key.
+ * - `"consumed"` — the key advanced or ended a chain and is fully handled.
+ * - `"released"` — the key took part in a chain that ended or was rejected,
+ *                  and is released to lower pipeline stages. It must NOT be
+ *                  re-read as a chain head: the same physical key would then
+ *                  fire twice (once for each role).
+ */
+type PendingOutcome = "none" | "consumed" | "released";
 
 /**
  * State of a pending mapping-key sequence waiting for the next key.
@@ -511,9 +524,9 @@ export interface MappingKeyEntry<
 	 * When `true`, if the target composition chain is interrupted (any
 	 * target key fails to resolve / execute), the final key that broke
 	 * the sequence is swallowed silently instead of being released to
-	 * lower pipeline stages. Mirrors {@link CompositionKey.KeyReleaseWhenChainInterrupted}.
+	 * lower pipeline stages. Mirrors {@link CompositionKey.SwallowKeyWhenChainInterrupted}.
 	 */
-	KeyReleaseWhenChainInterrupted?: boolean;
+	SwallowKeyWhenChainInterrupted?: boolean;
 }
 
 /**
@@ -541,7 +554,8 @@ export interface PrimitiveTypeKeys<TComponent> {
 	/**
 	 * Top-component whitelist: `"*"` or omitted = all screens; `[]` =
 	 * no screens (effectively disabled); `[A, B]` = only when the
-	 * stack top is exactly A or B.
+	 * stack top is exactly A or B. Components are compared by reference
+	 * against the current top screen.
 	 */
 	category?: TComponent[] | "*";
 	/**
@@ -551,32 +565,6 @@ export interface PrimitiveTypeKeys<TComponent> {
 	 * `affectOverlay` is `true`.
 	 */
 	executeWhenNoOverlay?: boolean;
-}
-
-function compositionFingerprint<TComponent>(
-	entry: CompositionKey<TComponent>,
-): string {
-	return JSON.stringify({
-		key: entry.key,
-		flags: entry.flags,
-		needs: entry.needs,
-		alternativeFlag: entry.alternativeFlag,
-		optional: entry.optional,
-		category: entry.category,
-		affectOverlay: entry.affectOverlay,
-		exclusive: entry.exclusive,
-		executeWhenNoOverlay: entry.executeWhenNoOverlay,
-		KeyReleaseWhenChainInterrupted: entry.KeyReleaseWhenChainInterrupted,
-		isEndKey: entry.isEndKey,
-		mode: entry.mode,
-		timeout: entry.timeout,
-		// A string `when` is a stable condition id and part of the entry's
-		// identity — otherwise two entries that differ only by their gate
-		// would collide. A function `when` is a fresh reference every React
-		// render and must stay out of the fingerprint (undefined keys are
-		// dropped by JSON.stringify).
-		when: typeof entry.when === "string" ? entry.when : undefined,
-	});
 }
 
 /**
@@ -636,6 +624,9 @@ export default class CompositionEngine<TComponent = unknown> {
 		steps: [],
 	};
 
+	private componentIds = new WeakMap<object, number>();
+	private componentSerialNumber = 0;
+
 	constructor(
 		private state: EngineState<TComponent>,
 		defaultTimeout?: number,
@@ -660,6 +651,62 @@ export default class CompositionEngine<TComponent = unknown> {
 	 */
 	setValueSchema(schema: ValueSchema): void {
 		this.valueSchema = schema;
+	}
+
+	/**
+	 * Stable identity for a component reference inside a fingerprint.
+	 *
+	 * `JSON.stringify` cannot represent functions or plain objects: an array of
+	 * function components serializes as `[null]` and an array of object
+	 * components as `[{}]`, so entries scoped to different screens would share
+	 * one fingerprint and the second registration would be dropped as a
+	 * duplicate. The WeakMap keeps the id stable across React renders without
+	 * retaining the component.
+	 */
+	private generateComponentIdentifiers(component: unknown): string {
+		if (
+			typeof component === "function" ||
+			(typeof component === "object" && component !== null)
+		) {
+			const id = this.componentIds.get(component);
+			if (id === undefined) {
+				this.componentSerialNumber = this.componentSerialNumber + 1;
+				this.componentIds.set(component, this.componentSerialNumber);
+				return `#${this.componentSerialNumber}`;
+			}
+
+			return `#${id}`;
+		}
+
+		return String(component);
+	}
+
+	private compositionFingerprint(entry: CompositionKey<TComponent>): string {
+		return JSON.stringify({
+			key: entry.key,
+			flags: entry.flags,
+			needs: entry.needs,
+			alternativeFlag: entry.alternativeFlag,
+			optional: entry.optional,
+			category: Array.isArray(entry.category)
+				? entry.category.map((component) =>
+						this.generateComponentIdentifiers(component),
+					)
+				: entry.category,
+			affectOverlay: entry.affectOverlay,
+			exclusive: entry.exclusive,
+			executeWhenNoOverlay: entry.executeWhenNoOverlay,
+			SwallowKeyWhenChainInterrupted: entry.SwallowKeyWhenChainInterrupted,
+			isEndKey: entry.isEndKey,
+			mode: entry.mode,
+			timeout: entry.timeout,
+			// A string `when` is a stable condition id and part of the entry's
+			// identity — otherwise two entries that differ only by their gate
+			// would collide. A function `when` is a fresh reference every React
+			// render and must stay out of the fingerprint (undefined keys are
+			// dropped by JSON.stringify).
+			when: typeof entry.when === "string" ? entry.when : undefined,
+		});
 	}
 
 	private checkMapping(
@@ -705,7 +752,7 @@ export default class CompositionEngine<TComponent = unknown> {
 	 * @param base   The external trigger key sequence (what the user presses).
 	 * @param target The internal composition key chain to execute in order.
 	 * @param options Optional fields forwarded to the stored {@link MappingKeyEntry}:
-	 *   `exclusive`, `KeyReleaseWhenChainInterrupted`, `when`, `affectOverlay`,
+	 *   `exclusive`, `SwallowKeyWhenChainInterrupted`, `when`, `affectOverlay`,
 	 *   `mode`, `category`, `executeWhenNoOverlay`.
 	 * @returns `true` if registered, `false` if `base` is empty, any `target`
 	 *          key is not registered in `keyMappingTable`, or an identical
@@ -766,10 +813,7 @@ export default class CompositionEngine<TComponent = unknown> {
 
 			mapKey.add(entry);
 		} else {
-			this.mapping.set(
-				firstKey,
-				new Set([entry]),
-			);
+			this.mapping.set(firstKey, new Set([entry]));
 		}
 
 		return true;
@@ -876,7 +920,9 @@ export default class CompositionEngine<TComponent = unknown> {
 
 	/**
 	 * Register a composition key entry. Semantically equivalent duplicates
-	 * (same fingerprint) are skipped.
+	 * (same fingerprint) are skipped. Entries that differ only by
+	 * `category` are not duplicates — each screen-scoped registration is
+	 * kept and fires only while one of its screens is on top.
 	 *
 	 * Each entry is a node in a composition chain: when the entry's `key`
 	 * is pressed, the engine either continues the pending chain (if the
@@ -927,9 +973,9 @@ export default class CompositionEngine<TComponent = unknown> {
 		// Fingerprint excludes callbacks (execute / undoAction / when)
 		// because those are new references on every React render and
 		// don't define the entry's identity in the chain.
-		const fp = compositionFingerprint(entry);
+		const fp = this.compositionFingerprint(entry);
 		for (const existing of set) {
-			if (compositionFingerprint(existing) === fp) return;
+			if (this.compositionFingerprint(existing) === fp) return;
 		}
 
 		set.add(entry);
@@ -1373,7 +1419,10 @@ export default class CompositionEngine<TComponent = unknown> {
 	 * `runTargetChain`'s local context while it runs, so reading
 	 * `this.context` here would check the engine's idle value instead.
 	 */
-	private validateInput(currentCtx: CompositionContext, entryKey: string): boolean {
+	private validateInput(
+		currentCtx: CompositionContext,
+		entryKey: string,
+	): boolean {
 		if (!this.valueSchema || !currentCtx.lastFlag) return true;
 		const guard = this.valueSchema[currentCtx.lastFlag];
 		if (!guard) return true;
@@ -1523,7 +1572,11 @@ export default class CompositionEngine<TComponent = unknown> {
 			if (!checkWhen(entry.when, ctx.conditions)) return false;
 			if (!ctx.topComponent) return false;
 
-			if (affectOverlay && ctx.allLayers.length === 0 && !entry.executeWhenNoOverlay)
+			if (
+				affectOverlay &&
+				ctx.allLayers.length === 0 &&
+				!entry.executeWhenNoOverlay
+			)
 				return false;
 
 			const cat = entry.category;
@@ -1579,10 +1632,10 @@ export default class CompositionEngine<TComponent = unknown> {
 	 * a sibling match instead of aborting the key.)
 	 *
 	 * @returns `{ ok: true, ctx }` with the transformed context, or
-	 *          `{ ok: false, reason, release }`. `reason` tells the caller
+	 *          `{ ok: false, reason, swallow }`. `reason` tells the caller
 	 *          whether to record history (`"terminate"` / `"endkey"` do;
-	 *          the rest do not); `release` mirrors
-	 *          {@link CompositionKey.KeyReleaseWhenChainInterrupted} —
+	 *          the rest do not); `swallow` mirrors
+	 *          {@link CompositionKey.SwallowKeyWhenChainInterrupted} —
 	 *          `true` swallows the breaking key, `false` releases it.
 	 */
 	private executeResolvedKey(
@@ -1593,7 +1646,7 @@ export default class CompositionEngine<TComponent = unknown> {
 			return {
 				ok: false,
 				reason: "input",
-				release: result.KeyReleaseWhenChainInterrupted ?? false,
+				swallow: result.SwallowKeyWhenChainInterrupted ?? false,
 			};
 		}
 
@@ -1602,7 +1655,7 @@ export default class CompositionEngine<TComponent = unknown> {
 			return {
 				ok: false,
 				reason: "terminate",
-				release: result.KeyReleaseWhenChainInterrupted ?? false,
+				swallow: result.SwallowKeyWhenChainInterrupted ?? false,
 			};
 		}
 
@@ -1614,7 +1667,7 @@ export default class CompositionEngine<TComponent = unknown> {
 			return {
 				ok: false,
 				reason: "endkey",
-				release: result.KeyReleaseWhenChainInterrupted ?? false,
+				swallow: result.SwallowKeyWhenChainInterrupted ?? false,
 			};
 		}
 
@@ -1634,7 +1687,7 @@ export default class CompositionEngine<TComponent = unknown> {
 			return {
 				ok: false,
 				reason: "output",
-				release: result.KeyReleaseWhenChainInterrupted ?? false,
+				swallow: result.SwallowKeyWhenChainInterrupted ?? false,
 			};
 		}
 
@@ -1654,7 +1707,7 @@ export default class CompositionEngine<TComponent = unknown> {
 	 *
 	 * On any failure (no entries after filter, resolve returns null, a gate
 	 * rejects the key) the chain is interrupted. The returned `swallow` flag
-	 * mirrors {@link MappingKeyEntry.KeyReleaseWhenChainInterrupted}: when
+	 * mirrors {@link MappingKeyEntry.SwallowKeyWhenChainInterrupted}: when
 	 * true, the breaking key is silently consumed rather than released to
 	 * lower pipeline stages.
 	 *
@@ -1686,7 +1739,7 @@ export default class CompositionEngine<TComponent = unknown> {
 
 		const interrupted: { ok: false; swallow: boolean } = {
 			ok: false,
-			swallow: entry.KeyReleaseWhenChainInterrupted ?? false,
+			swallow: entry.SwallowKeyWhenChainInterrupted ?? false,
 		};
 
 		for (let i = 0; i < target.length; i++) {
@@ -1710,10 +1763,7 @@ export default class CompositionEngine<TComponent = unknown> {
 				// `execute` returned `null` — records the keys executed so
 				// far, exactly as typing them would; gate rejections and
 				// resolve failures drop the partial chain.
-				if (
-					outcome.reason === "terminate" ||
-					outcome.reason === "endkey"
-				) {
+				if (outcome.reason === "terminate" || outcome.reason === "endkey") {
 					if (executed.length > 0) {
 						this.buffers.push(executed);
 					}
@@ -1764,7 +1814,11 @@ export default class CompositionEngine<TComponent = unknown> {
 		// and leaves the bare key free for the composition chain and lower
 		// pipeline stages — the same behaviour as globalSequence skipping a
 		// `when`-gated entry.
-		const filtered = this.filterEntries([...allCandidateKeys], ctx, affectOverlay);
+		const filtered = this.filterEntries(
+			[...allCandidateKeys],
+			ctx,
+			affectOverlay,
+		);
 
 		// Single-key mappings (keys.length === 1) are executed immediately on
 		// the head key — they have no subsequent keys to wait for. When both
@@ -1864,18 +1918,20 @@ export default class CompositionEngine<TComponent = unknown> {
 	 *   - keeps narrowing when still ambiguous, or
 	 *   - breaks the sequence (honoring exclusive / swallow semantics).
 	 *
-	 * @returns `true` if the key was consumed by the mapping subsystem,
-	 *          `false` to let it fall through to lower pipeline stages.
+	 * @returns `"consumed"` if the key was consumed by the mapping subsystem,
+	 *          `"released"` if it took part in the sequence but must only reach
+	 *          lower pipeline stages, or `"none"` if it is unrelated and may
+	 *          start a new chain.
 	 */
 	private processMappingKeyPending(
 		ctx: PipelineContext<TComponent>,
 		affectOverlay: boolean,
-	): boolean {
-		if (!this.mappingPendingEntry) return false;
+	): PendingOutcome {
+		if (!this.mappingPendingEntry) return "none";
 		// Phase guard — a pending started in the layer phase must not be
 		// advanced by the page-phase processor (and vice versa). Mirrors
 		// processPending / globalSequence pending handling.
-		if (this.mappingPendingEntry.affectOverlay !== affectOverlay) return false;
+		if (this.mappingPendingEntry.affectOverlay !== affectOverlay) return "none";
 
 		clearTimeout(this.mappingPendingEntry.timer);
 
@@ -1885,9 +1941,11 @@ export default class CompositionEngine<TComponent = unknown> {
 		// sequence started while its condition held must not keep matching
 		// after the condition flips to false.
 		if (!checkWhen(pending.when, ctx.conditions)) {
+			// The sequence was abandoned, not advanced: this key is unrelated
+			// to it and may still start a chain of its own.
 			this.clearMappingPending();
 			this.notifyMapping({ type: "broken", key: this.currentKey[0] ?? "" });
-			return false;
+			return "none";
 		}
 
 		// Keep the latest context: the timeout fires outside the pipeline and
@@ -1916,7 +1974,7 @@ export default class CompositionEngine<TComponent = unknown> {
 			if (pending.exclusive) {
 				this.resetMappingPendingTimer(pending.timeout);
 				this.notifyMapping({ type: "consumed", key: this.currentKey[0] ?? "" });
-				return true;
+				return "consumed";
 			}
 			// The input already completed a shorter mapping: run it, then let this
 			// unrelated key continue as if nothing had been pending. Without a
@@ -1930,14 +1988,15 @@ export default class CompositionEngine<TComponent = unknown> {
 				this.clearMappingPending();
 				if (outcome.ok) {
 					this.notifyMapping({ type: "completed" });
-					return false;
+					return "none";
 				}
 				this.notifyMapping({ type: "broken", key: this.currentKey[0] ?? "" });
-				return outcome.swallow;
+				// The fallback broke, but this key is still unrelated to it.
+				return outcome.swallow ? "consumed" : "none";
 			}
 			this.clearMappingPending();
 			this.notifyMapping({ type: "broken", key: this.currentKey[0] ?? "" });
-			return false;
+			return "none";
 		}
 
 		const narrowed = this.disambiguateMappingCandidates(
@@ -1951,11 +2010,11 @@ export default class CompositionEngine<TComponent = unknown> {
 			if (pending.exclusive) {
 				this.resetMappingPendingTimer(pending.timeout);
 				this.notifyMapping({ type: "consumed", key: this.currentKey[0] ?? "" });
-				return true;
+				return "consumed";
 			}
 			this.clearMappingPending();
 			this.notifyMapping({ type: "broken", key: this.currentKey[0] ?? "" });
-			return false;
+			return "none";
 		}
 
 		// Remember the mapping the typed input has completed so far. While a
@@ -1972,7 +2031,7 @@ export default class CompositionEngine<TComponent = unknown> {
 			pending.nextIndex++;
 			this.resetMappingPendingTimer(pending.timeout);
 			this.notifyMapping({ type: "continued", key: matchedKey });
-			return true;
+			return "consumed";
 		}
 
 		// Locked in to a single candidate. But the sequence may not be over yet —
@@ -1982,9 +2041,12 @@ export default class CompositionEngine<TComponent = unknown> {
 		// adopt its gate so the remaining checks and the completion run use it.
 		pending.when = locked.when;
 		if (!checkWhen(pending.when, ctx.conditions)) {
+			// This key matched the sequence's next segment before the gate
+			// closed, so it is settled by the mapping: release it, do not
+			// re-read it as a chain head.
 			this.clearMappingPending();
 			this.notifyMapping({ type: "broken", key: matchedKey });
-			return false;
+			return "released";
 		}
 		if (locked.keys.length > nextIndex + 1) {
 			// More keys expected — advance and keep waiting, no longer ambiguous.
@@ -1996,7 +2058,7 @@ export default class CompositionEngine<TComponent = unknown> {
 			pending.timeout = locked.timeout ?? this.defaultTimeout;
 			this.resetMappingPendingTimer(pending.timeout);
 			this.notifyMapping({ type: "continued", key: matchedKey });
-			return true;
+			return "consumed";
 		}
 
 		// Sequence complete — run the target composition chain end-to-end.
@@ -2004,13 +2066,15 @@ export default class CompositionEngine<TComponent = unknown> {
 		if (outcome.ok) {
 			this.clearMappingPending();
 			this.notifyMapping({ type: "completed" });
-			return true;
+			return "consumed";
 		}
 
 		// Chain interrupted — clear pending and decide whether to swallow the key.
+		// The key completed the mapping sequence, so either way it must not be
+		// re-read as a composition head.
 		this.clearMappingPending();
 		this.notifyMapping({ type: "broken", key: this.currentKey[0] ?? "" });
-		return outcome.swallow;
+		return outcome.swallow ? "consumed" : "released";
 	}
 
 	private startPending(
@@ -2094,17 +2158,27 @@ export default class CompositionEngine<TComponent = unknown> {
 		return true;
 	}
 
+	/**
+	 * Advance an in-progress pending chain, if any.
+	 *
+	 * The three-way result matters: a key that took part in a chain and ended
+	 * or was rejected by it must be released to lower pipeline stages WITHOUT
+	 * being re-read as a chain head. Reporting that case as `"none"` would
+	 * make `start()` run `startPending()` on the same physical key, firing its
+	 * head callback a second time and leaving a phantom chain behind.
+	 */
 	private processPending(
 		ctx: PipelineContext<TComponent>,
 		affectOverlay: boolean,
-	): boolean {
+	): PendingOutcome {
 		// Mapping-key pending takes priority over composition pending,
 		// mirroring how tryStartMappingKeyPending takes priority over
 		// single-key composition in startPending.
-		if (this.processMappingKeyPending(ctx, affectOverlay)) return true;
+		const mapping = this.processMappingKeyPending(ctx, affectOverlay);
+		if (mapping !== "none") return mapping;
 
-		if (!this.pendingEntry) return false;
-		if (this.pendingEntry.affectOverlay !== affectOverlay) return false;
+		if (!this.pendingEntry) return "none";
+		if (this.pendingEntry.affectOverlay !== affectOverlay) return "none";
 
 		clearTimeout(this.pendingEntry.timer);
 
@@ -2140,7 +2214,10 @@ export default class CompositionEngine<TComponent = unknown> {
 						? { type: "completed" }
 						: { type: "broken", key: this.currentKey[0] ?? result.key },
 				);
-				return outcome.release;
+				// The key took part in the chain: with `swallow` it is consumed,
+				// otherwise it is released to lower stages — never re-read as a
+				// chain head.
+				return outcome.swallow ? "consumed" : "released";
 			}
 
 			const nextCtx = outcome.ctx;
@@ -2170,7 +2247,7 @@ export default class CompositionEngine<TComponent = unknown> {
 			this.pendingEntry.timer = timer;
 
 			this.notify({ type: "continued", key: result.key });
-			return true;
+			return "consumed";
 		}
 
 		// No match — check exclusive on the pending chain
@@ -2178,7 +2255,7 @@ export default class CompositionEngine<TComponent = unknown> {
 			// Silently consume, keep waiting
 			this.resetPendingTimer(this.pendingEntry.timeout);
 			this.notify({ type: "consumed", key: this.currentKey[0] ?? "" });
-			return true;
+			return "consumed";
 		}
 
 		// Not exclusive — clear and let key fall through. The broken chain is
@@ -2187,7 +2264,8 @@ export default class CompositionEngine<TComponent = unknown> {
 		this.clearPending();
 		this.historyKeys = [];
 		this.notify({ type: "broken", key: this.currentKey[0] ?? "" });
-		return false;
+		// The key was unrelated to the broken chain, so it may start one.
+		return "none";
 	}
 
 	/**
@@ -2200,7 +2278,13 @@ export default class CompositionEngine<TComponent = unknown> {
 	 */
 	start(ctx: PipelineContext<TComponent>, affectOverlay: boolean): boolean {
 		this.synchronizingKey(ctx.eventNames);
-		if (this.processPending(ctx, affectOverlay)) return true;
+		const pending = this.processPending(ctx, affectOverlay);
+		if (pending === "consumed") return true;
+		// A key that settled a chain is only released to lower pipeline
+		// stages. Running startPending() here would treat the same physical
+		// key as a fresh chain head, firing a second callback and leaving a
+		// phantom chain behind.
+		if (pending === "released") return false;
 		return this.startPending(ctx, affectOverlay);
 	}
 

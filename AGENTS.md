@@ -127,7 +127,9 @@ See `agents/rules/testing.md` (loaded when editing `tests/**/*`) and `docs-agent
 
 A shipping change needs a changeset: one `.changeset/<name>.md` file **per modified package**. Each file names exactly one package in its frontmatter and its body describes only that package's changes. That is what keeps the generated CHANGELOGs independent — a file that lists several packages writes every one of its bullets into every one of those packages' CHANGELOGs.
 
-Agents write the **body**; the user decides the bump level (`patch`/`minor`/`major`, never a version number) in the frontmatter — `changesets/action` derives versions.
+**Check `.changeset/` before writing.** Do not create a file blindly. First list `.changeset/*.md` and compare each existing file with the current working tree (`git status`, `git diff`): which package it names, and whether its content still corresponds to unreleased work in progress. If a file already covers the same package and the same work, amend that file under the matching section — only then may you build on it. Create a new file only when no existing file corresponds to the current change.
+
+Agents write the **body**; the user decides the bump level (`patch`/`minor`/`major`, never a version number) in the frontmatter — `changesets/action` derives versions. Never choose or change a bump level yourself; if the file you are amending has no level yet, ask the user for it before writing.
 
 A follow-up fix to something an unreleased changeset introduced — a review finding, a regression the new code caused — amends that package's changeset as its own bullet under the matching section, instead of adding another file. Only work that ships independently gets a new file.
 

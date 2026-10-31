@@ -52,3 +52,4 @@ applyElement('panel', { element: ElementB, elementId: 'b' })
 - Elevation changes visual, keyboard, and mouse order together; see [Layer elevation and stacking](/screen/layer-z-index).
 - Modal layers always outrank regular layers. While a modal is open, regular layers receive no key events; see [Modal layer keyboard events](/screen/modal-layer-keyboard).
 - An element paused with `deactivateElement` is skipped during the broadcast; closing the layer invalidates all of its bindings.
+- Within one layer the event is handled in two passes: auto-tab, wildcard fallback, and multi-key sequences are offered to every active element first, then ordinary bindings are broadcast. Once a sequence takes the key, no sibling's plain binding sees it, regardless of `applyElement` order.

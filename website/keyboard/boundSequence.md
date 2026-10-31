@@ -2,6 +2,8 @@
 
 `boundSequence` requires several keys pressed in order within a timeout, like vim's `d d`. The first key does not fire immediately; the engine enters a pending state and waits for the rest. A timeout or a mismatched key cancels the sequence.
 
+A sequence outranks plain bindings **across elements** inside one layer: even when a sibling element binds the sequence's first or next key, the sequence takes the key and the plain binding does not also fire. The outcome does not depend on `applyElement` order.
+
 ## Prerequisites
 
 | Chapter | Why you need it |

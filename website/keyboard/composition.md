@@ -37,7 +37,7 @@ A `CompositionKey`:
 | `execute` | `(ctx) => ctx \| null` | Rewrites the context; `null` terminates the chain |
 | `undoAction` | `(ctx) => ctx \| null` | Inverse operation; `null` stops the undo walk |
 | `isEndKey` | `string[]` | End the chain when the current `lastFlag` is listed |
-| `KeyReleaseWhenChainInterrupted` | `boolean` | Swallow the breaking key when `execute` returns `null` or validation fails |
+| `SwallowKeyWhenChainInterrupted` | `boolean` | Swallow the breaking key when `execute` returns `null` or validation fails |
 | `when` / `mode` / `category` / `affectOverlay` / `executeWhenNoOverlay` | — | Same as other bindings |
 
 `affectOverlay` is the phase field for composition and mapping entries; `globalKeys` / `globalSequence` use `affectLayer` instead. They are different options.
@@ -97,6 +97,8 @@ useEffect(() => {
 updateCompositionKey('d', [{ need: 'times', become: 'action' }], { timeout: 800 })
 ```
 
+Registering a semantically identical entry twice is a no-op; entries that differ only by `category` are separate registrations and each fires only on its own screens.
+
 ### A full chain: count, execute, undo
 
 ```ts
@@ -145,7 +147,7 @@ Pressing `3` starts the chain and sets `lastFlag` to `count`; pressing `d` withi
 
 - With `exclusive: true`, a mismatched key is swallowed and the chain keeps waiting; the eventual timeout records it.
 - When `isEndKey` matches, `execute` still runs (side effects are kept), but its returned context is discarded and the key itself is not recorded—only the keys before it are.
-- `execute` returning `null` terminates deliberately; the terminating key is likewise not recorded. The breaking key continues to lower stages by default; `KeyReleaseWhenChainInterrupted: true` swallows it.
+- `execute` returning `null` terminates deliberately; the terminating key is likewise not recorded. The breaking key continues to lower stages by default; `SwallowKeyWhenChainInterrupted: true` swallows it. Either way, a key that settles the chain is never re-read as a chain head: even when the same physical key is also registered as a head, its callbacks run once.
 - A value-guard failure (input or output) clears the pending chain and warns outside production.
 
 ## Value validation
@@ -211,6 +213,7 @@ Mappings run before composition. `addMapping(base, target)` redirects an externa
 ## Boundaries
 
 - Composition entries share `when` / `mode` / `category` / `affectOverlay` with other bindings; `affectOverlay: true` runs before the layer broadcast.
+- `category` is compared by reference against the current top screen: omitted or `"*"` means all screens, `[]` means none. Entries that differ only by `category` are separate registrations and do not dedupe each other.
 - A key without a pending chain and without `optional` cannot start one.
 - A screen switch does not clear the undo buffer; call `clearCompositionBuffers()` when needed.
 - `abortComposition()` also cancels a pending mapping sequence.
