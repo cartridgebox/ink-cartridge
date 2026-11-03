@@ -32,6 +32,10 @@ jobs:
       - run: npx tsc --project packages/event/tests/tsconfig.json --noEmit
 
       - run: npx vitest run --coverage
+        env:
+          # The GC cleanup tests skip without it; they are the safety net for
+          # the terminal-state restore in the mouse layer.
+          NODE_OPTIONS: --expose-gc
 
   bench:
     runs-on: ubuntu-latest
