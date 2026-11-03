@@ -52,3 +52,4 @@ applyElement('panel', { element: ElementB, elementId: 'b' })
 - 提升图层会同时改变视觉、键盘和鼠标顺序，见[图层提升与层级](/zh/screen/layer-z-index)。
 - 模态层始终高于普通图层；只要模态层打开，普通图层就收不到键盘事件。见[模态层键盘事件](/zh/screen/modal-layer-keyboard)。
 - 元素被 `deactivateElement` 暂停后不参与广播；图层关闭后绑定全部失效。
+- 同一图层内分两轮：`auto-tab`、通配符与多键序列先对所有激活元素求值，普通绑定随后广播。序列一旦接管按键，兄弟元素的普通绑定不会再收到它——与元素的 `applyElement` 顺序无关。

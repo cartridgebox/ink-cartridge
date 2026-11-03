@@ -40,7 +40,7 @@ function Dialog() {
 
 ## Broadcast within the top layer
 
-Inside the top modal, behavior matches regular layers: the event is broadcast to every active element, so several elements can respond to the same key. The barrier still blocks propagation once the layer is done.
+Inside the top modal, behavior matches regular layers: the event is broadcast to every active element, so several elements can respond to the same key. As in a regular layer it is handled in two passes — priority handlers (auto-tab, wildcard, multi-key sequences) run before ordinary bindings, so a sequence takes the key without also firing a sibling's plain binding. The barrier still blocks propagation once the layer is done.
 
 ## Passing through and listening
 

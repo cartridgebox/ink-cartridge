@@ -302,7 +302,7 @@ describe("mapping execution", () => {
     } as CompositionKey<unknown>);
     expect(
       engine.addMapping(["h"], ["bad2"], {
-        KeyReleaseWhenChainInterrupted: true,
+        SwallowKeyWhenChainInterrupted: true,
       }),
     ).toBe(true);
     expect(engine.processKey("h", {})).toBe(true);
@@ -767,7 +767,7 @@ describe("composition value schemas", () => {
     engine.setValueSchema({ times: () => true, action: () => true });
     head(engine);
     chain(engine, "w");
-    chain(engine, "q", { KeyReleaseWhenChainInterrupted: true });
+    chain(engine, "q", { SwallowKeyWhenChainInterrupted: true });
     engine.processKey("3", {});
     engine.setValueSchema({ times: () => false, action: () => true });
     expect(engine.processKey("w", {})).toBe(false);
@@ -976,7 +976,7 @@ describe("composition branch coverage", () => {
     expect(engine.getCompositionContext().lastFlag).toBe("times");
   });
 
-  it("honours KeyReleaseWhenChainInterrupted on execute failures", () => {
+  it("honours SwallowKeyWhenChainInterrupted on execute failures", () => {
     const released = syncEngine();
     head(released);
     chain(released, "w", { execute: () => null });
@@ -987,18 +987,18 @@ describe("composition branch coverage", () => {
     head(swallowed);
     chain(swallowed, "w", {
       execute: () => null,
-      KeyReleaseWhenChainInterrupted: true,
+      SwallowKeyWhenChainInterrupted: true,
     });
     swallowed.processKey("3", {});
     expect(swallowed.processKey("w", {})).toBe(true);
   });
 
-  it("honours KeyReleaseWhenChainInterrupted on end and schema failures", () => {
+  it("honours SwallowKeyWhenChainInterrupted on end and schema failures", () => {
     const end = syncEngine();
     head(end);
     chain(end, "w", {
       isEndKey: ["times"],
-      KeyReleaseWhenChainInterrupted: true,
+      SwallowKeyWhenChainInterrupted: true,
     });
     end.processKey("3", {});
     expect(end.processKey("w", {})).toBe(true);
@@ -1006,7 +1006,7 @@ describe("composition branch coverage", () => {
     const schema = syncEngine();
     schema.setValueSchema({ times: () => true, action: () => false });
     head(schema);
-    chain(schema, "w", { KeyReleaseWhenChainInterrupted: true });
+    chain(schema, "w", { SwallowKeyWhenChainInterrupted: true });
     schema.processKey("3", {});
     expect(schema.processKey("w", {})).toBe(true);
   });

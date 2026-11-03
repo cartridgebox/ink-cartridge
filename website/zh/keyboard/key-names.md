@@ -16,11 +16,12 @@
 - `key` {unknown} Ink 的修饰键描述对象。
 - 返回：{string[]} 归一化后的键名，按匹配优先级排序。
 
-转换规则：先查特殊键表（`return`、`escape`、`backspace`、`delete`、`up`、`down`、`left`、`right`、`tab`、`pagedown`、`pageup`、`home`、`end`），命中即返回。描述对象带任何修饰键（`ctrl` / `shift` / `meta`）时裸名被排除，改为产出对应变体，并额外产出 `ctrl+shift+<name>`；否则用 `input` 原字符套修饰键变体。`input` 为空且无匹配时返回空数组。
+转换规则：先查特殊键表（`return`、`escape`、`backspace`、`delete`、`up`、`down`、`left`、`right`、`tab`、`pagedown`、`pageup`、`home`、`end`），命中即返回。可打印字符的字符部分会先转成小写，再拼修饰键前缀：Ink 上报的是 Shift 之后实际产生的字符，所以 Shift+S 到达时是 `"S"`，归一化为 `shift+s`。描述对象带任何修饰键（`ctrl` / `shift` / `meta`）时裸名被排除，改为产出对应变体，并额外产出 `ctrl+shift+<name>`；否则 `input` 原样使用。`input` 为空且无匹配时返回空数组。
 
 ```ts
 normalizeKeyNames("s", {})                            // ["s"]
 normalizeKeyNames("s", { ctrl: true })                // ["ctrl+s"]
+normalizeKeyNames("S", { shift: true })               // ["shift+s"] — Ink 上报 Shift+S 的形态
 normalizeKeyNames("", { return: true })               // ["return"]
 normalizeKeyNames("", { return: true, shift: true })  // ["shift+return"]
 normalizeKeyNames("", { tab: true, shift: true })     // ["shift+tab"]

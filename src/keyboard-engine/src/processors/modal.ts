@@ -1,5 +1,8 @@
 import { checkWhen } from "../checkWhen.js";
-import { handlerElement } from "../elementParser.js";
+import {
+  handlerElementBindings,
+  handlerElementPriority,
+} from "../elementParser.js";
 import { keyMatchesRule } from "../layerHandler.js";
 import { BaseBoundKeyEntry } from "../types/binding.js";
 import { defaultTargetsSymbol } from "../types/default-targets-symbol.js";
@@ -167,11 +170,13 @@ function invokeMissIfNeeded(
 /**
  * Create the modal barrier processor (highest pipeline priority).
  *
- * The highest-z-index modal layer receives the event. Inside the modal,
- * all active elements are offered the event (broadcast). The modal still
- * consumes every unhandled event by default — the modal takes over the
- * keyboard while open, so nothing beneath it ever sees unhandled keys;
- * only keys registered via `allowModal` pass through to lower stages.
+ * The highest-z-index modal layer receives the event. Inside the modal the
+ * event is handled like a regular layer: priority handlers (auto-tab,
+ * wildcard, sequences) are offered to every active element first, then
+ * ordinary bindings are broadcast. The modal still consumes every unhandled
+ * event by default — the modal takes over the keyboard while open, so nothing
+ * beneath it ever sees unhandled keys; only keys registered via `allowModal`
+ * pass through to lower stages.
  *
  * `useModalMissListener` callbacks are invoked for consumed keys that
  * nothing on the modal layer handled, so the modal can react to unknown
@@ -209,8 +214,12 @@ export function createModalProcessor<TComponent>(): ProcessorInput<TComponent> {
       );
 
       let handled = false;
+      let sequenceConsumed = false;
+      const priorityHandled = new Set<string>();
+      // Priority handlers across every element first; ordinary bindings only
+      // when no sequence consumed the key (see the layer processor).
       for (const { id, keyboard } of elements) {
-        const result = handlerElement(
+        const result = handlerElementPriority(
           ctx,
           id,
           keyboard,
@@ -220,9 +229,19 @@ export function createModalProcessor<TComponent>(): ProcessorInput<TComponent> {
         );
         if (result === "sequence") {
           handled = true;
+          sequenceConsumed = true;
           break;
         }
-        if (result) handled = true;
+        if (result) {
+          handled = true;
+          priorityHandled.add(id);
+        }
+      }
+      if (!sequenceConsumed) {
+        for (const { id, keyboard } of elements) {
+          if (priorityHandled.has(id)) continue;
+          if (handlerElementBindings(ctx, keyboard, available)) handled = true;
+        }
       }
 
       if (

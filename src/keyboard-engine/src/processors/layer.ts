@@ -1,7 +1,8 @@
 import type { PipelineContext, ProcessorInput } from "../types/processor.js";
 import {
   collectElementFocusTargets,
-  handlerElement,
+  handlerElementBindings,
+  handlerElementPriority,
 } from "../elementParser.js";
 import { ElementKeyboard } from "../types/page-layer.js";
 import { keyMatchesRule } from "../layerHandler.js";
@@ -25,9 +26,13 @@ function isLayerStopped<TC>(
  * Create a processor for the layer stage.
  *
  * Layers are processed from the highest z-index to the lowest. Within one
- * layer, every active element receives the event (broadcast); the first
- * element that handles it marks the layer as consumed, but processing still
- * continues to the remaining elements so multiple handlers can run.
+ * layer the event is handled in two passes: priority handlers (auto-tab,
+ * wildcard fallback, multi-key sequences) are offered to every active element
+ * first, then ordinary bindings are broadcast to every element. A sequence
+ * consumed in the first pass therefore preempts a sibling's plain binding
+ * regardless of element order. The first element that handles the event marks
+ * the layer as consumed, but the ordinary pass still reaches the remaining
+ * elements so multiple handlers can run.
  *
  * If no element in the layer handled the event, the event bubbles to the
  * next lower layer. When no layer is left, the processor returns `false`
@@ -79,8 +84,12 @@ export function createLayerProcessor<TComponent>(): ProcessorInput<TComponent> {
         }
 
         let handled = false;
+        const priorityHandled = new Set<string>();
+        // Priority handlers (auto-tab, wildcard, sequences) see the key before
+        // any element's ordinary bindings, so a sequence owned by one element
+        // cannot be preempted by a sibling's plain binding.
         for (const { id, keyboard } of activeElements) {
-          const result = handlerElement(
+          const result = handlerElementPriority(
             ctx,
             id,
             keyboard,
@@ -89,7 +98,16 @@ export function createLayerProcessor<TComponent>(): ProcessorInput<TComponent> {
             available,
           );
           if (result === "sequence") return true;
-          if (result) handled = true;
+          if (result) {
+            handled = true;
+            priorityHandled.add(id);
+          }
+        }
+        for (const { id, keyboard } of activeElements) {
+          // An element that already handled the key in the priority phase must
+          // not run its own bindings again for the same event.
+          if (priorityHandled.has(id)) continue;
+          if (handlerElementBindings(ctx, keyboard, available)) handled = true;
         }
         if (handled) return true;
         if (stopped) return true;

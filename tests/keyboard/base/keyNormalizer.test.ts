@@ -17,6 +17,12 @@ describe("normalizeKeyNames", () => {
     expect(normalizeKeyNames("s", { shift: true })).toEqual(["shift+s"]);
   });
 
+  test("maps the uppercase character Ink actually reports for Shift+letter", () => {
+    // Ink's useInput passes the produced character, so Shift+S arrives as "S"
+    // although bindings use the documented lowercase name.
+    expect(normalizeKeyNames("S", { shift: true })).toEqual(["shift+s"]);
+  });
+
   test("maps a meta-modified character input to meta+name", () => {
     expect(normalizeKeyNames("s", { meta: true })).toEqual(["meta+s"]);
   });

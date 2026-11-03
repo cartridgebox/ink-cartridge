@@ -25,7 +25,7 @@ Call it inside a screen component or a layer element. It returns a function that
 
 `stop` is the fallback: it only takes effect when no binding matched and the key was not penetrated. Two boundaries are worth knowing:
 
-- **Stopping does not affect the in-layer broadcast.** Every active element of the layer still receives the key first; `stop` only cuts the propagation to lower layers.
+- **Stopping does not affect the in-layer broadcast.** Active elements still get the key first (priority handlers, then ordinary bindings); `stop` only cuts the propagation to lower layers.
 - **`stop` takes priority over `penetration`.** When the same key is both penetrated and stopped on the same layer, the stop wins — the key does not propagate.
 
 ## Basic usage
