@@ -178,7 +178,7 @@ describe("mapping key timeouts — the entry's timeout is the one that counts", 
 		expect(engine.getLastMappingEvent()?.type).toBe("continued");
 
 		// "x" rules out the first candidate; its 50ms timeout now applies.
-		engine.processKey("x", {});
+		expect(engine.processKey("x", {})).toBe(true);
 		expect(engine.getLastMappingEvent()?.type).toBe("continued");
 
 		vi.advanceTimersByTime(200);
@@ -1039,5 +1039,36 @@ describe("composition category filtering follows the current screen", () => {
 		expect(runsOn(ScreenA, [])).toBe(0);
 		expect(runsOn(null, "*")).toBe(0);
 		expect(runsOn(null, undefined)).toBe(0);
+	});
+});
+
+describe("a mapping gate that closes after the candidate is locked", () => {
+	it("releases the key instead of starting a composition chain", () => {
+		const engine = syncEngine();
+		const composition = vi.fn(() => null);
+		head(engine);
+		engine.addCondition("gateA", true);
+
+		// The first mapping seeds the pending state and keeps its gate open;
+		// the final key locks onto the second candidate.
+		expect(engine.addMapping(["g", "x"], ["3"])).toBe(true);
+		expect(engine.addMapping(["g", "h"], ["3"], { when: "gateA" })).toBe(true);
+		engine.registryCompositionKey({
+			key: "h",
+			flags: [],
+			alternativeFlag: "go",
+			needs: [],
+			optional: true,
+			execute: composition,
+		});
+
+		expect(engine.processKey("g", {})).toBe(true);
+
+		// The locked candidate's gate is now closed. The key must be released,
+		// not re-read as the composition head registered on the same key.
+		engine.setCondition("gateA", false);
+		expect(engine.processKey("h", {})).toBe(false);
+		expect(engine.getLastMappingEvent()?.type).toBe("broken");
+		expect(composition).not.toHaveBeenCalled();
 	});
 });

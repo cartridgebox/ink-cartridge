@@ -15,6 +15,7 @@ None
 
 ### Breaking Changes
 - Bindings registered with the accidental upper-case spelling (`"shift+S"`, `"meta+S"`, …) no longer match. Rename them to the canonical lower-case form (`"shift+s"`, `"meta+s"`, …).
+- The composition and mapping option `KeyReleaseWhenChainInterrupted` is now `SwallowKeyWhenChainInterrupted`. `ink-cartridge` re-exports `CompositionKey` / `MappingKeyEntry`, so TypeScript consumers must rename the field; the value semantics are unchanged (`true` = swallow the breaking key).
 
 ### Tests
 - `tests/keyboard/base/keyNormalizer.test.ts` covers the real Ink event shape (upper-case `input` with `shift: true`).
