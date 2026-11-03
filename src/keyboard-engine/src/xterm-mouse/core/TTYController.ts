@@ -72,7 +72,6 @@ const ttyCleanupRegistry: FinalizationRegistry<{
  */
 export class TTYController {
   private enabled = false;
-  private paused = false;
   private previousEncoding: BufferEncoding | null = null;
   private previousRawMode: boolean | null = null;
   private currentRawMode: boolean | null = null;
@@ -91,6 +90,11 @@ export class TTYController {
     private outputStream: NodeJS.WriteStream,
     private handleEvent: (data: Buffer) => void,
     private setRawModeFn?: (mode: boolean) => void,
+    // Shared with the caller's data handler so the handler can skip paused
+    // events without closing over this controller. A handler that references
+    // the controller is retained by the input stream and would keep the
+    // controller alive forever, disabling the GC cleanup registry below.
+    private readonly pausedState: { current: boolean } = { current: false },
   ) {
     validateReadableStream(inputStream, 'inputStream');
 
@@ -255,11 +259,11 @@ export class TTYController {
    * - Remove event listeners from the input stream
    */
   public pause = (): void => {
-    if (this.paused) {
+    if (this.pausedState.current) {
       return;
     }
 
-    this.paused = true;
+    this.pausedState.current = true;
   };
 
   /**
@@ -270,11 +274,11 @@ export class TTYController {
    * **Idempotent:** Calling this method when not paused has no effect.
    */
   public resume = (): void => {
-    if (!this.paused) {
+    if (!this.pausedState.current) {
       return;
     }
 
-    this.paused = false;
+    this.pausedState.current = false;
   };
 
   /**
@@ -288,7 +292,7 @@ export class TTYController {
    * Checks if mouse event emission is currently paused.
    */
   public isPaused(): boolean {
-    return this.paused;
+    return this.pausedState.current;
   }
 
   /**
