@@ -97,18 +97,30 @@ class Mouse {
     const eventEmitter = options?.emitter ?? new EventEmitter();
 
     // Create event manager first (needed by TTYController for handleEvent)
-    this.eventManager = new MouseEventManager(eventEmitter, options);
+    const eventManager = new MouseEventManager(eventEmitter, options);
+    this.eventManager = eventManager;
 
+    // The data listener is retained by the input stream and the GC cleanup
+    // registry, so it must not close over this Mouse or its TTYController:
+    // either reference would keep the controller reachable forever and the
+    // registry callback would never run. `pausedState` is shared with the
+    // controller instead of reading `this.tty.isPaused()` from the listener.
+    const pausedState = { current: false };
     this.tty = new TTYController(
       inputStream,
       outputStream,
-      (data: Buffer) => this.eventManager.handleEvent(data, this.tty.isPaused()),
+      (data: Buffer) => eventManager.handleEvent(data, pausedState.current),
       options?.setRawMode,
+      pausedState,
     );
 
     this.streamFactory = new EventStreamFactory(this.eventManager.getEmitter());
-    this.convenience = new MouseConvenienceMethods(this.eventManager.getEmitter(), () =>
-      this.eventManager.getLastPosition(),
+    // Must not capture `this`: closures in this constructor share one context,
+    // so a `this` capture here would keep the Mouse reachable from the TTY
+    // data listener and the GC cleanup registry, defeating the safety net.
+    this.convenience = new MouseConvenienceMethods(
+      this.eventManager.getEmitter(),
+      () => eventManager.getLastPosition(),
     );
   }
 
