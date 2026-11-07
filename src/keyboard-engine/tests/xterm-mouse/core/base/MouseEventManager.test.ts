@@ -3,83 +3,42 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { MouseEventManager } from '../../../../src/xterm-mouse/core/MouseEventManager.js';
 
 vi.mock('../../../../src/xterm-mouse/parser/ansiParser.js', () => ({
-  parseMouseEvents: vi.fn((data: string) => {
+  parseMouseEventChunk: vi.fn((data: string) => {
+    const event = (action: string, x: number, y: number, button = 'left') => ({
+      x,
+      y,
+      button,
+      action,
+      shift: false,
+      alt: false,
+      ctrl: false,
+      raw: 0,
+      data: '',
+      protocol: 'SGR',
+    });
+
     // Simple mock parser that returns basic events
     if (data.includes('press')) {
-      return [
-        {
-          x: 10,
-          y: 10,
-          button: 'left',
-          action: 'press',
-          shift: false,
-          alt: false,
-          ctrl: false,
-          raw: 0,
-          data: '',
-          protocol: 'SGR',
-        },
-      ];
+      return { events: [event('press', 10, 10)], remainder: '' };
     }
     if (data.includes('release')) {
-      // Return a different position for release (by default)
-      // This can be overridden in tests
-      return [
-        {
-          x: 11,
-          y: 10,
-          button: 'left',
-          action: 'release',
-          shift: false,
-          alt: false,
-          ctrl: false,
-          raw: 0,
-          data: '',
-          protocol: 'SGR',
-        },
-      ];
+      return { events: [event('release', 11, 10)], remainder: '' };
     }
     if (data.includes('move')) {
-      return [
-        {
-          x: 15,
-          y: 15,
-          button: 'none',
-          action: 'move',
-          shift: false,
-          alt: false,
-          ctrl: false,
-          raw: 0,
-          data: '',
-          protocol: 'SGR',
-        },
-      ];
+      return { events: [event('move', 15, 15, 'none')], remainder: '' };
     }
     if (data.includes('drag')) {
-      return [
-        {
-          x: 20,
-          y: 20,
-          button: 'left',
-          action: 'drag',
-          shift: false,
-          alt: false,
-          ctrl: false,
-          raw: 0,
-          data: '',
-          protocol: 'SGR',
-        },
-      ];
+      return { events: [event('drag', 20, 20)], remainder: '' };
     }
-    return [];
-  }) as unknown as typeof import('../../../../src/xterm-mouse/parser/ansiParser.js').parseMouseEvents,
+    return { events: [], remainder: '' };
+  }) as unknown as typeof import('../../../../src/xterm-mouse/parser/ansiParser.js').parseMouseEventChunk,
 }));
 
 // Import the mocked module
-import { parseMouseEvents } from '../../../../src/xterm-mouse/parser/ansiParser.js';
+import { parseMouseEventChunk } from '../../../../src/xterm-mouse/parser/ansiParser.js';
 
 // Use Vitest's mocked utility for type-safe mock access
-const mockParseMouseEvents = vi.mocked(parseMouseEvents);
+const mockParseMouseEventChunk = vi.mocked(parseMouseEventChunk);
 
 describe('MouseEventManager', () => {
   let eventManager: MouseEventManager;
@@ -125,7 +84,7 @@ describe('MouseEventManager', () => {
       mockEmitter.on('error', errorHandler);
 
       // Act - trigger parse error (mock will return empty array)
-      mockParseMouseEvents.mockImplementationOnce(() => {
+      mockParseMouseEventChunk.mockImplementationOnce(() => {
         throw new Error('Parse error');
       });
       eventManager.handleEvent(Buffer.from('invalid'), false);
@@ -141,45 +100,20 @@ describe('MouseEventManager', () => {
       const clickHandler = vi.fn();
       mockEmitter.on('click', clickHandler);
 
-      // Override mock to return same position for both press and release
-      mockParseMouseEvents.mockImplementationOnce(((data: string) => {
-        if (data.includes('press')) {
-          return [
-            {
-              x: 10,
-              y: 10,
-              button: 'left',
-              action: 'press',
-              shift: false,
-              alt: false,
-              ctrl: false,
-              raw: 0,
-              data: '',
-              protocol: 'SGR',
-            },
-          ];
-        }
-        return [];
-      }) as unknown as (data: string) => ReturnType<typeof parseMouseEvents>);
-      mockParseMouseEvents.mockImplementationOnce(((data: string) => {
-        if (data.includes('release')) {
-          return [
-            {
-              x: 10,
-              y: 10,
-              button: 'left',
-              action: 'release',
-              shift: false,
-              alt: false,
-              ctrl: false,
-              raw: 0,
-              data: '',
-              protocol: 'SGR',
-            },
-          ];
-        }
-        return [];
-      }) as unknown as (data: string) => ReturnType<typeof parseMouseEvents>);
+      // Use the same position for both press and release.
+      mockParseMouseEventChunk
+        .mockImplementationOnce(() => ({
+          events: [
+            { x: 10, y: 10, button: 'left', action: 'press', shift: false, alt: false, ctrl: false, raw: 0, data: '', protocol: 'SGR' },
+          ],
+          remainder: '',
+        }))
+        .mockImplementationOnce(() => ({
+          events: [
+            { x: 10, y: 10, button: 'left', action: 'release', shift: false, alt: false, ctrl: false, raw: 0, data: '', protocol: 'SGR' },
+          ],
+          remainder: '',
+        }));
 
       // Act
       eventManager.handleEvent(Buffer.from('press'), false);
