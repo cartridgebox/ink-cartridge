@@ -1,7 +1,7 @@
 ---
 "@cartridge-engine/keyboard-engine": minor
 ---
-Rename the composition swallow option, fix chain restarts and screen scoping, give layer sequences priority over sibling bindings, and let the mouse GC cleanup registry collect the instance.
+Rename the composition swallow option, fix chain restarts and screen scoping, give layer sequences priority over sibling bindings, let the mouse GC cleanup registry collect the instance, and reassemble mouse reports split across reads.
 
 ### Added
 None
@@ -17,6 +17,7 @@ None
 - Composition entries that differ only by `category` are no longer treated as duplicates. `JSON.stringify` serialized function components as `[null]` and object components as `[{}]`, so the second screen's registration was silently dropped and its key did nothing. Components now receive a stable engine-local id for the fingerprint.
 - A plain binding in an earlier layer element no longer preempts a sequence owned by a sibling, and the sequence no longer fires alongside it. Priority handlers (auto-tab, wildcard fallback, multi-key sequences) now run across every active element before ordinary bindings, in both regular and modal layers. Previously the sequence's first and next keys also ran the sibling's plain binding, and the outcome depended on `applyElement` order.
 - A `Mouse` dropped without `destroy()` is now collected, so the `FinalizationRegistry` safety net can remove its stdin listener, restore raw mode, and turn mouse reporting off. The data listener and the registry's held value no longer close over the `Mouse` or its `TTYController` (the handler reads a shared paused-state object, and the convenience callback captures the event manager instead of `this`); previously the input stream retained the instance forever.
+- Mouse reports split across reads are no longer dropped. The parser returns a trailing fragment only while it is still a valid prefix (`\x1b`, `\x1b[`, an incomplete SGR/ESC report), and `MouseEventManager` prepends it to the next chunk; complete reports in the same chunk are still emitted immediately. Invalid or overlong fragments are discarded instead of swallowing later input, and pause, `disable()`, `destroy()` and `reset()` clear the buffer.
 
 ### Breaking Changes
 - `KeyReleaseWhenChainInterrupted` is no longer read. Rename every occurrence to `SwallowKeyWhenChainInterrupted`; the value semantics are unchanged (`true` = swallow the breaking key).
@@ -26,3 +27,5 @@ None
 - `composition-regression.test.ts` covers a same-key head/terminator (`execute` and `isEndKey`), the undo buffer recording the chain once, an `exclusive` head no longer swallowing later keys, unrelated keys still starting their own chain, an interrupted mapping target not starting a composition head, function- and object-component `category` entries surviving registration side by side, and the `category` filter itself (omitted / `"*"`, listed screens, `[]`, and no top screen).
 - `src/keyboard-engine/tests/processors/base/layer-sequence-priority.test.ts` covers both element orders, the sequence's first and completion keys, plain bindings when no sequence matches, broadcast among plain elements, the same priority inside a modal layer, and a priority handler suppressing the same element's plain binding.
 - `src/keyboard-engine/tests/xterm-mouse/core/base/mouse-gc-cleanup.test.ts` drops an enabled `Mouse` without `destroy()` and asserts it is collected under `--expose-gc`; reverting either closure capture turns it red. The CI test run now passes `--expose-gc` so the GC cleanup tests are no longer skipped.
+- `src/keyboard-engine/tests/xterm-mouse/parser/base/ansiParser.test.ts` splits SGR and ESC reports at every byte boundary, covers a lone trailing ESC, an incomplete CSI introducer, impossible prefixes, and multiple reports with a trailing prefix.
+- `src/keyboard-engine/tests/xterm-mouse/core/base/mouse-chunked-input.test.ts` drives `MouseEventManager` with two- and three-chunk reports, split-release clicks, pause/`clearPending`/`reset`, and asserts real parser output instead of a mock.
