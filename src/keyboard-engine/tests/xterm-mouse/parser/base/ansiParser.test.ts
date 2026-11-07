@@ -493,6 +493,13 @@ describe('parseMouseEventChunk', () => {
     expect(second.events).toHaveLength(1);
   });
 
+  test('drops a legacy prefix with a byte outside the parser range', () => {
+    // escPattern only accepts [\x20-\x7f] for the X10 payload; a high byte can
+    // never be parsed, so keeping it would only delay the loss.
+    expect(parseMouseEventChunk('\x1b[M\x20\x80').remainder).toBe('');
+    expect(parseMouseEventChunk('\x1b[M\x20\x80\x20').remainder).toBe('');
+  });
+
   test('drops prefixes that can never be completed', () => {
     expect(parseMouseEventChunk('\x1b[<0;10;20X').remainder).toBe('');
     expect(parseMouseEventChunk('\x1b[<0;;').remainder).toBe('');

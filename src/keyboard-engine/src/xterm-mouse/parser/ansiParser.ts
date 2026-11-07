@@ -335,7 +335,10 @@ function isIncompleteMousePrefix(tail: string): boolean {
 	if (tail === "\x1b" || tail === "\x1b[") return true;
 
 	if (tail.startsWith("\x1b[M")) {
-		// ESC[M + exactly three bytes in [\x20-\x7f].
+		// Mirror ANSI_RESPONSE_PATTERNS.escPattern: the parser only accepts
+		// [\x20-\x7f] for the X10 payload (input is UTF-8 decoded), so a
+		// fragment containing a higher byte can never be completed and is
+		// dropped instead of being buffered forever.
 		if (tail.length >= MAX_EVENT_LENGTHS.esc) return false;
 		return /^[\x20-\x7f]{0,2}$/.test(tail.slice(3));
 	}
