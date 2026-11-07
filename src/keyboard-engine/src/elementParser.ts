@@ -291,18 +291,19 @@ export function handlerElementPriority<TC>(
 						}
 						if (binding.options?.focusId) {
 							const focus = binding.options.focusId;
-							if (typeof focus === "string") {
-								return layer.currentFocusIds.some(
-									(eachF) =>
-										eachF.fromGroup === defaultTargetsSymbol &&
-										eachF.id === focus,
-								);
-							}
-							return layer.currentFocusIds.some(
-								(eachF) =>
-									eachF.fromGroup === focus.group &&
-									eachF.id === focus.focusId,
-							);
+							const focusOk =
+								typeof focus === "string"
+									? layer.currentFocusIds.some(
+											(eachF) =>
+												eachF.fromGroup === defaultTargetsSymbol &&
+												eachF.id === focus,
+										)
+									: layer.currentFocusIds.some(
+											(eachF) =>
+												eachF.fromGroup === focus.group &&
+												eachF.id === focus.focusId,
+										);
+							if (!focusOk) return false;
 						}
 						return checkWhen(binding.when, ctx.conditions);
 					},

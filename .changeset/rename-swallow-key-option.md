@@ -1,7 +1,7 @@
 ---
 "@cartridge-engine/keyboard-engine": minor
 ---
-Rename the composition swallow option, fix chain restarts and screen scoping, give layer sequences priority over sibling bindings, let the mouse GC cleanup registry collect the instance, and reassemble mouse reports split across reads.
+Rename the composition swallow option, fix chain restarts and screen scoping, give layer sequences priority over sibling bindings, let the mouse GC cleanup registry collect the instance, reassemble mouse reports split across reads, and apply `when` to sequences that also have `focusId` or `stopsWorkingAfterLayerAppearing`.
 
 ### Added
 None
@@ -18,6 +18,7 @@ None
 - A plain binding in an earlier layer element no longer preempts a sequence owned by a sibling, and the sequence no longer fires alongside it. Priority handlers (auto-tab, wildcard fallback, multi-key sequences) now run across every active element before ordinary bindings, in both regular and modal layers. Previously the sequence's first and next keys also ran the sibling's plain binding, and the outcome depended on `applyElement` order.
 - A `Mouse` dropped without `destroy()` is now collected, so the `FinalizationRegistry` safety net can remove its stdin listener, restore raw mode, and turn mouse reporting off. The data listener and the registry's held value no longer close over the `Mouse` or its `TTYController` (the handler reads a shared paused-state object, and the convenience callback captures the event manager instead of `this`); previously the input stream retained the instance forever.
 - Mouse reports split across reads are no longer dropped. The parser returns a trailing fragment only while it is still a valid prefix (`\x1b`, `\x1b[`, an incomplete SGR/ESC report), and `MouseEventManager` prepends it to the next chunk; complete reports in the same chunk are still emitted immediately. Invalid or overlong fragments are discarded instead of swallowing later input, and pause, `disable()`, `destroy()` and `reset()` clear the buffer.
+- A sequence gated off by `when` no longer starts when it also has `focusId` or `stopsWorkingAfterLayerAppearing`. Those options returned early and skipped the `when` check, so the sequence swallowed the first key and the plain binding never saw it. The gates are now ANDed, matching the documented `when` relationship.
 
 ### Breaking Changes
 - `KeyReleaseWhenChainInterrupted` is no longer read. Rename every occurrence to `SwallowKeyWhenChainInterrupted`; the value semantics are unchanged (`true` = swallow the breaking key).
@@ -30,3 +31,4 @@ None
 - `src/keyboard-engine/tests/xterm-mouse/parser/base/ansiParser.test.ts` splits SGR and ESC reports at every byte boundary, covers a lone trailing ESC, an incomplete CSI introducer, impossible prefixes, a legacy byte outside `escPattern`'s range, and multiple reports with a trailing prefix.
 - `src/keyboard-engine/tests/xterm-mouse/core/base/mouse-chunked-input.test.ts` drives `MouseEventManager` with two- and three-chunk reports, split-release clicks, pause/`clearPending`/`reset`, and asserts real parser output instead of a mock.
 - `src/keyboard-engine/tests/xterm-mouse/core/base/mouse-chunked-lifecycle.test.ts` drives a real `Mouse` through `pause()`/`resume()`, `disable()`/`enable()` and `destroy()`, asserting a half-received report is discarded.
+- `src/keyboard-engine/tests/engine/base/sequence-when-filter.test.ts` covers `focusId` and `stopsWorkingAfterLayerAppearing` with `when=false` on a page, the `when=true` control, and `focusId` inside a layer element.

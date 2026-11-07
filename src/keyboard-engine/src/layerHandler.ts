@@ -418,31 +418,31 @@ export function handleLayer<TC>(
 					if (binding.options?.mode && binding.options.mode !== ctx.currentMode)
 						return false;
 
-					if (binding.options?.stopsWorkingAfterLayerAppearing) {
-						return ctx.allLayers.length === 0 && ctx.allModalLayers.length === 0;
+					if (
+						binding.options?.stopsWorkingAfterLayerAppearing &&
+						(ctx.allLayers.length > 0 || ctx.allModalLayers.length > 0)
+					) {
+						return false;
 					}
 
 					if (binding.options?.focusId) {
 						const focus = binding.options.focusId;
-						if (typeof focus === "string") {
-							return layer.currentFocusIds.some((eachF) => {
-								if (eachF.fromGroup !== defaultTargetsSymbol) {
-									return false;
-								}
-
-								return eachF.id === focus;
-							});
-						} else {
-							return layer.currentFocusIds.some((eachF) => {
-								return (
-									eachF.fromGroup === focus.group && eachF.id === focus.focusId
-								);
-							});
-						}
+						const focusOk =
+							typeof focus === "string"
+								? layer.currentFocusIds.some(
+										(eachF) =>
+											eachF.fromGroup === defaultTargetsSymbol &&
+											eachF.id === focus,
+									)
+								: layer.currentFocusIds.some(
+										(eachF) =>
+											eachF.fromGroup === focus.group &&
+											eachF.id === focus.focusId,
+									);
+						if (!focusOk) return false;
 					}
 
-					if (!checkWhen(binding.when, ctx.conditions)) return false;
-					return true;
+					return checkWhen(binding.when, ctx.conditions);
 				});
 				if (matching.length === 0) continue;
 				// Pick the first match as the initial sequence state.
