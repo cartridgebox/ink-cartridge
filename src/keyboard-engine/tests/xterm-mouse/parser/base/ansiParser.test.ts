@@ -494,10 +494,12 @@ describe('parseMouseEventChunk', () => {
   });
 
   test('drops a legacy prefix with a byte outside the parser range', () => {
-    // escPattern only accepts [\x20-\x7f] for the X10 payload; a high byte can
-    // never be parsed, so keeping it would only delay the loss.
+    // Confirmed: ANSI_RESPONSE_PATTERNS.escPattern accepts only [\x20-\x7f]
+    // for the X10 payload, so a high byte can never be parsed; keeping it
+    // would only delay the loss. The complete report is rejected too.
     expect(parseMouseEventChunk('\x1b[M\x20\x80').remainder).toBe('');
     expect(parseMouseEventChunk('\x1b[M\x20\x80\x20').remainder).toBe('');
+    expect(parseMouseEventChunk('\x1b[M\x20\x80\x20').events).toHaveLength(0);
   });
 
   test('drops prefixes that can never be completed', () => {

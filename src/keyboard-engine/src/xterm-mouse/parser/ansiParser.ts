@@ -335,10 +335,11 @@ function isIncompleteMousePrefix(tail: string): boolean {
 	if (tail === "\x1b" || tail === "\x1b[") return true;
 
 	if (tail.startsWith("\x1b[M")) {
-		// Mirror ANSI_RESPONSE_PATTERNS.escPattern: the parser only accepts
-		// [\x20-\x7f] for the X10 payload (input is UTF-8 decoded), so a
-		// fragment containing a higher byte can never be completed and is
-		// dropped instead of being buffered forever.
+		// Confirmed against ANSI_RESPONSE_PATTERNS.escPattern (constants.ts):
+		// it accepts only [\x20-\x7f] for the X10 payload, and TTYController's
+		// UTF-8 input decoding does not preserve raw bytes >= 0x80 anyway.
+		// Widening only this prefix check would not help — the parser would
+		// still reject the assembled report.
 		if (tail.length >= MAX_EVENT_LENGTHS.esc) return false;
 		return /^[\x20-\x7f]{0,2}$/.test(tail.slice(3));
 	}

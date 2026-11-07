@@ -30,14 +30,16 @@ function makeFakeTTYStream(): ReadableStreamWithEncoding {
 
   const originalOn = fake.on.bind(fake);
   const originalOff = fake.off.bind(fake);
-  fake.on = (event: string, listener: (...args: any[]) => void) => {
+  // EventEmitter's on/off are overloaded; the fake implements the generic
+  // signature only, so assert the wrapper to the stream's declared type.
+  fake.on = ((event: string, listener: (...args: unknown[]) => void) => {
     originalOn(event, listener);
     return fake;
-  };
-  fake.off = (event: string, listener: (...args: unknown[]) => void) => {
+  }) as typeof fake.on;
+  fake.off = ((event: string, listener: (...args: unknown[]) => void) => {
     originalOff(event, listener);
     return fake;
-  };
+  }) as typeof fake.off;
   return fake;
 }
 
