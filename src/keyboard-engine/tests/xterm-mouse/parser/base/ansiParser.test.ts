@@ -1,6 +1,9 @@
 import { describe, expect, test } from 'vitest';
 
-import { parseMouseEvents } from '../../../../src/xterm-mouse/parser/ansiParser.js';
+import {
+  parseMouseEventChunk,
+  parseMouseEvents,
+} from '../../../../src/xterm-mouse/parser/ansiParser.js';
 
 // Test data
 const SGR_PRESS_LEFT = '\x1b[<0;10;20M';
@@ -429,5 +432,115 @@ describe('ReDoS protection', () => {
     // Only first unique event should be returned due to deduplication
     expect(parsed.length).toBe(1);
     expect(elapsed).toBeLessThan(100);
+  });
+});
+
+describe('parseMouseEventChunk', () => {
+  test('returns complete events plus a trailing incomplete prefix', () => {
+    const { events, remainder } = parseMouseEventChunk(
+      `${SGR_PRESS_LEFT}\x1b[<0;30;`,
+    );
+
+    expect(events).toHaveLength(1);
+    expect(events[0]?.action).toBe('press');
+    expect(remainder).toBe('\x1b[<0;30;');
+  });
+
+  test('parses an SGR sequence split at every byte boundary', () => {
+    for (let split = 0; split <= SGR_PRESS_LEFT.length; split++) {
+      const first = parseMouseEventChunk(SGR_PRESS_LEFT.slice(0, split));
+      const second = parseMouseEventChunk(
+        first.remainder + SGR_PRESS_LEFT.slice(split),
+      );
+      const events = [...first.events, ...second.events];
+
+      expect(events, `split at ${split}`).toHaveLength(1);
+      expect(events[0]?.protocol, `split at ${split}`).toBe('SGR');
+      expect(events[0]?.x, `split at ${split}`).toBe(10);
+      expect(events[0]?.y, `split at ${split}`).toBe(20);
+    }
+  });
+
+  test('parses an ESC sequence split at every byte boundary', () => {
+    for (let split = 0; split <= ESC_PRESS_LEFT.length; split++) {
+      const first = parseMouseEventChunk(ESC_PRESS_LEFT.slice(0, split));
+      const second = parseMouseEventChunk(
+        first.remainder + ESC_PRESS_LEFT.slice(split),
+      );
+      const events = [...first.events, ...second.events];
+
+      expect(events, `split at ${split}`).toHaveLength(1);
+      expect(events[0]?.protocol, `split at ${split}`).toBe('ESC');
+    }
+  });
+
+  test('keeps a lone trailing ESC for the next chunk', () => {
+    const first = parseMouseEventChunk('typed text\x1b');
+    expect(first.events).toHaveLength(0);
+    expect(first.remainder).toBe('\x1b');
+
+    const second = parseMouseEventChunk(first.remainder + '[M #4');
+    expect(second.events).toHaveLength(1);
+    expect(second.events[0]?.action).toBe('press');
+  });
+
+  test('keeps an incomplete CSI introducer for the next chunk', () => {
+    const first = parseMouseEventChunk('typed text\x1b[');
+    expect(first.events).toHaveLength(0);
+    expect(first.remainder).toBe('\x1b[');
+
+    const second = parseMouseEventChunk(first.remainder + '<0;10;20M');
+    expect(second.events).toHaveLength(1);
+  });
+
+  test('drops a legacy prefix with a byte outside the parser range', () => {
+    // Confirmed: ANSI_RESPONSE_PATTERNS.escPattern accepts only [\x20-\x7f]
+    // for the X10 payload, so a high byte can never be parsed; keeping it
+    // would only delay the loss. The complete report is rejected too.
+    expect(parseMouseEventChunk('\x1b[M\x20\x80').remainder).toBe('');
+    expect(parseMouseEventChunk('\x1b[M\x20\x80\x20').remainder).toBe('');
+    expect(parseMouseEventChunk('\x1b[M\x20\x80\x20').events).toHaveLength(0);
+  });
+
+  test('drops prefixes that can never be completed', () => {
+    expect(parseMouseEventChunk('\x1b[<0;10;20X').remainder).toBe('');
+    expect(parseMouseEventChunk('\x1b[<0;;').remainder).toBe('');
+    expect(parseMouseEventChunk('\x1b[<255;9999;99999').remainder).toBe('');
+    // ESC[M with three bytes, one of them outside [\x20-\x7f].
+    expect(parseMouseEventChunk('\x1b[M\x1b\x20\x20').remainder).toBe('');
+  });
+
+  test('does not swallow a later complete event after an invalid prefix', () => {
+    const { events, remainder } = parseMouseEventChunk(
+      `\x1b[<0;10;20X${SGR_PRESS_LEFT}`,
+    );
+
+    expect(events).toHaveLength(1);
+    expect(events[0]?.action).toBe('press');
+    expect(remainder).toBe('');
+  });
+
+  test('parses multiple complete events and keeps the trailing prefix', () => {
+    const { events, remainder } = parseMouseEventChunk(
+      `${SGR_PRESS_LEFT}${SGR_RELEASE_LEFT}\x1b[<0;30;`,
+    );
+
+    expect(events.map((event) => event.action)).toEqual(['press', 'release']);
+    expect(remainder).toBe('\x1b[<0;30;');
+  });
+
+  test('ignores non-mouse CSI sequences', () => {
+    const { events, remainder } = parseMouseEventChunk(
+      `\x1b[A\x1b[?25l${SGR_PRESS_LEFT}`,
+    );
+
+    expect(events).toHaveLength(1);
+    expect(events[0]?.action).toBe('press');
+    expect(remainder).toBe('');
+  });
+
+  test('keeps the existing per-chunk dedup of identical reports', () => {
+    const { events } = parseMouseEventChunk(SGR_PRESS_LEFT + SGR_PRESS_LEFT);
+    expect(events).toHaveLength(1);
   });
 });
