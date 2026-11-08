@@ -371,3 +371,129 @@ describe("continuation re-checks the starting environment", () => {
 		expect(isWaiting(engine)).toBe(false);
 	});
 });
+
+describe("no-op focus calls keep a pending sequence", () => {
+	test("focusSet / focusNext / focusPrev with unknown targets keep it", () => {
+		const { engine, runs } = pageSetup();
+		engine.processKey("a", {});
+
+		expect(engine.focusSet("missing")).toBe(false);
+		expect(engine.focusSet("missing", "unknown-group")).toBe(false);
+		expect(engine.focusNext("unknown-group")).toBe(false);
+		expect(engine.focusPrev("unknown-group")).toBe(false);
+		expect(isWaiting(engine)).toBe(true);
+
+		engine.processKey("b", {});
+		expect(runs()).toBe(1);
+		engine.abortComposition();
+	});
+
+	test("activateFocusGroup on a group that already has focus keeps it", () => {
+		const { engine, runs } = pageSetup();
+		engine.boundKeyboard(["n1"], () => {}, {
+			focusId: { group: "nav", focusId: "N1" },
+		});
+		engine.boundKeyboard(["n2"], () => {}, {
+			focusId: { group: "nav", focusId: "N2" },
+		});
+		engine.processKey("a", {});
+
+		expect(engine.activateFocusGroup("N2", "nav")).toBe(false);
+		expect(isWaiting(engine)).toBe(true);
+
+		engine.processKey("b", {});
+		expect(runs()).toBe(1);
+		engine.abortComposition();
+	});
+
+	test("kickFocusGroup on a group with no active focus keeps it", () => {
+		const { engine, runs } = pageSetup();
+		engine.boundKeyboard(["n1"], () => {}, {
+			focusId: { group: "nav", focusId: "N1" },
+		});
+		engine.kickFocusGroup("nav");
+		engine.processKey("a", {});
+
+		expect(engine.kickFocusGroup("nav")).toBe(false);
+		expect(isWaiting(engine)).toBe(true);
+
+		engine.processKey("b", {});
+		expect(runs()).toBe(1);
+		engine.abortComposition();
+	});
+
+	test("focusNext / focusPrev on a group with no active focus keep it", () => {
+		const { engine, runs } = pageSetup();
+		engine.boundKeyboard(["n1"], () => {}, {
+			focusId: { group: "nav", focusId: "N1" },
+		});
+		engine.boundKeyboard(["n2"], () => {}, {
+			focusId: { group: "nav", focusId: "N2" },
+		});
+		engine.kickFocusGroup("nav");
+		engine.processKey("a", {});
+
+		expect(engine.focusNext("nav")).toBe(false);
+		expect(engine.focusPrev("nav")).toBe(false);
+		expect(isWaiting(engine)).toBe(true);
+
+		engine.processKey("b", {});
+		expect(runs()).toBe(1);
+		engine.abortComposition();
+	});
+});
+
+describe("auto-activation cancels a pending sequence", () => {
+	test("a new default-group target claims focus and clears it", () => {
+		const engine = createEngine();
+		engine.sync({ pagePath: [Page], layers: [], modalLayers: [] });
+		let runs = 0;
+		engine.boundSequence(["a", "b"], () => runs++);
+		engine.processKey("a", {});
+		expect(isWaiting(engine)).toBe(true);
+
+		engine.boundKeyboard(["z"], () => {}, { focusId: "A" });
+		expect(isWaiting(engine)).toBe(false);
+
+		engine.processKey("b", {});
+		expect(runs).toBe(0);
+	});
+
+	test("a new named-group target claims focus and clears it", () => {
+		const engine = createEngine();
+		engine.sync({ pagePath: [Page], layers: [], modalLayers: [] });
+		let runs = 0;
+		engine.boundSequence(["a", "b"], () => runs++);
+		engine.processKey("a", {});
+		expect(isWaiting(engine)).toBe(true);
+
+		engine.boundKeyboard(["z"], () => {}, {
+			focusId: { group: "nav", focusId: "N1" },
+		});
+		expect(isWaiting(engine)).toBe(false);
+
+		engine.processKey("b", {});
+		expect(runs).toBe(0);
+	});
+
+	test("a new target in an existing group claims focus and clears it", () => {
+		const engine = createEngine();
+		engine.sync({ pagePath: [Page], layers: [], modalLayers: [] });
+		let runs = 0;
+		engine.boundKeyboard(["n1"], () => {}, {
+			focusId: { group: "nav", focusId: "N1" },
+		});
+		engine.kickFocusGroup("nav");
+		engine.boundSequence(["a", "b"], () => runs++);
+		engine.processKey("a", {});
+		expect(isWaiting(engine)).toBe(true);
+
+		engine.boundKeyboard(["n2"], () => {}, {
+			focusId: { group: "nav", focusId: "N2" },
+		});
+		expect(isWaiting(engine)).toBe(false);
+
+		engine.processKey("b", {});
+		expect(runs).toBe(0);
+	});
+});
