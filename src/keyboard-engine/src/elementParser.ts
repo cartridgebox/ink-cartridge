@@ -1,6 +1,7 @@
 import { checkWhen } from "./checkWhen.js";
 import { isNormalCharacter } from "./isNormalCharacter.js";
 import {
+	focusMatches,
 	isAutoTabEvent,
 	keyMatchesRule,
 	tryMatchBindings,
@@ -101,6 +102,8 @@ export function collectElementFocusTargets(
 }
 
 function clearPending(ownerLayer: LayerKeyboardLayer): void {
+	const pending = ownerLayer.pendingSequence.pendingSequence;
+	if (pending) clearTimeout(pending.timer);
 	ownerLayer.pendingSequence = { fromElementId: null, pendingSequence: null };
 }
 
@@ -135,6 +138,11 @@ export function handlerElementPriority<TC>(
 ): ElementHandleResult {
 	const shift = ctx.eventNames.some((n) => n.startsWith("shift+"));
 	if (ctx.autoTab && isTop && handleTabNavigation(layer, ctx, shift)) {
+		// Only this element's pending sequence belongs to the focus that moved;
+		// a sibling element's pending state must survive.
+		if (ownerLayer.pendingSequence.fromElementId === elementId) {
+			clearPending(ownerLayer);
+		}
 		return true;
 	}
 
@@ -180,8 +188,13 @@ export function handlerElementPriority<TC>(
 	if (isTop && available.length > 0) {
 		const pending = ownerLayer.pendingSequence.pendingSequence;
 		if (pending !== null && ownerLayer.pendingSequence.fromElementId === elementId) {
-			if (!checkWhen(pending.when, ctx.conditions)) {
-				clearTimeout(pending.timer);
+			// A pending sequence is bound to the environment it started in: if
+			// its `when` gate closes or its focus target is no longer active,
+			// cancel it and let the key fall through to normal bindings.
+			if (
+				!checkWhen(pending.when, ctx.conditions) ||
+				!focusMatches(layer, pending.options)
+			) {
 				clearPending(ownerLayer);
 			} else {
 				const expectedKey = pending.sequences[pending.nextIndex];
@@ -289,22 +302,8 @@ export function handlerElementPriority<TC>(
 						) {
 							return false;
 						}
-						if (binding.options?.focusId) {
-							const focus = binding.options.focusId;
-							const focusOk =
-								typeof focus === "string"
-									? layer.currentFocusIds.some(
-											(eachF) =>
-												eachF.fromGroup === defaultTargetsSymbol &&
-												eachF.id === focus,
-										)
-									: layer.currentFocusIds.some(
-											(eachF) =>
-												eachF.fromGroup === focus.group &&
-												eachF.id === focus.focusId,
-										);
-							if (!focusOk) return false;
-						}
+						if (!focusMatches(layer, binding.options)) return false;
+
 						return checkWhen(binding.when, ctx.conditions);
 					},
 				);

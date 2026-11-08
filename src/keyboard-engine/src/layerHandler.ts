@@ -2,13 +2,45 @@ import { isNormalCharacter } from "./isNormalCharacter.js";
 import { checkWhen } from "./checkWhen.js";
 import { KeyRule } from "./types/key-rule.js";
 import { BaseBoundKeyEntry, PageBoundKeyEntry } from "./types/binding.js";
-import { PageKeyboardLayer } from "./types/page-layer.js";
+import {
+	ElementKeyboard,
+	PageKeyboardLayer,
+} from "./types/page-layer.js";
 import { defaultTargetsSymbol } from "./types/default-targets-symbol.js";
 import { PageFocusTarget } from "./types/focus.js";
+import { FocusRef } from "./types/options.js";
 import { PendingSequence } from "./types/pending-sequence.js";
 import { PipelineContext } from "./types/processor.js";
 
 const DEFAULT_SEQUENCE_TIMEOUT = 500;
+
+function clearPagePending(layer: PageKeyboardLayer): void {
+	if (!layer.pendingSequence) return;
+	clearTimeout(layer.pendingSequence.timer);
+	layer.pendingSequence = null;
+}
+
+/**
+ * Whether the options' focus gate is satisfied by the layer's current focus.
+ * Does not evaluate `when` or `stopsWorkingAfterLayerAppearing`.
+ */
+export function focusMatches(
+	layer: PageKeyboardLayer | ElementKeyboard,
+	options?: { focusId?: string | FocusRef },
+): boolean {
+	const focus = options?.focusId;
+	if (!focus) return true;
+
+	return typeof focus === "string"
+		? layer.currentFocusIds.some(
+				(each) =>
+					each.fromGroup === defaultTargetsSymbol && each.id === focus,
+			)
+		: layer.currentFocusIds.some(
+				(each) =>
+					each.fromGroup === focus.group && each.id === focus.focusId,
+			);
+}
 
 /**
  * Check whether a normalized key name is covered by a list of key rules.
@@ -234,8 +266,11 @@ export function handleLayer<TC>(
 			ctx.notifyFocusChange,
 			ctx.autoTabKey,
 		)
-	)
+	) {
+		// Focus moved, so a sequence bound to the previous focus is no longer valid.
+		clearPagePending(layer);
 		return true;
+	}
 
 	const penetrated = layer.penetrationKeys;
 	const available = ctx.eventNames.filter(
@@ -306,11 +341,19 @@ export function handleLayer<TC>(
 
 		// We already have a pending sequence in progress.
 		if (pending !== null) {
-			// If the when condition changed to false mid-sequence, cancel
-			// the pending sequence and let the key fall through to normal processing.
-			if (!checkWhen(pending.when, ctx.conditions)) {
-				clearTimeout(pending.timer);
-				layer.pendingSequence = null;
+			// A pending sequence is bound to the environment it started in: its
+			// `when` gate, its focus target, and the absence of layers (for
+			// `stopsWorkingAfterLayerAppearing`). If any of them no longer holds,
+			// cancel the sequence and let the key fall through to normal processing.
+			const stopsBlocked =
+				pending.stopsWorkingAfterLayerAppearing === true &&
+				(ctx.allLayers.length > 0 || ctx.allModalLayers.length > 0);
+			if (
+				!checkWhen(pending.when, ctx.conditions) ||
+				!focusMatches(layer, pending.options) ||
+				stopsBlocked
+			) {
+				clearPagePending(layer);
 				// Fall through to normal bindings — do NOT return true.
 			} else {
 				const expectedKey = pending.sequences[pending.nextIndex];
@@ -425,22 +468,7 @@ export function handleLayer<TC>(
 						return false;
 					}
 
-					if (binding.options?.focusId) {
-						const focus = binding.options.focusId;
-						const focusOk =
-							typeof focus === "string"
-								? layer.currentFocusIds.some(
-										(eachF) =>
-											eachF.fromGroup === defaultTargetsSymbol &&
-											eachF.id === focus,
-									)
-								: layer.currentFocusIds.some(
-										(eachF) =>
-											eachF.fromGroup === focus.group &&
-											eachF.id === focus.focusId,
-									);
-						if (!focusOk) return false;
-					}
+					if (!focusMatches(layer, binding.options)) return false;
 
 					return checkWhen(binding.when, ctx.conditions);
 				});
@@ -455,6 +483,8 @@ export function handleLayer<TC>(
 					timer: undefined as unknown as NodeJS.Timeout,
 					timeout,
 					options: selected.options,
+					stopsWorkingAfterLayerAppearing:
+						selected.options?.stopsWorkingAfterLayerAppearing,
 					when: selected.when,
 					// Store all matching candidates so subsequent keys can
 					// disambiguate between sequences sharing the same first key.

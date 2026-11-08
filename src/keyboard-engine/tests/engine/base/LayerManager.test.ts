@@ -266,7 +266,13 @@ describe("LayerManager cleanup branches", () => {
       elementId: "a1",
       focusId: "aFocus",
     });
-    engine["layers"].focusSet("aFocus", { element: "a1" });
+    engine.boundKeyboard(["c"], () => {}, {
+      elementId: "a1",
+      focusId: "bFocus",
+    });
+    // The first target was auto-activated; moving to the second is the real
+    // focus change that must cancel the pending sequence.
+    engine["layers"].focusSet("bFocus", { element: "a1" });
     engine.popOwner("L");
     expect(pendingOwner(engine, "L")).toBeNull();
   });
@@ -276,9 +282,11 @@ describe("LayerManager cleanup branches", () => {
     engine.sync({ pagePath: [Root], layers: [], modalLayers: [] });
     engine.boundSequence(["a", "b"], () => {});
     engine.boundKeyboard(["x"], () => {}, { focusId: "one" });
+    engine.boundKeyboard(["y"], () => {}, { focusId: "two" });
+    engine.focusSet("one");
     engine.processKey("a", {});
     expect(engine["layers"].readLayer(Root)?.pendingSequence).not.toBeNull();
-    engine.focusSet("one");
+    engine.focusSet("two");
     expect(engine["layers"].readLayer(Root)?.pendingSequence).toBeNull();
   });
 });

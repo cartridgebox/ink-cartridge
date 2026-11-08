@@ -27,6 +27,11 @@ export interface PendingSequence {
   /** Options from the original `SequenceBinding`. */
   options?: SequenceOptions;
   /**
+   * Page-only dormancy copied from the binding at start. A sequence started
+   * while no layer was open must not continue after a layer appears.
+   */
+  stopsWorkingAfterLayerAppearing?: boolean;
+  /**
    * Optional condition callback (copied from SequenceBinding at start).
    * Checked at each key press; if it returns `false`, the sequence is cancelled.
    */
