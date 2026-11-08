@@ -334,6 +334,7 @@ export default class LayerManager<TComponent = unknown> {
 				layer.focusTargets.set(group, g);
 
 				if (!this.hasActiveFocusFor(layer, group)) {
+					this.clearPendingSequence(layer);
 					layer.currentFocusIds.push({ fromGroup: group, id: focusId });
 					this.notifyFocusChange();
 				}
@@ -356,6 +357,7 @@ export default class LayerManager<TComponent = unknown> {
 				g.order.push(focusId);
 
 				if (!this.hasActiveFocusFor(layer, group)) {
+					this.clearPendingSequence(layer);
 					layer.currentFocusIds.push({ fromGroup: group, id: focusId });
 					this.notifyFocusChange();
 				}
@@ -376,6 +378,7 @@ export default class LayerManager<TComponent = unknown> {
 			layer.defaultTargets.set(focusId, target);
 			layer.defaultFocusOrder.push(focusId);
 			if (!this.hasActiveFocusFor(layer, defaultTargetsSymbol)) {
+				this.clearPendingSequence(layer);
 				layer.currentFocusIds.push({
 					fromGroup: defaultTargetsSymbol,
 					id: focusId,
